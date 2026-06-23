@@ -6,7 +6,7 @@
   <title>iSensix Calibration Dashboard</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css"/>
   <style>
-    body { margin: 0; padding: 16px 20px; font-family: system-ui, sans-serif; background: #f9f9f7; color: #1a1a1a; }
+    body { margin: 0; padding: 16px 20px; font-family: system-ui, sans-serif; background: #242422; color: #d1cccc; }
     * { box-sizing: border-box; }
     input, select, button { font-family: inherit; }
   </style>
@@ -45,7 +45,7 @@
 #status-msg{font-size:12px;color:var(--color-text-secondary);}
 </style>
 
-<h2 class="sr-only">iSensix calibration dashboard</h2>
+<h2 class="sr-only">Isensix calibration dashboard</h2>
 
 <div style="padding:1rem 0;display:flex;flex-direction:column;gap:14px;">
 
@@ -96,7 +96,7 @@
 
   <div id="empty-state" style="display:none;text-align:center;padding:3rem 1rem;color:var(--color-text-secondary);font-size:14px;">
     <i class="ti ti-database-off" style="font-size:32px;display:block;margin-bottom:8px;" aria-hidden="true"></i>
-    Add server IDs above and click Refresh.
+    Add server IDs above.
   </div>
 
 </div>
@@ -110,7 +110,7 @@ let allSensors = [];
 let currentTab = 'left';
 let sortCol = null, sortDir = 1;
 
-let thresholds = JSON.parse(localStorage.getItem('cal_thresholds')||'{"RE":1.5,"HU":3.0,"RM":0.5,"SC":1.0,"TC":1.0,"DP":0.25,"HU":3.0}');
+let thresholds = JSON.parse(localStorage.getItem('cal_thresholds')||'{"RE":1.5,"HU":5.0,"RM":1.5,"SC":3.0,"TC":2.0,"DP":0.05,"CO2":2.0}');
 function saveThresholds(){localStorage.setItem('cal_thresholds',JSON.stringify(thresholds));}
 
 function toggleSettings(){
