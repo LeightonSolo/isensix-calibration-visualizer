@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>iSensix Calibration Dashboard</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css"/>
+  <style>
+    body { margin: 0; padding: 16px 20px; font-family: system-ui, sans-serif; background: #f9f9f7; color: #1a1a1a; }
+    * { box-sizing: border-box; }
+    input, select, button { font-family: inherit; }
+  </style>
+</head>
+<body>
+    
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);}
+.panel{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);overflow:hidden;}
+.panel-hdr{padding:9px 14px;border-bottom:0.5px solid var(--color-border-tertiary);display:flex;align-items:center;justify-content:space-between;}
+.panel-title{font-size:12px;font-weight:500;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.04em;}
+.panel-count{font-size:12px;color:var(--color-text-primary);}
+.metric-card{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:11px 14px;}
+.metric-label{font-size:11px;color:var(--color-text-secondary);margin-bottom:3px;}
+.metric-value{font-size:20px;font-weight:500;color:var(--color-text-primary);}
+.metric-sub{font-size:11px;color:var(--color-text-secondary);margin-top:2px;}
+.tab-btn{background:none;border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:5px 11px;font-size:12px;cursor:pointer;color:var(--color-text-secondary);}
+.tab-btn.active{background:var(--color-background-secondary);color:var(--color-text-primary);border-color:var(--color-border-secondary);}
+.server-tag{display:inline-flex;align-items:center;gap:5px;background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:3px 9px;font-size:12px;}
+.server-tag button{background:none;border:none;cursor:pointer;color:var(--color-text-secondary);font-size:14px;line-height:1;padding:0;}
+.badge{display:inline-block;padding:2px 6px;border-radius:4px;font-size:11px;font-weight:500;}
+.th-row{display:flex;background:var(--color-background-secondary);border-bottom:0.5px solid var(--color-border-tertiary);}
+.th-row>div{padding:5px 9px;font-size:11px;font-weight:500;color:var(--color-text-secondary);cursor:pointer;user-select:none;white-space:nowrap;}
+.th-row>div:hover{color:var(--color-text-primary);}
+.data-row{display:flex;border-bottom:0.5px solid var(--color-border-tertiary);font-size:12px;}
+.data-row:last-child{border-bottom:none;}
+.data-row>div{padding:6px 9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--color-text-primary);}
+.data-row.failure-row{background:rgba(226,75,74,0.06);}
+.muted{color:var(--color-text-secondary)!important;}
+.sort-asc::after{content:" ↑";}
+.sort-desc::after{content:" ↓";}
+.settings-panel{background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:14px;display:none;}
+.threshold-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;font-size:13px;}
+.threshold-row input{width:70px;}
+#status-msg{font-size:12px;color:var(--color-text-secondary);}
+</style>
+
+<h2 class="sr-only">iSensix calibration dashboard</h2>
+
+<div style="padding:1rem 0;display:flex;flex-direction:column;gap:14px;">
+
+  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+    <input id="server-input" type="text" placeholder="Server ID (e.g. 243)" style="width:170px;"/>
+    <button onclick="addServer()" style="font-size:13px;padding:5px 13px;">Add server</button>
+    <button onclick="loadData()" style="font-size:13px;padding:5px 13px;"><i class="ti ti-refresh" aria-hidden="true"></i> Refresh</button>
+    <button onclick="toggleSettings()" style="font-size:13px;padding:5px 13px;"><i class="ti ti-settings" aria-hidden="true"></i> Thresholds</button>
+    <span id="status-msg"></span>
+  </div>
+
+  <div id="server-tags" style="display:flex;gap:7px;flex-wrap:wrap;min-height:28px;"></div>
+
+  <div id="settings-panel" class="settings-panel">
+    <div style="font-size:12px;font-weight:500;color:var(--color-text-secondary);margin-bottom:10px;text-transform:uppercase;letter-spacing:.04em;">Failure thresholds — max absolute offset per sensor type</div>
+    <div id="threshold-inputs"></div>
+    <div style="display:flex;gap:8px;margin-top:10px;">
+      <input id="new-type-name" type="text" placeholder="Type (e.g. SC)" style="width:90px;"/>
+      <input id="new-type-val" type="number" placeholder="Max offset" step="0.1" style="width:100px;"/>
+      <button onclick="addThreshold()" style="font-size:12px;padding:4px 10px;">Add type</button>
+    </div>
+  </div>
+
+  <div id="metrics" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:9px;"></div>
+
+  <div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center;">
+    <button class="tab-btn active" id="tab-left" onclick="switchTab('left')">Sensors left</button>
+    <button class="tab-btn" id="tab-calibrated" onclick="switchTab('calibrated')">Calibrated</button>
+    <button class="tab-btn" id="tab-failures" onclick="switchTab('failures')">Failures</button>
+    <button class="tab-btn" id="tab-types" onclick="switchTab('types')">By type</button>
+    <button class="tab-btn" id="tab-zones" onclick="switchTab('zones')">By zone</button>
+    <button class="tab-btn" id="tab-all" onclick="switchTab('all')">All sensors</button>
+  </div>
+
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;" id="filter-bar">
+    <select id="type-filter" onchange="renderTable()" style="font-size:12px;padding:4px 8px;"><option value="">All types</option></select>
+    <select id="server-filter" onchange="renderTable()" style="font-size:12px;padding:4px 8px;"><option value="">All servers</option></select>
+    <input id="search-input" type="text" placeholder="Search name or zone..." style="width:180px;font-size:12px;" oninput="renderTable()"/>
+  </div>
+
+  <div id="main-panel" class="panel">
+    <div class="panel-hdr">
+      <span class="panel-title" id="panel-title">Sensors left</span>
+      <span class="panel-count" id="panel-count"></span>
+    </div>
+    <div id="table-area"></div>
+  </div>
+
+  <div id="empty-state" style="display:none;text-align:center;padding:3rem 1rem;color:var(--color-text-secondary);font-size:14px;">
+    <i class="ti ti-database-off" style="font-size:32px;display:block;margin-bottom:8px;" aria-hidden="true"></i>
+    Add server IDs above and click Refresh.
+  </div>
+
+</div>
+
+<script>
+const WORKER = 'https://flat-tree-380f.leightonsolo.workers.dev';
+const KEY = 'Aerodrive123!';
+
+let servers = JSON.parse(localStorage.getItem('cal_servers')||'[]');
+let allSensors = [];
+let currentTab = 'left';
+let sortCol = null, sortDir = 1;
+
+let thresholds = JSON.parse(localStorage.getItem('cal_thresholds')||'{"RE":1.5,"HU":3.0,"RM":0.5,"SC":1.0,"TC":1.0,"DP":0.25,"HU":3.0}');
+function saveThresholds(){localStorage.setItem('cal_thresholds',JSON.stringify(thresholds));}
+
+function toggleSettings(){
+  const p = document.getElementById('settings-panel');
+  p.style.display = p.style.display==='none'?'block':'none';
+  if(p.style.display==='block') renderThresholdInputs();
+}
+
+function renderThresholdInputs(){
+  const el = document.getElementById('threshold-inputs');
+  el.innerHTML = Object.entries(thresholds).map(([t,v])=>`
+    <div class="threshold-row">
+      <span style="width:60px;font-weight:500;">${t}</span>
+      <input type="number" step="0.01" value="${v}" style="width:80px;" onchange="thresholds['${t}']=parseFloat(this.value)||0;saveThresholds();renderTable();" />
+      <button onclick="deleteThreshold('${t}')" style="font-size:11px;padding:3px 8px;color:var(--color-text-secondary);">Remove</button>
+    </div>`).join('');
+}
+
+function addThreshold(){
+  const t = document.getElementById('new-type-name').value.trim().toUpperCase();
+  const v = parseFloat(document.getElementById('new-type-val').value);
+  if(!t||isNaN(v)) return;
+  thresholds[t]=v; saveThresholds();
+  document.getElementById('new-type-name').value='';
+  document.getElementById('new-type-val').value='';
+  renderThresholdInputs(); renderTable();
+}
+
+function deleteThreshold(t){delete thresholds[t];saveThresholds();renderThresholdInputs();renderTable();}
+
+function isFailed(s){
+  if(s.new_offset===null||s.new_offset===undefined) return false;
+  const max = thresholds[s.sensor_type];
+  if(max===undefined) return false;
+  return Math.abs(parseFloat(s.new_offset)) > max;
+}
+
+function isCalibrated(s){
+  if(!s.calibrated_at) return false;
+  const cutoff = new Date(); cutoff.setDate(cutoff.getDate()-7);
+  return new Date(s.calibrated_at) >= cutoff;
+}
+
+function saveServers(){localStorage.setItem('cal_servers',JSON.stringify(servers));}
+
+function renderServerTags(){
+  const el = document.getElementById('server-tags');
+  if(!servers.length){el.innerHTML='<span style="font-size:12px;color:var(--color-text-secondary);">No servers added.</span>';return;}
+  el.innerHTML=servers.map(s=>`
+    <span class="server-tag">
+      <i class="ti ti-server" style="font-size:13px;" aria-hidden="true"></i> ${s}
+      <button onclick="removeServer('${s}')" aria-label="Remove ${s}">×</button>
+    </span>`).join('');
+}
+
+function addServer(){
+  const inp=document.getElementById('server-input');
+  const v=inp.value.trim().replace(/\D/g,'');
+  if(!v||servers.includes(v)){inp.value='';return;}
+  servers.push(v);saveServers();renderServerTags();inp.value='';loadData();
+}
+
+function removeServer(s){
+  servers=servers.filter(x=>x!==s);saveServers();renderServerTags();loadData();
+}
+
+function setStatus(m){document.getElementById('status-msg').textContent=m;}
+
+async function loadData(){
+  if(!servers.length){allSensors=[];renderMetrics();showEmpty(true);return;}
+  showEmpty(false);setStatus('Loading…');
+  try{
+    const res = await Promise.all(servers.map(s=>
+      fetch(`${WORKER}/calibrations?server=${s}`,{headers:{'X-Api-Key':KEY}}).then(r=>r.json())
+    ));
+    allSensors=res.flat();
+    setStatus(`${allSensors.length} sensors`);
+    populateFilters();renderMetrics();renderTable();
+  }catch(e){setStatus('Error loading');console.error(e);}
+}
+
+function showEmpty(b){
+  document.getElementById('empty-state').style.display=b?'block':'none';
+  document.getElementById('main-panel').style.display=b?'none':'block';
+  document.getElementById('filter-bar').style.display=b?'none':'flex';
+}
+
+function getCutoff(){const c=new Date();c.setDate(c.getDate()-7);return c;}
+
+function renderMetrics(){
+  const total=allSensors.length;
+  const cal=allSensors.filter(isCalibrated).length;
+  const left=total-cal;
+  const fail=allSensors.filter(isFailed).length;
+  const pct=total>0?Math.round(cal/total*100):0;
+  const isDark=matchMedia('(prefers-color-scheme:dark)').matches;
+  const track=isDark?'#444441':'#D3D1C7';
+  const r=26,circ=2*Math.PI*r,dash=(pct/100)*circ;
+  document.getElementById('metrics').innerHTML=`
+    <div class="metric-card"><div class="metric-label">Total</div><div class="metric-value">${total}</div><div class="metric-sub">${servers.length} server(s)</div></div>
+    <div class="metric-card"><div class="metric-label">Calibrated (7d)</div><div class="metric-value" style="color:var(--color-text-success);">${cal}</div><div class="metric-sub">${pct}% done</div></div>
+    <div class="metric-card"><div class="metric-label">Remaining</div><div class="metric-value" style="color:var(--color-text-warning);">${left}</div></div>
+    <div class="metric-card"><div class="metric-label">Failures</div><div class="metric-value" style="color:var(--color-text-danger);">${fail}</div><div class="metric-sub">offset exceeded</div></div>
+    <div class="metric-card" style="display:flex;align-items:center;gap:12px;">
+      <svg width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="Progress: ${pct}%">
+        <circle cx="32" cy="32" r="${r}" fill="none" stroke="${track}" stroke-width="7"/>
+        <circle cx="32" cy="32" r="${r}" fill="none" stroke="#639922" stroke-width="7"
+          stroke-dasharray="${dash.toFixed(1)} ${circ.toFixed(1)}" stroke-linecap="round" transform="rotate(-90 32 32)"/>
+        <text x="32" y="36" text-anchor="middle" font-size="12" font-weight="500" fill="var(--color-text-primary)">${pct}%</text>
+      </svg>
+      <div>
+        <div style="font-size:11px;color:var(--color-text-secondary);">Progress</div>
+        <div style="font-size:11px;color:var(--color-text-secondary);margin-top:4px;display:flex;align-items:center;gap:4px;"><span style="width:7px;height:7px;border-radius:50%;background:#639922;display:inline-block;"></span>Done</div>
+        <div style="font-size:11px;color:var(--color-text-secondary);margin-top:2px;display:flex;align-items:center;gap:4px;"><span style="width:7px;height:7px;border-radius:50%;background:${track};display:inline-block;"></span>Left</div>
+      </div>
+    </div>`;
+}
+
+function populateFilters(){
+  const types=[...new Set(allSensors.map(s=>s.sensor_type).filter(Boolean))].sort();
+  const tf=document.getElementById('type-filter');
+  const cur=tf.value;
+  tf.innerHTML='<option value="">All types</option>'+types.map(t=>`<option value="${t}"${t===cur?' selected':''}>${t}</option>`).join('');
+  const sf=document.getElementById('server-filter');
+  const scur=sf.value;
+  sf.innerHTML='<option value="">All servers</option>'+servers.map(s=>`<option value="${s}"${s===scur?' selected':''}>${s}</option>`).join('');
+}
+
+function badge(t){
+  if(!t) return '';
+  const map={HU:'background:#E6F1FB;color:#0C447C',RE:'background:#EAF3DE;color:#27500A',RM:'background:#FAEEDA;color:#633806',SC:'background:#EEEDFE;color:#3C3489',TC:'background:#FAECE7;color:#712B13',DP:'background:#FBEAF0;color:#72243E'};
+  const st=map[t]||'background:var(--color-background-secondary);color:var(--color-text-secondary)';
+  return `<span class="badge" style="${st}">${t}</span>`;
+}
+
+function fmtDate(iso){
+  if(!iso) return '<span class="muted">—</span>';
+  const d=new Date(iso);
+  return `${d.getMonth()+1}/${d.getDate()} ${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
+}
+
+function fmtOffset(v){
+  if(v===null||v===undefined||v==='') return '<span class="muted">—</span>';
+  return parseFloat(v).toFixed(2);
+}
+
+function switchTab(t){
+  currentTab=t;sortCol=null;sortDir=1;
+  ['left','calibrated','failures','types','zones','all'].forEach(x=>{
+    document.getElementById(`tab-${x}`).classList.toggle('active',x===t);
+  });
+  const showFilter=['left','calibrated','failures','all'].includes(t);
+  document.getElementById('filter-bar').style.display=showFilter?'flex':'none';
+  renderTable();
+}
+
+function sortBy(col){
+  if(sortCol===col) sortDir*=-1; else{sortCol=col;sortDir=1;}
+  renderTable();
+}
+
+function applyFilters(rows){
+  const tf=document.getElementById('type-filter').value;
+  const sf=document.getElementById('server-filter').value;
+  const q=document.getElementById('search-input').value.toLowerCase();
+  return rows.filter(s=>
+    (!tf||s.sensor_type===tf)&&
+    (!sf||s.server===sf)&&
+    (!q||(s.sensor_name||'').toLowerCase().includes(q)||(s.zone||'').toLowerCase().includes(q))
+  );
+}
+
+function applySortSensors(rows){
+  if(!sortCol) return rows;
+  return [...rows].sort((a,b)=>{
+    let av=a[sortCol]??'', bv=b[sortCol]??'';
+    if(!isNaN(parseFloat(av))&&!isNaN(parseFloat(bv))){av=parseFloat(av);bv=parseFloat(bv);}
+    if(av<bv) return -sortDir; if(av>bv) return sortDir; return 0;
+  });
+}
+
+function renderTable(){
+  const title=document.getElementById('panel-title');
+  const count=document.getElementById('panel-count');
+  const area=document.getElementById('table-area');
+  const cutoff=getCutoff();
+
+  if(currentTab==='types'){
+    title.textContent='Sensor type breakdown';
+    renderTypesTable(area,count,cutoff);return;
+  }
+  if(currentTab==='zones'){
+    title.textContent='Zones';
+    renderZonesTable(area,count,cutoff);return;
+  }
+
+  let rows=allSensors;
+  if(currentTab==='left') rows=allSensors.filter(s=>!isCalibrated(s));
+  else if(currentTab==='calibrated') rows=allSensors.filter(isCalibrated);
+  else if(currentTab==='failures') rows=allSensors.filter(isFailed);
+
+  rows=applyFilters(rows);
+
+  if(!sortCol){
+    if(currentTab==='calibrated') rows=[...rows].sort((a,b)=>new Date(b.calibrated_at)-new Date(a.calibrated_at));
+    else rows=[...rows].sort((a,b)=>(a.zone||'').localeCompare(b.zone||''));
+  } else {
+    rows=applySortSensors(rows);
+  }
+
+  const tabLabels={left:'Sensors left',calibrated:'Calibrated this week',failures:'Failures',all:'All sensors'};
+  title.textContent=tabLabels[currentTab]||'';
+  count.textContent=`${rows.length} sensor${rows.length!==1?'s':''}`;
+
+  const cols=[
+    {key:'sensor_id',label:'ID',w:'44px'},
+    {key:'sensor_name',label:'Name',w:'1fr'},
+    {key:'zone',label:'Zone',w:'120px'},
+    {key:'server',label:'SRV',w:'44px'},
+    {key:'sensor_type',label:'Type',w:'60px'},
+    {key:'old_offset',label:'Old',w:'52px'},
+    {key:'new_offset',label:'New',w:'52px'},
+    {key:'calibrated_at',label:'Calibrated',w:'90px'},
+    {key:'calibrated_by',label:'By',w:'90px'},
+  ];
+
+  const grid=cols.map(c=>c.w).join(' ');
+
+  const thead=`<div class="th-row" style="display:grid;grid-template-columns:${grid};">
+    ${cols.map(c=>`<div class="${sortCol===c.key?(sortDir===1?'sort-asc':'sort-desc'):''}" onclick="sortBy('${c.key}')">${c.label}</div>`).join('')}
+  </div>`;
+
+  if(!rows.length){area.innerHTML=thead+`<div style="padding:2rem;text-align:center;font-size:13px;color:var(--color-text-secondary);">No sensors in this view.</div>`;return;}
+
+  const tbody=rows.map(s=>{
+    const fail=isFailed(s);
+    return `<div class="data-row${fail?' failure-row':''}" style="display:grid;grid-template-columns:${grid};">
+      <div class="muted" style="font-size:11px;">#${s.sensor_id}</div>
+      <div title="${s.sensor_name||''}">${s.sensor_name||'<span class="muted">—</span>'}</div>
+      <div class="muted" style="font-size:11px;" title="${s.zone||''}">${s.zone||'—'}</div>
+      <div class="muted" style="font-size:11px;">${s.server||'—'}</div>
+      <div>${badge(s.sensor_type)}</div>
+      <div style="font-size:11px;font-family:var(--font-mono);">${fmtOffset(s.old_offset)}</div>
+      <div style="font-size:11px;font-family:var(--font-mono);${fail?'color:#A32D2D;font-weight:500;':''}">${fmtOffset(s.new_offset)}</div>
+      <div style="font-size:11px;">${fmtDate(s.calibrated_at)}</div>
+      <div style="font-size:11px;" class="muted" title="${s.calibrated_by||''}">${s.calibrated_by||'—'}</div>
+    </div>`;
+  }).join('');
+
+  area.innerHTML=thead+`<div style="max-height:420px;overflow-y:auto;">${tbody}</div>`;
+}
+
+function renderTypesTable(area,count,cutoff){
+  const types=[...new Set(allSensors.map(s=>s.sensor_type).filter(Boolean))].sort();
+  const rows=types.map(t=>{
+    const group=allSensors.filter(s=>s.sensor_type===t);
+    const cal=group.filter(isCalibrated).length;
+    const fail=group.filter(isFailed).length;
+    const sids=[...new Set(group.map(s=>s.server).filter(Boolean))];
+    return{t,total:group.length,cal,fail,sids};
+  });
+  count.textContent=`${types.length} types`;
+  const thead=`<div class="th-row" style="display:grid;grid-template-columns:80px 60px 70px 60px 1fr;">
+    <div>Type</div><div>Total</div><div>Calibrated</div><div>Failures</div><div>Servers</div>
+  </div>`;
+  const tbody=rows.map(r=>`
+    <div class="data-row" style="display:grid;grid-template-columns:80px 60px 70px 60px 1fr;">
+      <div>${badge(r.t)}</div>
+      <div>${r.total}</div>
+      <div style="color:var(--color-text-success);">${r.cal}</div>
+      <div style="${r.fail>0?'color:var(--color-text-danger);font-weight:500;':'color:var(--color-text-secondary);'}">${r.fail}</div>
+      <div class="muted" style="font-size:11px;">${r.sids.join(', ')}</div>
+    </div>`).join('');
+  area.innerHTML=thead+tbody;
+}
+
+function renderZonesTable(area,count,cutoff){
+  const zones=[...new Set(allSensors.map(s=>s.zone).filter(Boolean))].sort();
+  const rows=zones.map(z=>{
+    const group=allSensors.filter(s=>s.zone===z);
+    const cal=group.filter(isCalibrated).length;
+    const left=group.length-cal;
+    const fail=group.filter(isFailed).length;
+    const srv=[...new Set(group.map(s=>s.server).filter(Boolean))].join(', ');
+    return{z,total:group.length,cal,left,fail,srv};
+  }).sort((a,b)=>b.left-a.left);
+  count.textContent=`${zones.length} zones`;
+  const thead=`<div class="th-row" style="display:grid;grid-template-columns:1fr 50px 70px 50px 60px 60px;">
+    <div>Zone</div><div>SRV</div><div>Sensors</div><div>Cal</div><div>Left</div><div>Failures</div>
+  </div>`;
+  const tbody=rows.map(r=>`
+    <div class="data-row" style="display:grid;grid-template-columns:1fr 50px 70px 50px 60px 60px;">
+      <div title="${r.z}">${r.z}</div>
+      <div class="muted" style="font-size:11px;">${r.srv}</div>
+      <div>${r.total}</div>
+      <div style="color:var(--color-text-success);">${r.cal}</div>
+      <div style="${r.left>0?'color:var(--color-text-warning);':''}">${r.left}</div>
+      <div style="${r.fail>0?'color:var(--color-text-danger);font-weight:500;':'color:var(--color-text-secondary);'}">${r.fail}</div>
+    </div>`).join('');
+  area.innerHTML=thead+`<div style="max-height:420px;overflow-y:auto;">${tbody}</div>`;
+}
+
+document.getElementById('server-input').addEventListener('keydown',e=>{if(e.key==='Enter')addServer();});
+renderServerTags();
+if(servers.length>0) loadData();
+else{showEmpty(true);renderMetrics();}
+</script>
+
+</body>
+</html>
