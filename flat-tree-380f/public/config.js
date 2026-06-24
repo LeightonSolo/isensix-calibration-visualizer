@@ -7,11 +7,11 @@ const CONFIG = {
   // Edit these here or via the Thresholds panel in the UI (UI changes persist in localStorage)
   DEFAULT_THRESHOLDS: {
     RE:   1.5,
-    HU:   3.0,
-    RM:   0.5,
-    SC:   1.0,
-    TC:   1.0,
-    DP:   0.25,
-    MPM:  0.5,
+    HU:   5.0,
+    RM:   1.5,
+    SC:   3.0,
+    TC:   2.0,
+    DP:   0.05,
+    CO2_A_20:  2,
   },
 };

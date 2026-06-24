@@ -48,7 +48,7 @@ function fmtOffset(v) {
 
 function badge(t) {
   if (!t) return '';
-  const known = ['RE','HU','RM','SC','TC','DP'];
+  const known = ['RE','HU','RM','SC','TC','DP','CO2_A_20', 'TMC Guardian', 'TMC ARMS'];
   const cls = known.includes(t) ? `badge-${t}` : 'badge-other';
   return `<span class="badge ${cls}">${t}</span>`;
 }
@@ -271,7 +271,7 @@ const SENSOR_COLS = [
   { key: 'sensor_id',    label: 'ID',         defaultW: 52  },
   { key: 'sensor_name',  label: 'Sensor name', defaultW: 220 },
   { key: 'zone',         label: 'Zone',        defaultW: 160 },
-  { key: 'server',       label: 'SRV',         defaultW: 48  },
+  { key: 'server',       label: 'SID',         defaultW: 48  },
   { key: 'sensor_type',  label: 'Type',        defaultW: 70  },
   { key: 'serial_number',label: 'Serial',      defaultW: 120 },
   { key: 'old_offset',   label: 'Old',         defaultW: 60  },
@@ -349,7 +349,7 @@ function buildZonesTable() {
 
   return `<table class="summary">
     <thead><tr>
-      <th>Zone</th><th>SRV</th><th>Sensors</th><th>Calibrated</th><th>Remaining</th><th>Failures</th>
+      <th>Zone</th><th>SID</th><th>Sensors</th><th>Calibrated</th><th>Remaining</th><th>Failures</th>
     </tr></thead>
     <tbody>${rows.map(r => `<tr>
       <td title="${r.z}">${r.z}</td>

@@ -24,13 +24,15 @@
   --accent-orange:  #c47a1a;
   --accent-blue:    #3a7bd5;
 
-  --badge-RE-bg: #1a2e14; --badge-RE-fg: #7ec85a;
-  --badge-HU-bg: #0e2340; --badge-HU-fg: #5a9ed5;
-  --badge-RM-bg: #2e1e0a; --badge-RM-fg: #d4882a;
+  --badge-RE-bg: #2f312f; --badge-RE-fg: #b3b3b3;
+  --badge-HU-bg: #0e2340; --badge-HU-fg: #72b2e7;
+  --badge-RM-bg: #313130; --badge-RM-fg: #b3b3b3;
   --badge-SC-bg: #1e1040; --badge-SC-fg: #9a7ae0;
-  --badge-TC-bg: #2e0e0e; --badge-TC-fg: #d46060;
-  --badge-DP-bg: #0e2828; --badge-DP-fg: #3abcbc;
-  --badge-other-bg: #1e1e28; --badge-other-fg: #888899;
+  --badge-TC-bg: #2e0e0e; --badge-TC-fg: #df6767;
+  --badge-DP-bg: #0e2828; --badge-DP-fg: #20da29;
+  --badge-CO2-bg: #682f16; --badge-CO2-fg: #eb8c4c;
+  --badge-TMC-bg: #410a4d; --badge-TMC-fg: #e990ff;
+  --badge-other-bg: #353006; --badge-other-fg: #fdec00;
 
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
@@ -358,6 +360,9 @@ table.summary tr:hover td { background: var(--bg-row-hover); }
 .badge-SC  { background: var(--badge-SC-bg);  color: var(--badge-SC-fg); }
 .badge-TC  { background: var(--badge-TC-bg);  color: var(--badge-TC-fg); }
 .badge-DP  { background: var(--badge-DP-bg);  color: var(--badge-DP-fg); }
+.badge-CO2_A_20  { background: var(--badge-CO2-bg);  color: var(--badge-CO2-fg); }
+.badge-TMC Guardian { background: var(--badge-TMC-bg);  color: var(--badge-TMC-fg); }
+.badge-TMC  { background: var(--badge-TMC-bg);  color: var(--badge-TMC-fg); }
 .badge-other { background: var(--badge-other-bg); color: var(--badge-other-fg); }
 
 /* ─── Settings panel ─────────────────────────────────────── */
