@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>iSensix Calibration Dashboard</title>
+  <title>Isensix Calibration Dashboard</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css"/>
   <style>
-    body { margin: 0; padding: 16px 20px; font-family: system-ui, sans-serif; background: #242422; color: #d1cccc; }
+    body { margin: 0; padding: 16px 20px; font-family: system-ui, sans-serif; background: #adadac; color: #000000; }
     * { box-sizing: border-box; }
     input, select, button { font-family: inherit; }
   </style>
@@ -328,11 +328,11 @@ function renderTable(){
   const cols=[
     {key:'sensor_id',label:'ID',w:'44px'},
     {key:'sensor_name',label:'Name',w:'1fr'},
-    {key:'zone',label:'Zone',w:'120px'},
-    {key:'server',label:'SRV',w:'44px'},
-    {key:'sensor_type',label:'Type',w:'60px'},
-    {key:'old_offset',label:'Old',w:'52px'},
-    {key:'new_offset',label:'New',w:'52px'},
+    {key:'zone',label:'Zone',w:'150px'},
+    {key:'server',label:'SID',w:'44px'},
+    {key:'sensor_type',label:'Type',w:'90px'},
+    {key:'old_offset',label:'Old Offset',w:'80px'},
+    {key:'new_offset',label:'New Offset',w:'80px'},
     {key:'calibrated_at',label:'Calibrated',w:'90px'},
     {key:'calibrated_by',label:'By',w:'90px'},
   ];
