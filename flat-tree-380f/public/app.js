@@ -2,6 +2,9 @@
 let servers    = JSON.parse(localStorage.getItem('cal_servers') || '[]');
 let thresholds = JSON.parse(localStorage.getItem('cal_thresholds') || 'null')
                  || { ...CONFIG.DEFAULT_THRESHOLDS };
+let typeColors = JSON.parse(localStorage.getItem('cal_type_colors') || 'null')
+                 || { ...CONFIG.DEFAULT_TYPE_COLORS };
+
 let allSensors = [];
 let currentTab = 'left';
 let sortCol    = null;
@@ -10,6 +13,7 @@ let sortDir    = 1;
 /* ─── Persistence ───────────────────────────────────────── */
 function saveServers()    { localStorage.setItem('cal_servers',    JSON.stringify(servers)); }
 function saveThresholds() { localStorage.setItem('cal_thresholds', JSON.stringify(thresholds)); }
+function saveTypeColors() { localStorage.setItem('cal_type_colors', JSON.stringify(typeColors)); }
 
 /* ─── Derived state helpers ─────────────────────────────── */
 function getCutoff() {
@@ -28,6 +32,12 @@ function isFailed(s) {
   const max = thresholds[s.sensor_type];
   if (max === undefined) return false;
   return Math.abs(parseFloat(s.new_offset)) > max;
+}
+
+function getActiveSensors() {
+  const showDisabled = document.getElementById('show-disabled')?.checked;
+  if (showDisabled) return allSensors;
+  return allSensors.filter(s => !s.status || s.status.toUpperCase() !== 'DISABLED');
 }
 
 /* ─── Formatting ────────────────────────────────────────── */
@@ -56,10 +66,13 @@ function strHue(str) {
 
 function badge(t) {
   if (!t) return '<span class="muted">—</span>';
+  const color = typeColors[t];
+  if (color) {
+    return `<span class="badge" style="background:${color.bg};color:${color.fg};">${t}</span>`;
+  }
+  // fallback to hash for unknown types
   const hue = strHue(t);
-  const bg  = `hsl(${hue}, 30%, 15%)`;
-  const fg  = `hsl(${hue}, 60%, 65%)`;
-  return `<span class="badge" style="background:${bg};color:${fg};">${t}</span>`;
+  return `<span class="badge" style="background:hsl(${hue},30%,15%);color:hsl(${hue},60%,65%);">${t}</span>`;
 }
 
 function qualBadge(q) {
@@ -118,7 +131,10 @@ function toggleSettings() {
   const p = document.getElementById('settings-panel');
   const visible = p.style.display === 'block';
   p.style.display = visible ? 'none' : 'block';
-  if (!visible) renderThresholdInputs();
+  if (!visible) {
+    renderThresholdInputs();
+    renderColorInputs();
+  }
 }
 
 function renderThresholdInputs() {
@@ -150,6 +166,41 @@ function deleteThreshold(t) {
   renderThresholdInputs();
   renderTable();
 }
+
+function renderColorInputs() {
+  document.getElementById('color-inputs').innerHTML =
+    Object.entries(typeColors).map(([t, c]) => `
+      <div class="threshold-row">
+        <span class="threshold-type">${badge(t)}</span>
+        <label style="font-size:11px;color:var(--text-secondary);">BG</label>
+        <input type="color" value="${c.bg}" style="width:44px;height:28px;padding:2px;"
+          onchange="typeColors['${t}'].bg=this.value;saveTypeColors();renderColorInputs();renderTable();renderMetrics();"/>
+        <label style="font-size:11px;color:var(--text-secondary);">FG</label>
+        <input type="color" value="${c.fg}" style="width:44px;height:28px;padding:2px;"
+          onchange="typeColors['${t}'].fg=this.value;saveTypeColors();renderColorInputs();renderTable();renderMetrics();"/>
+        <button class="danger" onclick="deleteTypeColor('${t}')">Remove</button>
+      </div>`).join('');
+}
+
+function addTypeColor() {
+  const t  = document.getElementById('new-color-type').value.trim();
+  const bg = document.getElementById('new-color-bg').value;
+  const fg = document.getElementById('new-color-fg').value;
+  if (!t) return;
+  typeColors[t] = { bg, fg };
+  saveTypeColors();
+  document.getElementById('new-color-type').value = '';
+  renderColorInputs();
+  renderTable();
+}
+
+function deleteTypeColor(t) {
+  delete typeColors[t];
+  saveTypeColors();
+  renderColorInputs();
+  renderTable();
+}
+
 
 /* ─── Data loading ──────────────────────────────────────── */
 async function loadData() {
@@ -188,10 +239,11 @@ function showEmpty(b) {
 
 /* ─── Metrics ───────────────────────────────────────────── */
 function renderMetrics() {
-  const total = allSensors.length;
-  const cal   = allSensors.filter(isCalibrated).length;
+  const sensors = getActiveSensors(); 
+  const total = sensors.length;
+  const cal   = sensors.filter(isCalibrated).length;
   const left  = total - cal;
-  const fail  = allSensors.filter(isFailed).length;
+  const fail  = sensors.filter(isFailed).length;
   const pct   = total > 0 ? Math.round((cal / total) * 100) : 0;
   const r = 26, circ = 2 * Math.PI * r, dash = (pct / 100) * circ;
   const track = '#2a2a38';
@@ -240,7 +292,8 @@ function renderMetrics() {
 
 /* ─── Filters ───────────────────────────────────────────── */
 function populateFilters() {
-  const types = [...new Set(allSensors.map(s => s.sensor_type).filter(Boolean))].sort();
+const sensors = getActiveSensors();
+  const types = [...new Set(sensors.map(s => s.sensor_type).filter(Boolean))].sort();
   const tf = document.getElementById('type-filter');
   const curType = tf.value;
   tf.innerHTML = '<option value="">All types</option>'
@@ -256,7 +309,10 @@ function applyFilters(rows) {
   const tf = document.getElementById('type-filter').value;
   const sf = document.getElementById('server-filter').value;
   const q  = document.getElementById('search-input').value.toLowerCase();
+  const showDisabled = document.getElementById('show-disabled').checked;
+
   return rows.filter(s =>
+    (showDisabled || !s.status || s.status.toUpperCase() !== 'DISABLED') &&
     (!tf || s.sensor_type === tf) &&
     (!sf || s.server === sf) &&
     (!q  || (s.sensor_name  || '').toLowerCase().includes(q)
@@ -303,7 +359,7 @@ const SENSOR_COLS = [
   { key: 'cp_address',   label: 'CP Addr',      defaultW: 90  },
   { key: 'sensor_name',  label: 'Sensor name',  defaultW: 200 },
   { key: 'zone',         label: 'Zone',         defaultW: 140 },
-  { key: 'server',       label: 'SRV',          defaultW: 48  },
+  { key: 'server',       label: 'SID',          defaultW: 48  },
   { key: 'sensor_type',  label: 'Type',         defaultW: 110 },
   { key: 'serial_number',label: 'Serial',       defaultW: 120 },
   { key: 'access_point', label: 'Access point', defaultW: 180 },
@@ -351,9 +407,10 @@ function buildSensorTable(rows) {
 
 /* ─── Type breakdown table ──────────────────────────────── */
 function buildTypesTable() {
-  const types = [...new Set(allSensors.map(s => s.sensor_type).filter(Boolean))].sort();
+  const sensors = getActiveSensors(); 
+  const types = [...new Set(sensors.map(s => s.sensor_type).filter(Boolean))].sort();
   const rows = types.map(t => {
-    const g    = allSensors.filter(s => s.sensor_type === t);
+    const g = sensors.filter(s => s.sensor_type === t);
     const cal  = g.filter(isCalibrated).length;
     const fail = g.filter(isFailed).length;
     const srv  = [...new Set(g.map(s => s.server).filter(Boolean))].join(', ');
@@ -377,9 +434,10 @@ function buildTypesTable() {
 
 /* ─── Zones table ───────────────────────────────────────── */
 function buildZonesTable() {
-  const zones = [...new Set(allSensors.map(s => s.zone).filter(Boolean))].sort();
+  const sensors = getActiveSensors();
+  const zones = [...new Set(sensors.map(s => s.zone).filter(Boolean))].sort();
   const rows = zones.map(z => {
-    const g    = allSensors.filter(s => s.zone === z);
+    const g = sensors.filter(s => s.zone === z); 
     const cal  = g.filter(isCalibrated).length;
     const fail = g.filter(isFailed).length;
     const srv  = [...new Set(g.map(s => s.server).filter(Boolean))].join(', ');
@@ -388,7 +446,7 @@ function buildZonesTable() {
 
   return `<table class="summary">
     <thead><tr>
-      <th>Zone</th><th>SRV</th><th>Sensors</th><th>Calibrated</th><th>Remaining</th><th>Failures</th>
+      <th>Zone</th><th>SID</th><th>Sensors</th><th>Calibrated</th><th>Remaining</th><th>Failures</th>
     </tr></thead>
     <tbody>${rows.map(r => `<tr>
       <td title="${r.z}">${r.z}</td>
@@ -420,10 +478,10 @@ function renderTable() {
     return;
   }
 
-  let rows = allSensors;
-  if (currentTab === 'left')        rows = allSensors.filter(s => !isCalibrated(s));
-  else if (currentTab === 'calibrated') rows = allSensors.filter(isCalibrated);
-  else if (currentTab === 'failures')   rows = allSensors.filter(isFailed);
+  let rows = getActiveSensors();
+  if (currentTab === 'left')        rows = rows.filter(s => !isCalibrated(s));
+  else if (currentTab === 'calibrated') rows = rows.filter(isCalibrated);
+  else if (currentTab === 'failures')   rows = rows.filter(isFailed);
 
   rows = applyFilters(rows);
 

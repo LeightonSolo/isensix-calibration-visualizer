@@ -36,6 +36,17 @@
       <button onclick="addThreshold()">Add type</button>
     </div>
   </div>
+<!-- NOT LETTING USERS CHANGE TYPE COLORS FOR NOW
+  <div style="border-top:0.5px solid var(--border);margin-top:16px;padding-top:16px;">
+    <div class="settings-title">Type badge colors</div>
+    <div id="color-inputs"></div>
+    <div style="display:flex;gap:8px;margin-top:12px;align-items:center;">
+      <input id="new-color-type" type="text" placeholder="e.g. Temp-SC" style="width:110px;"/>
+      <input id="new-color-bg" type="color" value="#1e1e28" style="width:44px;height:28px;padding:2px;"/>
+      <input id="new-color-fg" type="color" value="#888899" style="width:44px;height:28px;padding:2px;"/>
+    <button onclick="addTypeColor()">Add type</button>
+  </div>
+</div>-->
 
   <!-- Metrics -->
   <div id="metrics"></div>
@@ -48,6 +59,10 @@
     <button class="tab-btn" data-tab="types">By type</button>
     <button class="tab-btn" data-tab="zones">By zone</button>
     <button class="tab-btn" data-tab="all">All sensors</button>
+    <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-secondary);cursor:pointer;">
+    <input type="checkbox" id="show-disabled" onchange="renderTable()" style="cursor:pointer;"/>
+    Show disabled
+    </label>
   </div>
 
   <!-- Filter bar -->

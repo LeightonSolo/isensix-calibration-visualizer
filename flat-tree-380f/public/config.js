@@ -17,4 +17,18 @@ const CONFIG = {
     'TMC Guardian': 4,
     'TMC ARMS': 4,
   },
+  DEFAULT_TYPE_COLORS: {
+  'Humidity':    { bg: '#0e2340', fg: '#69b0e9' },
+  'Temp-RE':     { bg: '#494949', fg: '#cacaca' },
+  'Temp-RM':     { bg: '#353535', fg: '#fff99f' },
+  'Temp-SC':     { bg: '#1e1040', fg: '#b195ee' },
+  'Temp-TC':     { bg: '#440000', fg: '#ff5757' },
+  'DiffPressure':{ bg: '#0f3b02', fg: '#9aff96' },
+  'Binary':      { bg: '#3a3900', fg: '#ebeb00' },
+  'Oxygen':      { bg: '#222222', fg: '#ffffff' },
+  'CO2':         { bg: '#3d2100', fg: '#ffbf48' },
+  'CO2_A_20':    { bg: '#3d2100', fg: '#ffbf48' },
+  'TMC Guardian':{ bg: '#3a0035', fg: '#fc9cff' },
+  'TMC ARMS':    { bg: '#3a0035', fg: '#fc9cff' },
+},
 };
