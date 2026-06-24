@@ -31,13 +31,13 @@
     <div class="settings-title">Failure thresholds — max absolute offset per sensor type</div>
     <div id="threshold-inputs"></div>
     <div style="display:flex;gap:8px;margin-top:12px;align-items:center;">
-      <input id="new-type-name" type="text" placeholder="Type (e.g. SC)" style="width:90px;"/>
+      <input id="new-type-name" type="text" placeholder="e.g. Temp-SC" style="width:110px;"/>
       <input id="new-type-val" type="number" placeholder="Max offset" step="0.01" style="width:110px;"/>
       <button onclick="addThreshold()">Add type</button>
     </div>
   </div>
 
-  <!-- Metrics row -->
+  <!-- Metrics -->
   <div id="metrics"></div>
 
   <!-- Tab bar -->
@@ -54,8 +54,8 @@
   <div id="filter-bar">
     <select id="type-filter" onchange="renderTable()"><option value="">All types</option></select>
     <select id="server-filter" onchange="renderTable()"><option value="">All servers</option></select>
-    <input id="search-input" type="text" placeholder="Search name, zone, or ID…"
-           style="width:200px;" oninput="renderTable()"/>
+    <input id="search-input" type="text" placeholder="Search name, zone, CP addr, AP…"
+           style="width:220px;" oninput="renderTable()"/>
   </div>
 
   <!-- Main panel -->
@@ -74,7 +74,6 @@
   </div>
 
 </div>
-
 <script src="config.js"></script>
 <script src="app.js"></script>
 </body>

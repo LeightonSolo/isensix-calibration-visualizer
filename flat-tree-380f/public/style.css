@@ -24,16 +24,6 @@
   --accent-orange:  #c47a1a;
   --accent-blue:    #3a7bd5;
 
-  --badge-RE-bg: #2f312f; --badge-RE-fg: #b3b3b3;
-  --badge-HU-bg: #0e2340; --badge-HU-fg: #72b2e7;
-  --badge-RM-bg: #313130; --badge-RM-fg: #b3b3b3;
-  --badge-SC-bg: #1e1040; --badge-SC-fg: #9a7ae0;
-  --badge-TC-bg: #2e0e0e; --badge-TC-fg: #df6767;
-  --badge-DP-bg: #0e2828; --badge-DP-fg: #20da29;
-  --badge-CO2-bg: #682f16; --badge-CO2-fg: #eb8c4c;
-  --badge-TMC-bg: #410a4d; --badge-TMC-fg: #e990ff;
-  --badge-other-bg: #353006; --badge-other-fg: #fdec00;
-
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
 
@@ -56,7 +46,7 @@ html, body {
 
 /* ─── Layout ────────────────────────────────────────────── */
 #app {
-  max-width: 1400px;
+  max-width: 1600px;
   margin: 0 auto;
   padding: 20px 24px 40px;
   display: flex;
@@ -103,7 +93,6 @@ select {
 input[type="text"]:focus,
 input[type="number"]:focus,
 select:focus { border-color: var(--accent-blue); }
-
 select option { background: var(--bg-input); }
 
 button {
@@ -140,7 +129,6 @@ button.danger { color: var(--accent-red); }
   border-radius: var(--radius-md);
   padding: 4px 10px;
   font-size: 12px;
-  color: var(--text-primary);
 }
 .server-tag .remove-btn {
   background: none;
@@ -153,7 +141,7 @@ button.danger { color: var(--accent-red); }
 }
 .server-tag .remove-btn:hover { color: var(--accent-red); background: none; border: none; }
 
-/* ─── Metrics row ───────────────────────────────────────── */
+/* ─── Metrics ───────────────────────────────────────────── */
 #metrics {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
@@ -180,15 +168,15 @@ button.danger { color: var(--accent-red); }
   letter-spacing: -0.02em;
 }
 .metric-sub { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
-.metric-value.green { color: var(--accent-green); }
+.metric-value.green  { color: var(--accent-green); }
 .metric-value.orange { color: var(--accent-orange); }
-.metric-value.red { color: var(--accent-red); }
+.metric-value.red    { color: var(--accent-red); }
 .donut-card { display: flex; align-items: center; gap: 14px; }
 .donut-legend { display: flex; flex-direction: column; gap: 5px; }
 .donut-legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-secondary); }
 .donut-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 
-/* ─── Tab bar ───────────────────────────────────────────── */
+/* ─── Tabs ──────────────────────────────────────────────── */
 #tab-bar {
   display: flex;
   gap: 6px;
@@ -248,7 +236,7 @@ button.danger { color: var(--accent-red); }
 .rt-wrap {
   overflow-x: auto;
   overflow-y: auto;
-  max-height: 480px;
+  max-height: 520px;
 }
 
 table.rt {
@@ -280,14 +268,12 @@ table.rt th {
 }
 table.rt th:last-child { border-right: none; }
 table.rt th:hover { color: var(--text-primary); }
-table.rt th.sort-asc::after { content: " ↑"; color: var(--accent-blue); }
+table.rt th.sort-asc::after  { content: " ↑"; color: var(--accent-blue); }
 table.rt th.sort-desc::after { content: " ↓"; color: var(--accent-blue); }
 
-/* resize handle */
 .rt-resizer {
   position: absolute;
-  right: 0;
-  top: 0;
+  right: 0; top: 0;
   width: var(--col-resize-handle);
   height: 100%;
   cursor: col-resize;
@@ -317,10 +303,37 @@ table.rt tr.failure-row:hover td { background: rgba(200,50,50,0.14); }
 td.muted, span.muted { color: var(--text-muted); }
 td.mono { font-family: var(--font-mono); font-size: 11px; }
 td.fail-val { color: var(--accent-red); font-weight: 600; font-family: var(--font-mono); font-size: 11px; }
-td.green-val { color: var(--accent-green); }
+td.green-val  { color: var(--accent-green); }
 td.orange-val { color: var(--accent-orange); }
 
-/* ─── Summary tables (type/zone) ─────────────────────────── */
+/* ─── Quality / status indicators ───────────────────────── */
+.qual {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  font-family: var(--font-mono);
+}
+.qual-good { background: #1a2e14; color: #7ec85a; }
+.qual-link { background: #1a2314; color: #a0c860; }
+.qual-warn { background: #2e2010; color: #d4882a; }
+.qual-bad  { background: #2e1010; color: #d46060; }
+
+.status-enabled  { color: var(--text-muted); font-size: 11px; }
+.status-disabled { color: var(--accent-red); font-size: 11px; font-weight: 500; }
+
+/* ─── Type badge (hashed color) ─────────────────────────── */
+.badge {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  font-family: var(--font-mono);
+}
+
+/* ─── Summary tables ─────────────────────────────────────── */
 table.summary {
   width: 100%;
   border-collapse: collapse;
@@ -345,26 +358,6 @@ table.summary td {
 table.summary tr:last-child td { border-bottom: none; }
 table.summary tr:hover td { background: var(--bg-row-hover); }
 
-/* ─── Badges ─────────────────────────────────────────────── */
-.badge {
-  display: inline-block;
-  padding: 2px 7px;
-  border-radius: 4px;
-  font-size: 11px;
-  font-weight: 500;
-  font-family: var(--font-mono);
-}
-.badge-RE  { background: var(--badge-RE-bg);  color: var(--badge-RE-fg); }
-.badge-HU  { background: var(--badge-HU-bg);  color: var(--badge-HU-fg); }
-.badge-RM  { background: var(--badge-RM-bg);  color: var(--badge-RM-fg); }
-.badge-SC  { background: var(--badge-SC-bg);  color: var(--badge-SC-fg); }
-.badge-TC  { background: var(--badge-TC-bg);  color: var(--badge-TC-fg); }
-.badge-DP  { background: var(--badge-DP-bg);  color: var(--badge-DP-fg); }
-.badge-CO2_A_20  { background: var(--badge-CO2-bg);  color: var(--badge-CO2-fg); }
-.badge-TMC Guardian { background: var(--badge-TMC-bg);  color: var(--badge-TMC-fg); }
-.badge-TMC  { background: var(--badge-TMC-bg);  color: var(--badge-TMC-fg); }
-.badge-other { background: var(--badge-other-bg); color: var(--badge-other-fg); }
-
 /* ─── Settings panel ─────────────────────────────────────── */
 #settings-panel {
   background: var(--bg-panel);
@@ -388,8 +381,7 @@ table.summary tr:hover td { background: var(--bg-row-hover); }
   margin-bottom: 8px;
 }
 .threshold-type {
-  width: 60px;
-  font-weight: 500;
+  width: 120px;
   font-family: var(--font-mono);
   font-size: 12px;
 }

@@ -1,16 +1,17 @@
 /* ─── State ─────────────────────────────────────────────── */
-let servers     = JSON.parse(localStorage.getItem('cal_servers') || '[]');
-let thresholds  = JSON.parse(localStorage.getItem('cal_thresholds') || 'null')
-                  || { ...CONFIG.DEFAULT_THRESHOLDS };
-let allSensors  = [];
-let currentTab  = 'left';
-let sortCol     = null;
-let sortDir     = 1;
+let servers    = JSON.parse(localStorage.getItem('cal_servers') || '[]');
+let thresholds = JSON.parse(localStorage.getItem('cal_thresholds') || 'null')
+                 || { ...CONFIG.DEFAULT_THRESHOLDS };
+let allSensors = [];
+let currentTab = 'left';
+let sortCol    = null;
+let sortDir    = 1;
 
-/* ─── Helpers ───────────────────────────────────────────── */
-function saveServers()    { localStorage.setItem('cal_servers', JSON.stringify(servers)); }
+/* ─── Persistence ───────────────────────────────────────── */
+function saveServers()    { localStorage.setItem('cal_servers',    JSON.stringify(servers)); }
 function saveThresholds() { localStorage.setItem('cal_thresholds', JSON.stringify(thresholds)); }
 
+/* ─── Derived state helpers ─────────────────────────────── */
 function getCutoff() {
   const d = new Date();
   d.setDate(d.getDate() - CONFIG.ROLLING_DAYS);
@@ -29,10 +30,7 @@ function isFailed(s) {
   return Math.abs(parseFloat(s.new_offset)) > max;
 }
 
-function setStatus(msg) {
-  document.getElementById('status-msg').textContent = msg;
-}
-
+/* ─── Formatting ────────────────────────────────────────── */
 function fmtDate(iso) {
   if (!iso) return '<span class="muted">—</span>';
   const d = new Date(iso);
@@ -46,11 +44,40 @@ function fmtOffset(v) {
   return parseFloat(v).toFixed(2);
 }
 
+// Hash a string to a stable hue for badge coloring
+function strHue(str) {
+  if (!str) return 200;
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return Math.abs(hash) % 360;
+}
+
 function badge(t) {
-  if (!t) return '';
-  const known = ['RE','HU','RM','SC','TC','DP','CO2_A_20', 'TMC Guardian', 'TMC ARMS'];
-  const cls = known.includes(t) ? `badge-${t}` : 'badge-other';
-  return `<span class="badge ${cls}">${t}</span>`;
+  if (!t) return '<span class="muted">—</span>';
+  const hue = strHue(t);
+  const bg  = `hsl(${hue}, 30%, 15%)`;
+  const fg  = `hsl(${hue}, 60%, 65%)`;
+  return `<span class="badge" style="background:${bg};color:${fg};">${t}</span>`;
+}
+
+function qualBadge(q) {
+  if (!q) return '<span class="muted">—</span>';
+  const map = { GOOD: 'qual-good', LINK: 'qual-link', WARN: 'qual-warn', BAD: 'qual-bad' };
+  const cls = map[q.toUpperCase()] || 'qual-warn';
+  return `<span class="qual ${cls}">${q}</span>`;
+}
+
+function statusCell(s) {
+  if (!s) return '<span class="muted">—</span>';
+  const cls = s.toUpperCase() === 'ENABLED' ? 'status-enabled' : 'status-disabled';
+  return `<span class="${cls}">${s}</span>`;
+}
+
+/* ─── Status bar ────────────────────────────────────────── */
+function setStatus(msg) {
+  document.getElementById('status-msg').textContent = msg;
 }
 
 /* ─── Server tags ───────────────────────────────────────── */
@@ -86,7 +113,7 @@ function removeServer(s) {
   loadData();
 }
 
-/* ─── Settings / thresholds ─────────────────────────────── */
+/* ─── Settings ──────────────────────────────────────────── */
 function toggleSettings() {
   const p = document.getElementById('settings-panel');
   const visible = p.style.display === 'block';
@@ -95,24 +122,24 @@ function toggleSettings() {
 }
 
 function renderThresholdInputs() {
-  const el = document.getElementById('threshold-inputs');
-  el.innerHTML = Object.entries(thresholds).map(([t, v]) => `
-    <div class="threshold-row">
-      <span class="threshold-type">${t}</span>
-      <input type="number" step="0.01" value="${v}" style="width:90px;"
-        onchange="thresholds['${t}']=parseFloat(this.value)||0; saveThresholds(); renderTable();" />
-      <button class="danger" onclick="deleteThreshold('${t}')">Remove</button>
-    </div>`).join('');
+  document.getElementById('threshold-inputs').innerHTML =
+    Object.entries(thresholds).map(([t, v]) => `
+      <div class="threshold-row">
+        <span class="threshold-type">${t}</span>
+        <input type="number" step="0.01" value="${v}" style="width:90px;"
+          onchange="thresholds['${t}']=parseFloat(this.value)||0;saveThresholds();renderTable();"/>
+        <button class="danger" onclick="deleteThreshold('${t}')">Remove</button>
+      </div>`).join('');
 }
 
 function addThreshold() {
-  const t = document.getElementById('new-type-name').value.trim().toUpperCase();
+  const t = document.getElementById('new-type-name').value.trim();
   const v = parseFloat(document.getElementById('new-type-val').value);
   if (!t || isNaN(v)) return;
   thresholds[t] = v;
   saveThresholds();
   document.getElementById('new-type-name').value = '';
-  document.getElementById('new-type-val').value = '';
+  document.getElementById('new-type-val').value  = '';
   renderThresholdInputs();
   renderTable();
 }
@@ -166,9 +193,7 @@ function renderMetrics() {
   const left  = total - cal;
   const fail  = allSensors.filter(isFailed).length;
   const pct   = total > 0 ? Math.round((cal / total) * 100) : 0;
-
-  const r = 26, circ = 2 * Math.PI * r;
-  const dash = (pct / 100) * circ;
+  const r = 26, circ = 2 * Math.PI * r, dash = (pct / 100) * circ;
   const track = '#2a2a38';
 
   document.getElementById('metrics').innerHTML = `
@@ -203,8 +228,12 @@ function renderMetrics() {
       </svg>
       <div class="donut-legend">
         <div class="metric-label">Progress</div>
-        <div class="donut-legend-item"><span class="donut-dot" style="background:#5a9e2f"></span>Done</div>
-        <div class="donut-legend-item"><span class="donut-dot" style="background:${track}"></span>Left</div>
+        <div class="donut-legend-item">
+          <span class="donut-dot" style="background:#5a9e2f"></span>Done
+        </div>
+        <div class="donut-legend-item">
+          <span class="donut-dot" style="background:${track}"></span>Left
+        </div>
       </div>
     </div>`;
 }
@@ -213,14 +242,14 @@ function renderMetrics() {
 function populateFilters() {
   const types = [...new Set(allSensors.map(s => s.sensor_type).filter(Boolean))].sort();
   const tf = document.getElementById('type-filter');
-  const cur = tf.value;
+  const curType = tf.value;
   tf.innerHTML = '<option value="">All types</option>'
-    + types.map(t => `<option value="${t}"${t === cur ? ' selected' : ''}>${t}</option>`).join('');
+    + types.map(t => `<option value="${t}"${t === curType ? ' selected' : ''}>${t}</option>`).join('');
 
   const sf = document.getElementById('server-filter');
-  const scur = sf.value;
+  const curSrv = sf.value;
   sf.innerHTML = '<option value="">All servers</option>'
-    + servers.map(s => `<option value="${s}"${s === scur ? ' selected' : ''}>${s}</option>`).join('');
+    + servers.map(s => `<option value="${s}"${s === curSrv ? ' selected' : ''}>${s}</option>`).join('');
 }
 
 function applyFilters(rows) {
@@ -230,8 +259,10 @@ function applyFilters(rows) {
   return rows.filter(s =>
     (!tf || s.sensor_type === tf) &&
     (!sf || s.server === sf) &&
-    (!q  || (s.sensor_name || '').toLowerCase().includes(q)
-          || (s.zone || '').toLowerCase().includes(q)
+    (!q  || (s.sensor_name  || '').toLowerCase().includes(q)
+          || (s.zone         || '').toLowerCase().includes(q)
+          || (s.cp_address   || '').toLowerCase().includes(q)
+          || (s.access_point || '').toLowerCase().includes(q)
           || String(s.sensor_id).includes(q))
   );
 }
@@ -266,19 +297,23 @@ function sortBy(col) {
   renderTable();
 }
 
-/* ─── Main table (sensor rows) ──────────────────────────── */
+/* ─── Sensor columns definition ─────────────────────────── */
 const SENSOR_COLS = [
-  { key: 'sensor_id',    label: 'ID',         defaultW: 52  },
-  { key: 'sensor_name',  label: 'Sensor name', defaultW: 220 },
-  { key: 'zone',         label: 'Zone',        defaultW: 160 },
-  { key: 'server',       label: 'SID',         defaultW: 48  },
-  { key: 'sensor_type',  label: 'Type',        defaultW: 70  },
-  { key: 'serial_number',label: 'Serial',      defaultW: 120 },
-  { key: 'old_offset',   label: 'Old',         defaultW: 60  },
-  { key: 'new_offset',   label: 'New',         defaultW: 60  },
-  { key: 'calibrated_at',label: 'Calibrated',  defaultW: 92  },
-  { key: 'calibrated_by',label: 'By',          defaultW: 130 },
-  { key: 'cal_cert',     label: 'Certificate', defaultW: 180 },
+  { key: 'sensor_id',    label: 'ID',          defaultW: 52  },
+  { key: 'cp_address',   label: 'CP Addr',      defaultW: 90  },
+  { key: 'sensor_name',  label: 'Sensor name',  defaultW: 200 },
+  { key: 'zone',         label: 'Zone',         defaultW: 140 },
+  { key: 'server',       label: 'SRV',          defaultW: 48  },
+  { key: 'sensor_type',  label: 'Type',         defaultW: 110 },
+  { key: 'serial_number',label: 'Serial',       defaultW: 120 },
+  { key: 'access_point', label: 'Access point', defaultW: 180 },
+  { key: 'quality',      label: 'Qual',         defaultW: 70  },
+  { key: 'status',       label: 'Status',       defaultW: 75  },
+  { key: 'old_offset',   label: 'Old',          defaultW: 55  },
+  { key: 'new_offset',   label: 'New',          defaultW: 55  },
+  { key: 'calibrated_at',label: 'Calibrated',   defaultW: 92  },
+  { key: 'calibrated_by',label: 'By',           defaultW: 130 },
+  { key: 'cal_cert',     label: 'Certificate',  defaultW: 180 },
 ];
 
 function buildSensorTable(rows) {
@@ -287,20 +322,23 @@ function buildSensorTable(rows) {
         class="${sortCol===c.key ? (sortDir===1?'sort-asc':'sort-desc') : ''}"
         onclick="sortBy('${c.key}')">
       ${c.label}
-      <span class="rt-resizer" data-col="${c.key}"
-            onmousedown="startResize(event,this)"></span>
+      <span class="rt-resizer" onmousedown="startResize(event,this)"></span>
     </th>`).join('')}</tr></thead>`;
 
   const tbody = `<tbody>${rows.map(s => {
     const fail = isFailed(s);
     return `<tr class="${fail ? 'failure-row' : ''}">
       <td class="muted mono">#${s.sensor_id}</td>
-      <td title="${s.sensor_name || ''}">${s.sensor_name || '<span class="muted">—</span>'}</td>
-      <td class="muted" title="${s.zone || ''}">${s.zone || '—'}</td>
+      <td class="mono muted" title="${s.cp_address||''}">${s.cp_address || '<span class="muted">—</span>'}</td>
+      <td title="${s.sensor_name||''}">${s.sensor_name || '<span class="muted">—</span>'}</td>
+      <td class="muted" title="${s.zone||''}">${s.zone || '—'}</td>
       <td class="muted mono">${s.server || '—'}</td>
       <td>${badge(s.sensor_type)}</td>
-      <td class="mono muted">${s.serial_number || '—'}</td>
-      <td class="mono ${fail ? '' : 'muted'}">${fmtOffset(s.old_offset)}</td>
+      <td class="mono muted" title="${s.serial_number||''}">${s.serial_number || '—'}</td>
+      <td class="muted" title="${s.access_point||''}">${s.access_point || '—'}</td>
+      <td>${qualBadge(s.quality)}</td>
+      <td>${statusCell(s.status)}</td>
+      <td class="mono muted">${fmtOffset(s.old_offset)}</td>
       <td class="${fail ? 'fail-val' : 'mono muted'}">${fmtOffset(s.new_offset)}</td>
       <td>${fmtDate(s.calibrated_at)}</td>
       <td class="muted" title="${s.calibrated_by||''}">${s.calibrated_by || '—'}</td>
@@ -315,12 +353,13 @@ function buildSensorTable(rows) {
 function buildTypesTable() {
   const types = [...new Set(allSensors.map(s => s.sensor_type).filter(Boolean))].sort();
   const rows = types.map(t => {
-    const g   = allSensors.filter(s => s.sensor_type === t);
-    const cal = g.filter(isCalibrated).length;
-    const fail= g.filter(isFailed).length;
-    const srv = [...new Set(g.map(s => s.server).filter(Boolean))].join(', ');
+    const g    = allSensors.filter(s => s.sensor_type === t);
+    const cal  = g.filter(isCalibrated).length;
+    const fail = g.filter(isFailed).length;
+    const srv  = [...new Set(g.map(s => s.server).filter(Boolean))].join(', ');
     return { t, total: g.length, cal, left: g.length - cal, fail, srv };
   });
+
   return `<table class="summary">
     <thead><tr>
       <th>Type</th><th>Total</th><th>Calibrated</th><th>Remaining</th><th>Failures</th><th>Servers</th>
@@ -340,16 +379,16 @@ function buildTypesTable() {
 function buildZonesTable() {
   const zones = [...new Set(allSensors.map(s => s.zone).filter(Boolean))].sort();
   const rows = zones.map(z => {
-    const g   = allSensors.filter(s => s.zone === z);
-    const cal = g.filter(isCalibrated).length;
-    const fail= g.filter(isFailed).length;
-    const srv = [...new Set(g.map(s => s.server).filter(Boolean))].join(', ');
+    const g    = allSensors.filter(s => s.zone === z);
+    const cal  = g.filter(isCalibrated).length;
+    const fail = g.filter(isFailed).length;
+    const srv  = [...new Set(g.map(s => s.server).filter(Boolean))].join(', ');
     return { z, total: g.length, cal, left: g.length - cal, fail, srv };
   }).sort((a, b) => b.left - a.left);
 
   return `<table class="summary">
     <thead><tr>
-      <th>Zone</th><th>SID</th><th>Sensors</th><th>Calibrated</th><th>Remaining</th><th>Failures</th>
+      <th>Zone</th><th>SRV</th><th>Sensors</th><th>Calibrated</th><th>Remaining</th><th>Failures</th>
     </tr></thead>
     <tbody>${rows.map(r => `<tr>
       <td title="${r.z}">${r.z}</td>
@@ -382,7 +421,7 @@ function renderTable() {
   }
 
   let rows = allSensors;
-  if (currentTab === 'left')       rows = allSensors.filter(s => !isCalibrated(s));
+  if (currentTab === 'left')        rows = allSensors.filter(s => !isCalibrated(s));
   else if (currentTab === 'calibrated') rows = allSensors.filter(isCalibrated);
   else if (currentTab === 'failures')   rows = allSensors.filter(isFailed);
 
@@ -399,7 +438,7 @@ function renderTable() {
 
   const labels = {
     left: 'Sensors left', calibrated: 'Calibrated this week',
-    failures: 'Failures', all: 'All sensors'
+    failures: 'Failures', all: 'All sensors',
   };
   title.textContent = labels[currentTab] || '';
   count.textContent = `${rows.length} sensor${rows.length !== 1 ? 's' : ''}`;
@@ -415,14 +454,13 @@ function renderTable() {
 /* ─── Column resizing ───────────────────────────────────── */
 function startResize(e, handle) {
   e.stopPropagation();
-  const th = handle.closest('th');
+  const th     = handle.closest('th');
   const startX = e.clientX;
   const startW = th.offsetWidth;
   handle.classList.add('resizing');
 
   function onMove(e) {
-    const newW = Math.max(40, startW + e.clientX - startX);
-    th.style.width = newW + 'px';
+    th.style.width = Math.max(40, startW + e.clientX - startX) + 'px';
   }
   function onUp() {
     handle.classList.remove('resizing');
