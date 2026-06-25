@@ -46,7 +46,7 @@ html, body {
 
 /* ─── Layout ────────────────────────────────────────────── */
 #app {
-  max-width: 1600px;
+  max-width: 1800px;
   margin: 0 auto;
   padding: 20px 24px 40px;
   display: flex;
@@ -236,7 +236,7 @@ button.danger { color: var(--accent-red); }
 .rt-wrap {
   overflow-x: auto;
   overflow-y: auto;
-  max-height: 520px;
+  max-height: 720px;
 }
 
 table.rt {
@@ -316,9 +316,11 @@ td.orange-val { color: var(--accent-orange); }
   font-family: var(--font-mono);
 }
 .qual-good { background: #1a2e14; color: #7ec85a; }
-.qual-link { background: #1a2314; color: #a0c860; }
-.qual-warn { background: #2e2010; color: #d4882a; }
-.qual-bad  { background: #2e1010; color: #d46060; }
+.qual-link { background: #14002e; color: #ffffff; }
+.qual-network { background: #2b1700; color: #ffffff; }
+.qual-sensor  { background: #2b0000; color: #ffffff; }
+.qual-init  { background: #000000; color: #ffffff; }
+
 
 .status-enabled  { color: var(--text-muted); font-size: 11px; }
 .status-disabled { color: var(--accent-red); font-size: 11px; font-weight: 500; }

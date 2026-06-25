@@ -77,8 +77,8 @@ function badge(t) {
 
 function qualBadge(q) {
   if (!q) return '<span class="muted">—</span>';
-  const map = { GOOD: 'qual-good', LINK: 'qual-link', WARN: 'qual-warn', BAD: 'qual-bad' };
-  const cls = map[q.toUpperCase()] || 'qual-warn';
+  const map = { GOOD: 'qual-good', LINK: 'qual-link', NETWORK: 'qual-network', SENSOR: 'qual-sensor', INIT: 'qual-init' };
+  const cls = map[q.toUpperCase()] || 'qual-network';
   return `<span class="qual ${cls}">${q}</span>`;
 }
 
