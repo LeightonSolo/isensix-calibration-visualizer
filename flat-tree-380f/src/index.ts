@@ -94,8 +94,8 @@ export default {
           (sensor_id, cp_address, sensor_name, serial_number,
           old_offset, new_offset, access_point, quality,
           status, sensor_type, zone, calibrated_at,
-          calibrated_by, server)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          calibrated_by, cal_cert, server)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(sensor_id, server) DO UPDATE SET
           cp_address    = COALESCE(excluded.cp_address, cp_address),
           sensor_name   = COALESCE(excluded.sensor_name, sensor_name),
@@ -118,9 +118,7 @@ export default {
             AND excluded.calibrated_by IS NOT NULL
             AND (
               calibrated_at IS NULL
-              OR (
-                julianday(excluded.calibrated_at) - julianday(calibrated_at) > 0.000694
-              )
+              OR julianday(excluded.calibrated_at) >= julianday(calibrated_at) - 0.000694
             )
             THEN excluded.calibrated_by
             ELSE calibrated_by
@@ -130,7 +128,7 @@ export default {
             AND excluded.cal_cert IS NOT NULL
             AND (
               calibrated_at IS NULL
-              OR julianday(excluded.calibrated_at) - julianday(calibrated_at) > 0.000694
+              OR julianday(excluded.calibrated_at) >= julianday(calibrated_at) - 0.000694
             )
             THEN excluded.cal_cert
             ELSE cal_cert
@@ -146,7 +144,7 @@ await env.DB.batch(
     s.old_offset    ?? null, s.new_offset    ?? null, s.access_point  ?? null,
     s.quality       ?? null, s.status        ?? null, s.sensor_type   ?? null,
     s.zone          ?? null, s.calibrated_at ?? null, s.calibrated_by ?? null,
-    s.server        ?? null,
+    s.cal_cert      ?? null, s.server        ?? null,
   ))
 );
 
