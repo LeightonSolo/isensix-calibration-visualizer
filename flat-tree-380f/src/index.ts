@@ -46,28 +46,28 @@ export default {
       await env.DB.prepare(`
         INSERT INTO calibrations
           (sensor_id, cp_address, sensor_name, serial_number,
-           old_offset, new_offset, access_point, quality,
-           status, sensor_type, zone, calibrated_at,
-           calibrated_by, server, cal_cert, canned_msg)
+          old_offset, new_offset, access_point, quality,
+          status, sensor_type, zone, calibrated_at,
+          calibrated_by, server, cal_cert, canned_msg)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(sensor_id) DO UPDATE SET
-          cp_address     = COALESCE(excluded.cp_address, cp_address),
-          sensor_name    = COALESCE(excluded.sensor_name, sensor_name),
-          serial_number  = COALESCE(excluded.serial_number, serial_number),
-          old_offset     = COALESCE(excluded.old_offset, old_offset),
-          new_offset     = COALESCE(excluded.new_offset, new_offset),
-          access_point   = COALESCE(excluded.access_point, access_point),
-          quality        = COALESCE(excluded.quality, quality),
-          status         = COALESCE(excluded.status, status),
-          sensor_type    = COALESCE(excluded.sensor_type, sensor_type),
-          zone           = COALESCE(excluded.zone, zone),
-          cal_cert       = COALESCE(excluded.cal_cert, cal_cert),
-          canned_msg     = COALESCE(excluded.canned_msg, canned_msg),
-          server         = COALESCE(excluded.server, server),
-          calibrated_by  = excluded.calibrated_by,
-          calibrated_at  = excluded.calibrated_at,
-          captured_at    = datetime('now')
-      `).bind(
+        ON CONFLICT(sensor_id, server) DO UPDATE SET
+          cp_address    = COALESCE(excluded.cp_address, cp_address),
+          sensor_name   = COALESCE(excluded.sensor_name, sensor_name),
+          serial_number = COALESCE(excluded.serial_number, serial_number),
+          old_offset    = COALESCE(excluded.old_offset, old_offset),
+          new_offset    = COALESCE(excluded.new_offset, new_offset),
+          access_point  = COALESCE(excluded.access_point, access_point),
+          quality       = COALESCE(excluded.quality, quality),
+          status        = COALESCE(excluded.status, status),
+          sensor_type   = COALESCE(excluded.sensor_type, sensor_type),
+          zone          = COALESCE(excluded.zone, zone),
+          cal_cert      = COALESCE(excluded.cal_cert, cal_cert),
+          canned_msg    = COALESCE(excluded.canned_msg, canned_msg),
+          server        = COALESCE(excluded.server, server),
+          calibrated_by = excluded.calibrated_by,
+          calibrated_at = excluded.calibrated_at,
+          captured_at   = datetime('now')
+`).bind(
         sensor_id,
         cp_address    ?? null, sensor_name  ?? null, serial_number ?? null,
         old_offset    ?? null, new_offset   ?? null, access_point  ?? null,
@@ -92,10 +92,11 @@ export default {
       const stmt = env.DB.prepare(`
         INSERT INTO calibrations
           (sensor_id, cp_address, sensor_name, serial_number,
-           old_offset, new_offset, access_point, quality,
-           status, sensor_type, zone, calibrated_at, server)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(sensor_id) DO UPDATE SET
+          old_offset, new_offset, access_point, quality,
+          status, sensor_type, zone, calibrated_at,
+          calibrated_by, server)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(sensor_id, server) DO UPDATE SET
           cp_address    = COALESCE(excluded.cp_address, cp_address),
           sensor_name   = COALESCE(excluded.sensor_name, sensor_name),
           serial_number = COALESCE(excluded.serial_number, serial_number),
@@ -106,25 +107,38 @@ export default {
           status        = COALESCE(excluded.status, status),
           sensor_type   = COALESCE(excluded.sensor_type, sensor_type),
           zone          = COALESCE(excluded.zone, zone),
-          server        = COALESCE(excluded.server, server),
           calibrated_at = CASE
             WHEN excluded.calibrated_at IS NOT NULL
-             AND excluded.calibrated_at > COALESCE(calibrated_at, '')
+            AND excluded.calibrated_at > COALESCE(calibrated_at, '')
             THEN excluded.calibrated_at
             ELSE calibrated_at
           END,
+          calibrated_by = CASE
+          WHEN excluded.calibrated_at IS NOT NULL
+          AND excluded.calibrated_by IS NOT NULL
+          AND (
+            calibrated_at IS NULL
+            OR (
+              julianday(excluded.calibrated_at) - julianday(calibrated_at) > 0.000694
+            )
+          )
+          THEN excluded.calibrated_by
+          ELSE calibrated_by
+        END,
+          server        = COALESCE(excluded.server, server),
           captured_at   = datetime('now')
       `);
 
-      await env.DB.batch(
-        sensors.map(s => stmt.bind(
-          s.sensor_id,
-          s.cp_address    ?? null, s.sensor_name   ?? null, s.serial_number ?? null,
-          s.old_offset    ?? null, s.new_offset    ?? null, s.access_point  ?? null,
-          s.quality       ?? null, s.status        ?? null, s.sensor_type   ?? null,
-          s.zone          ?? null, s.calibrated_at ?? null, s.server        ?? null,
-        ))
-      );
+await env.DB.batch(
+  sensors.map(s => stmt.bind(
+    s.sensor_id,
+    s.cp_address    ?? null, s.sensor_name   ?? null, s.serial_number ?? null,
+    s.old_offset    ?? null, s.new_offset    ?? null, s.access_point  ?? null,
+    s.quality       ?? null, s.status        ?? null, s.sensor_type   ?? null,
+    s.zone          ?? null, s.calibrated_at ?? null, s.calibrated_by ?? null,
+    s.server        ?? null,
+  ))
+);
 
       return json({ ok: true, count: sensors.length });
     }
