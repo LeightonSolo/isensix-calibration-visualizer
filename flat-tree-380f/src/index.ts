@@ -125,6 +125,16 @@ export default {
           THEN excluded.calibrated_by
           ELSE calibrated_by
         END,
+        cal_cert = CASE
+          WHEN excluded.calibrated_at IS NOT NULL
+          AND excluded.cal_cert IS NOT NULL
+          AND (
+            calibrated_at IS NULL
+            OR julianday(excluded.calibrated_at) - julianday(calibrated_at) > 0.000694
+          )
+          THEN excluded.cal_cert
+          ELSE cal_cert
+        END,
           server        = COALESCE(excluded.server, server),
           captured_at   = datetime('now')
       `);
