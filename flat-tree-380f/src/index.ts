@@ -29,6 +29,40 @@ export default {
       return new Response('Unauthorized', { status: 401 });
     }
 
+    // GET /servers
+    if (request.method === 'GET' && pathname === '/servers') {
+      const { results } = await env.DB.prepare(
+        `SELECT * FROM servers ORDER BY server`
+      ).all();
+      return json(results);
+    }
+
+    // POST /servers — upsert a server record
+    if (request.method === 'POST' && pathname === '/servers') {
+      const body = await request.json() as Record<string, any>;
+      const { server, version, hostname, notes } = body;
+      if (!server || !version) {
+        return new Response('Missing server or version', { status: 400 });
+      }
+      await env.DB.prepare(`
+        INSERT INTO servers (server, version, hostname, notes)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT(server) DO UPDATE SET
+          version    = excluded.version,
+          hostname   = excluded.hostname,
+          notes      = excluded.notes,
+          updated_at = datetime('now')
+      `).bind(server, version, hostname ?? null, notes ?? null).run();
+      return json({ ok: true });
+    }
+
+    // DELETE /servers/:id
+    if (request.method === 'DELETE' && pathname.startsWith('/servers/')) {
+      const server = pathname.split('/').pop();
+      await env.DB.prepare(`DELETE FROM servers WHERE server = ?`).bind(server).run();
+      return json({ ok: true });
+    }
+
     // ── POST /calibration — single record (calsensor confirmation) ──────────
     if (request.method === 'POST' && pathname === '/calibration') {
       const body = await request.json() as Record<string, any>;

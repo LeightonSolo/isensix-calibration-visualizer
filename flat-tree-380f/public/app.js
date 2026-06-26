@@ -137,6 +137,13 @@ function toggleSettings() {
   }
 }
 
+function toggleServerConfig() {
+  const p = document.getElementById('server-config-panel');
+  const visible = p.style.display === 'block';
+  p.style.display = visible ? 'none' : 'block';
+  if (!visible) renderServerConfig();
+}
+
 function renderThresholdInputs() {
   document.getElementById('threshold-inputs').innerHTML =
     Object.entries(thresholds).map(([t, v]) => `
@@ -204,6 +211,7 @@ function deleteTypeColor(t) {
 
 /* ─── Data loading ──────────────────────────────────────── */
 async function loadData() {
+  await loadServerMeta();
   if (!servers.length) {
     allSensors = [];
     renderMetrics();
@@ -382,11 +390,15 @@ function buildSensorTable(rows) {
     </th>`).join('')}</tr></thead>`;
 
   const tbody = `<tbody>${rows.map(s => {
+    const url = sensorUrl(s.sensor_id, s.server);
+    const nameCell = url
+      ? `<a href="${url}" target="_blank" style="color:var(--text-primary);text-decoration:underline;border-bottom:0.5px solid var(--border);" title="Open Calibration">${s.sensor_name || '—'}</a>`
+      : (s.sensor_name || '<span class="muted">—</span>');
     const fail = isFailed(s);
     return `<tr class="${fail ? 'failure-row' : ''}">
       <td class="muted mono">#${s.sensor_id}</td>
       <td class="mono muted" title="${s.cp_address||''}">${s.cp_address || '<span class="muted">—</span>'}</td>
-      <td title="${s.sensor_name||''}">${s.sensor_name || '<span class="muted">—</span>'}</td>
+      <td title="${s.sensor_name||''}">${nameCell}</td>
       <td class="muted" title="${s.zone||''}">${s.zone || '—'}</td>
       <td class="muted mono">${s.server || '—'}</td>
       <td>${badge(s.sensor_type)}</td>
@@ -527,6 +539,89 @@ function startResize(e, handle) {
   }
   document.addEventListener('mousemove', onMove);
   document.addEventListener('mouseup', onUp);
+}
+
+let serverMeta = {}; // populated on load, keyed by server ID
+
+async function loadServerMeta() {
+  try {
+    const res = await fetch(`${CONFIG.WORKER_URL}/servers`, {
+      headers: { 'X-Api-Key': CONFIG.API_KEY }
+    });
+    const rows = await res.json();
+    serverMeta = Object.fromEntries(rows.map(r => [r.server, r]));
+  } catch (e) {
+    console.error('Failed to load server metadata', e);
+  }
+}
+
+const VERSION_PATHS = {
+  '3.0': '/guardian/calibration/calsensor.php',
+  '2.1': '/arms2/calibration/calsensor.php',
+  // add future versions here
+};
+
+const VERSION_PORTS = {
+  '3.0': (server) => `7${server}`,
+  '2.1': (server) => `7${server}`,
+  // if port format ever differs by version, handle it here
+};
+
+function sensorUrl(sensor_id, server) {
+  const meta = serverMeta[server];
+  if (!meta || !meta.hostname) return null;
+  const version = meta.version || '3.0';
+  const path = VERSION_PATHS[version] || VERSION_PATHS['3.0'];
+  const port = `7${server}`;
+  return `https://${meta.hostname}:${port}${path}?id=${sensor_id}`;
+}
+
+async function renderServerConfig() {
+  const el = document.getElementById('server-config-list');
+  if (!Object.keys(serverMeta).length) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">No servers configured yet.</div>';
+    return;
+  }
+  el.innerHTML = Object.values(serverMeta).map(r => `
+    <div class="threshold-row">
+      <span class="threshold-type">${r.server}</span>
+      <span class="badge" style="background:var(--bg-metric);color:var(--text-secondary);">v${r.version}</span>
+      <span style="font-size:11px;color:var(--text-muted);flex:1;">${r.hostname || '—'}</span>
+      <span style="font-size:11px;color:var(--text-muted);">${r.notes || ''}</span>
+      <button class="danger" onclick="deleteServerConfig('${r.server}')">Remove</button>
+    </div>`).join('');
+}
+
+async function saveServerConfig() {
+  const server   = document.getElementById('sc-server').value.trim();
+  const version  = document.getElementById('sc-version').value;
+  const hostname = document.getElementById('sc-hostname').value.trim();
+  const notes    = document.getElementById('sc-notes').value.trim();
+  if (!server || !hostname) return;
+
+  await fetch(`${CONFIG.WORKER_URL}/servers`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Api-Key': CONFIG.API_KEY },
+    body: JSON.stringify({ server, version, hostname, notes })
+  });
+
+  document.getElementById('sc-server').value   = '';
+  document.getElementById('sc-hostname').value = 'ics1.ca.isensix.com'; // reset to default
+  document.getElementById('sc-notes').value    = '';
+
+  await loadServerMeta();
+  renderServerConfig();
+  renderTable();
+}
+
+async function deleteServerConfig(server) {
+  await fetch(`${CONFIG.WORKER_URL}/servers/${server}`, {
+    method: 'DELETE',
+    headers: { 'X-Api-Key': CONFIG.API_KEY }
+  });
+  await loadServerMeta();
+  renderServerConfig();
+  renderTable();
 }
 
 /* ─── Init ──────────────────────────────────────────────── */

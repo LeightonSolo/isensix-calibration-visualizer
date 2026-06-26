@@ -21,6 +21,7 @@
     <button class="primary" onclick="addServer()">Add server</button>
     <button onclick="loadData()"><i class="ti ti-refresh"></i> Refresh</button>
     <button onclick="toggleSettings()"><i class="ti ti-adjustments-horizontal"></i> Thresholds</button>
+    <button onclick="toggleServerConfig()"><i class="ti ti-server-2"></i> Servers</button>
     <span id="status-msg"></span>
   </div>
 
@@ -37,6 +38,26 @@
       <button onclick="addThreshold()">Add type</button>
     </div>
   </div>
+
+
+  <div id="server-config-panel" style="display:none;" class="panel" style="padding:16px;">
+  <div style="padding:16px;">
+    <div class="settings-title">Server configuration</div>
+    <div id="server-config-list"></div>
+    <div style="display:flex;gap:8px;margin-top:12px;align-items:center;flex-wrap:wrap;">
+      <input id="sc-server" type="text" placeholder="Server ID (e.g. 005)" style="width:100px;"/>
+      <select id="sc-version" style="width:90px;">
+        <option value="3.0">3.0</option>
+        <option value="2.1">2.1</option>
+      </select>
+      <input id="sc-hostname" type="text" placeholder="Hostname" style="width:220px;" value="ics1.ca.isensix.com"/>
+      <input id="sc-notes" type="text" placeholder="Notes (optional)" style="width:150px;"/>
+      <button onclick="saveServerConfig()">Save</button>
+    </div>
+  </div>
+</div>
+
+
 <!-- NOT LETTING USERS CHANGE TYPE COLORS FOR NOW
   <div style="border-top:0.5px solid var(--border);margin-top:16px;padding-top:16px;">
     <div class="settings-title">Type badge colors</div>
