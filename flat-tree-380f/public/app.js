@@ -556,14 +556,16 @@ async function loadServerMeta() {
 }
 
 const VERSION_PATHS = {
-  '3.0': '/guardian/calibration/calsensor.php',
-  '2.1': '/arms2/calibration/calsensor.php',
+  'G3.0': '/guardian/calibration/calsensor.php',
+  'G2.1': '/arms2/calibration/calsensor.php',
+  'G2.0': '/arms2/calsensor.php',
   // add future versions here
 };
 
 const VERSION_PORTS = {
-  '3.0': (server) => `7${server}`,
-  '2.1': (server) => `7${server}`,
+  'G3.0': (server) => `7${server}`,
+  'G2.1': (server) => `7${server}`,
+  'G2.0': (server) => `7${server}`,
   // if port format ever differs by version, handle it here
 };
 
