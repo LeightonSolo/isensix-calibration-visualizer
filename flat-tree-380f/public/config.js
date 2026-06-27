@@ -30,5 +30,17 @@ const CONFIG = {
   'CO2_A_20':    { bg: '#3d2100', fg: '#ffbf48' },
   'TMC Guardian':{ bg: '#3a0035', fg: '#fc9cff' },
   'TMC ARMS':    { bg: '#3a0035', fg: '#fc9cff' },
-},
+  },
+
+  TECHNICIANS: [
+    'Leighton',
+    'Joey',
+    'Fernando',
+    'Daniel',
+    'Deyan',
+    'Dejan',
+    'Bissen',
+    'Kyle',
+    'Matt',
+  ],
 };

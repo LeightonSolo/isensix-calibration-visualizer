@@ -299,6 +299,10 @@ table.rt tr:nth-child(even) td { background: var(--bg-row-alt); }
 table.rt tr:hover td { background: var(--bg-row-hover); }
 table.rt tr.failure-row td { background: var(--bg-failure); }
 table.rt tr.failure-row:hover td { background: rgba(200,50,50,0.14); }
+table.rt tr.done-row td { background: rgba(78, 198, 23, 0.06); }
+table.rt tr.done-row:hover td { background: rgba(90, 198, 47, 0.11); }
+table.summary tr.done-row td { background: rgba(90, 198, 47, 0.06); }
+table.summary tr.done-row:hover td { background: rgba(90, 198, 47, 0.11); }
 
 td.muted, span.muted { color: var(--text-muted); }
 td.mono { font-family: var(--font-mono); font-size: 11px; }

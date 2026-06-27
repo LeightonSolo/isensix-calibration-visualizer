@@ -9,6 +9,8 @@ let allSensors = [];
 let currentTab = 'left';
 let sortCol    = null;
 let sortDir    = 1;
+let allExceptions = [];
+
 
 /* ─── Persistence ───────────────────────────────────────── */
 function saveServers()    { localStorage.setItem('cal_servers',    JSON.stringify(servers)); }
@@ -36,8 +38,36 @@ function isFailed(s) {
 
 function getActiveSensors() {
   const showDisabled = document.getElementById('show-disabled')?.checked;
-  if (showDisabled) return allSensors;
-  return allSensors.filter(s => !s.status || s.status.toUpperCase() !== 'DISABLED');
+  return allSensors.filter(s =>
+    (showDisabled || !s.status || s.status.toUpperCase() !== 'DISABLED') &&
+    !isExcepted(s)
+  );
+}
+
+const CURRENT_YEAR = new Date().getFullYear();
+
+function isExcepted(s) {
+  return allExceptions.some(e =>
+    e.sensor_id === String(s.sensor_id) &&
+    e.server === s.server &&
+    e.year === CURRENT_YEAR
+  );
+}
+
+function wasExceptedLastYear(s) {
+  return allExceptions.some(e =>
+    e.sensor_id === String(s.sensor_id) &&
+    e.server === s.server &&
+    e.year === CURRENT_YEAR - 1
+  );
+}
+
+function getException(s) {
+  return allExceptions.find(e =>
+    e.sensor_id === String(s.sensor_id) &&
+    e.server === s.server &&
+    e.year === CURRENT_YEAR
+  );
 }
 
 /* ─── Formatting ────────────────────────────────────────── */
@@ -211,9 +241,9 @@ function deleteTypeColor(t) {
 
 /* ─── Data loading ──────────────────────────────────────── */
 async function loadData() {
-  await loadServerMeta();
   if (!servers.length) {
     allSensors = [];
+    allExceptions = [];
     renderMetrics();
     showEmpty(true);
     return;
@@ -221,14 +251,16 @@ async function loadData() {
   showEmpty(false);
   setStatus('Loading…');
   try {
-    const results = await Promise.all(
-      servers.map(s =>
+    const [sensorResults] = await Promise.all([
+      Promise.all(servers.map(s =>
         fetch(`${CONFIG.WORKER_URL}/calibrations?server=${s}`, {
           headers: { 'X-Api-Key': CONFIG.API_KEY }
         }).then(r => r.json())
-      )
-    );
-    allSensors = results.flat();
+      )),
+      loadExceptions(),
+      loadServerMeta(),
+    ]);
+    allSensors = sensorResults.flat();
     setStatus(`${allSensors.length} sensors — ${new Date().toLocaleTimeString()}`);
     populateFilters();
     renderMetrics();
@@ -236,6 +268,21 @@ async function loadData() {
   } catch (e) {
     setStatus('Error loading data');
     console.error(e);
+  }
+}
+
+async function loadExceptions() {
+  try {
+    const results = await Promise.all(
+      servers.map(s =>
+        fetch(`${CONFIG.WORKER_URL}/exceptions?server=${s}`, {
+          headers: { 'X-Api-Key': CONFIG.API_KEY }
+        }).then(r => r.json())
+      )
+    );
+    allExceptions = results.flat();
+  } catch (e) {
+    console.error('Failed to load exceptions', e);
   }
 }
 
@@ -255,6 +302,8 @@ function renderMetrics() {
   const pct   = total > 0 ? Math.round((cal / total) * 100) : 0;
   const r = 26, circ = 2 * Math.PI * r, dash = (pct / 100) * circ;
   const track = '#2a2a38';
+  const excepted = allSensors.filter(isExcepted).length;
+
 
   document.getElementById('metrics').innerHTML = `
     <div class="metric-card">
@@ -276,6 +325,11 @@ function renderMetrics() {
       <div class="metric-label">Failures</div>
       <div class="metric-value red">${fail}</div>
       <div class="metric-sub">offset exceeded</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Exceptions</div>
+      <div class="metric-value" style="color:var(--text-secondary);">${excepted}</div>
+      <div class="metric-sub">this year</div>
     </div>
     <div class="metric-card donut-card">
       <svg width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="Progress ${pct}%">
@@ -378,6 +432,7 @@ const SENSOR_COLS = [
   { key: 'calibrated_at',label: 'Calibrated',   defaultW: 92  },
   { key: 'calibrated_by',label: 'By',           defaultW: 130 },
   { key: 'cal_cert',     label: 'Certificate',  defaultW: 180 },
+  { key: '_exception',   label: 'Exception',    defaultW: 90 },
 ];
 
 function buildSensorTable(rows) {
@@ -394,11 +449,21 @@ function buildSensorTable(rows) {
     const nameCell = url
       ? `<a href="${url}" target="_blank" style="color:var(--text-primary);text-decoration:underline;border-bottom:0.5px solid var(--border);" title="Open Calibration">${s.sensor_name || '—'}</a>`
       : (s.sensor_name || '<span class="muted">—</span>');
+    const excepted = isExcepted(s);
+    const repeated = wasExceptedLastYear(s);
+    const excBtn = excepted
+      ? `<span class="qual qual-warn" style="cursor:default;">excepted</span>`
+      : `<button onclick="openExceptionModal('${s.sensor_id}','${s.server}')"
+          style="font-size:11px;padding:3px 8px;">+ exception</button>`;
+    const repeatBadge = !excepted && repeated
+      ? `<span class="qual qual-warn" style="margin-left:4px;" title="Was an exception in ${CURRENT_YEAR-1}">repeat</span>`
+      : '';
     const fail = isFailed(s);
-    return `<tr class="${fail ? 'failure-row' : ''}">
+    const done = isCalibrated(s) && !isFailed(s);
+    return `<tr class="${fail ? 'failure-row' : done ? 'done-row' : ''}">
       <td class="muted mono">#${s.sensor_id}</td>
       <td class="mono muted" title="${s.cp_address||''}">${s.cp_address || '<span class="muted">—</span>'}</td>
-      <td title="${s.sensor_name||''}">${nameCell}</td>
+      <td title="${s.sensor_name||''}">${nameCell}${repeatBadge}</td>
       <td class="muted" title="${s.zone||''}">${s.zone || '—'}</td>
       <td class="muted mono">${s.server || '—'}</td>
       <td>${badge(s.sensor_type)}</td>
@@ -411,6 +476,7 @@ function buildSensorTable(rows) {
       <td>${fmtDate(s.calibrated_at)}</td>
       <td class="muted" title="${s.calibrated_by||''}">${s.calibrated_by || '—'}</td>
       <td class="muted" title="${s.cal_cert||''}">${s.cal_cert || '—'}</td>
+      <td>${excBtn}</td>
     </tr>`;
   }).join('')}</tbody>`;
 
@@ -419,52 +485,67 @@ function buildSensorTable(rows) {
 
 /* ─── Type breakdown table ──────────────────────────────── */
 function buildTypesTable() {
-  const sensors = getActiveSensors(); 
+  const sensors = allSensors.filter(s =>
+    !s.status || s.status.toUpperCase() !== 'DISABLED'
+  );
   const types = [...new Set(sensors.map(s => s.sensor_type).filter(Boolean))].sort();
   const rows = types.map(t => {
-    const g = sensors.filter(s => s.sensor_type === t);
-    const cal  = g.filter(isCalibrated).length;
+    const g    = sensors.filter(s => s.sensor_type === t);
+    const cal  = g.filter(s => isCalibrated(s) && !isExcepted(s)).length;
+    const exc  = g.filter(isExcepted).length;
     const fail = g.filter(isFailed).length;
+    const left = g.length - cal - exc;
     const srv  = [...new Set(g.map(s => s.server).filter(Boolean))].join(', ');
-    return { t, total: g.length, cal, left: g.length - cal, fail, srv };
+    return { t, total: g.length, cal, exc, left, fail, srv };
   });
 
   return `<table class="summary">
     <thead><tr>
-      <th>Type</th><th>Total</th><th>Calibrated</th><th>Remaining</th><th>Failures</th><th>Servers</th>
+      <th>Type</th><th>Total</th><th>Calibrated</th><th>Exceptions</th><th>Remaining</th><th>Failures</th><th>Servers</th>
     </tr></thead>
-    <tbody>${rows.map(r => `<tr>
-      <td>${badge(r.t)}</td>
-      <td>${r.total}</td>
-      <td class="green-val">${r.cal}</td>
-      <td class="${r.left > 0 ? 'orange-val' : 'muted'}">${r.left}</td>
-      <td class="${r.fail > 0 ? 'fail-val' : 'muted'}">${r.fail}</td>
-      <td class="muted">${r.srv}</td>
-    </tr>`).join('')}</tbody>
+    <tbody>${rows.map(r => {
+      const done = r.left === 0;
+      return `<tr class="${done ? 'done-row' : ''}">
+        <td>${badge(r.t)}</td>
+        <td>${r.total}</td>
+        <td class="green-val">${r.cal}</td>
+        <td class="${r.exc > 0 ? 'orange-val' : 'muted'}">${r.exc}</td>
+        <td class="${r.left > 0 ? 'orange-val' : 'muted'}">${r.left}</td>
+        <td class="${r.fail > 0 ? 'fail-val' : 'muted'}">${r.fail}</td>
+        <td class="muted">${r.srv}</td>
+      </tr>`;
+    }).join('')}</tbody>
   </table>`;
 }
 
 /* ─── Zones table ───────────────────────────────────────── */
 function buildZonesTable() {
-  const sensors = getActiveSensors();
+  const sensors = allSensors.filter(s =>
+    !s.status || s.status.toUpperCase() !== 'DISABLED'
+  );
   const zones = [...new Set(sensors.map(s => s.zone).filter(Boolean))].sort();
   const rows = zones.map(z => {
-    const g = sensors.filter(s => s.zone === z); 
-    const cal  = g.filter(isCalibrated).length;
-    const fail = g.filter(isFailed).length;
-    const srv  = [...new Set(g.map(s => s.server).filter(Boolean))].join(', ');
-    return { z, total: g.length, cal, left: g.length - cal, fail, srv };
+    const g       = sensors.filter(s => s.zone === z);
+    const cal     = g.filter(s => isCalibrated(s) && !isExcepted(s)).length;
+    const exc     = g.filter(isExcepted).length;
+    const fail    = g.filter(isFailed).length;
+    const left    = g.length - cal - exc;
+    const done    = left <= 0;
+    const srv     = [...new Set(g.map(s => s.server).filter(Boolean))].join(', ');
+    return { z, total: g.length, cal, exc, left, fail, done, srv };
   }).sort((a, b) => b.left - a.left);
 
   return `<table class="summary">
     <thead><tr>
-      <th>Zone</th><th>SID</th><th>Sensors</th><th>Calibrated</th><th>Remaining</th><th>Failures</th>
+      <th>Zone</th><th>SID</th><th>Sensors</th><th>Calibrated</th>
+      <th>Exceptions</th><th>Remaining</th><th>Failures</th>
     </tr></thead>
-    <tbody>${rows.map(r => `<tr>
+    <tbody>${rows.map(r => `<tr class="${r.done ? 'done-row' : ''}">
       <td title="${r.z}">${r.z}</td>
       <td class="muted">${r.srv}</td>
       <td>${r.total}</td>
       <td class="green-val">${r.cal}</td>
+      <td class="${r.exc > 0 ? 'orange-val' : 'muted'}">${r.exc}</td>
       <td class="${r.left > 0 ? 'orange-val' : 'muted'}">${r.left}</td>
       <td class="${r.fail > 0 ? 'fail-val' : 'muted'}">${r.fail}</td>
     </tr>`).join('')}</tbody>
@@ -487,6 +568,12 @@ function renderTable() {
     title.textContent = 'Zones';
     count.textContent = '';
     area.innerHTML = buildZonesTable();
+    return;
+  }
+  if (currentTab === 'exceptions') {
+    title.textContent = `Exceptions ${CURRENT_YEAR}`;
+    count.textContent = `${allExceptions.filter(e => e.year === CURRENT_YEAR).length}`;
+    area.innerHTML = buildExceptionsTable();
     return;
   }
 
@@ -625,6 +712,149 @@ async function deleteServerConfig(server) {
   renderServerConfig();
   renderTable();
 }
+
+
+//Exception modal and save functions ======================
+function openExceptionModal(sensor_id, server) {
+  const sensor = allSensors.find(s =>
+    String(s.sensor_id) === String(sensor_id) && s.server === server
+  );
+  if (!sensor) return;
+
+  const lastYear = wasExceptedLastYear(sensor);
+  const lastYearEx = allExceptions.find(e =>
+    e.sensor_id === String(sensor_id) &&
+    e.server === server &&
+    e.year === CURRENT_YEAR - 1
+  );
+
+  const techOptions = CONFIG.TECHNICIANS
+    .map(t => `<option value="${t}">${t}</option>`)
+    .join('');
+
+  const modal = document.createElement('div');
+  modal.id = 'exception-modal';
+  modal.style.cssText = `
+    position:fixed;inset:0;background:rgba(0,0,0,0.7);
+    display:flex;align-items:center;justify-content:center;z-index:1000;
+  `;
+  modal.innerHTML = `
+    <div style="background:var(--bg-panel);border:0.5px solid var(--border);
+      border-radius:var(--radius-lg);padding:24px;width:420px;display:flex;
+      flex-direction:column;gap:14px;">
+      <div style="font-size:14px;font-weight:600;">Mark as Exception</div>
+      <div style="font-size:12px;color:var(--text-secondary);">
+        <span style="color:var(--text-primary);font-weight:500;">#${sensor.sensor_id}</span>
+        ${sensor.sensor_name || ''}
+        <span class="muted"> — ${sensor.zone || ''}</span>
+      </div>
+      ${lastYear ? `
+        <div style="background:rgba(196,122,26,0.1);border:0.5px solid rgba(196,122,26,0.3);
+          border-radius:var(--radius-sm);padding:8px 10px;font-size:12px;color:var(--accent-orange);">
+          ⚠ This sensor was also an exception in ${CURRENT_YEAR - 1}
+          ${lastYearEx?.reason ? `— "${lastYearEx.reason}"` : ''}
+        </div>` : ''}
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <label style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.04em;">Reason</label>
+        <input id="exc-reason" type="text" placeholder="e.g. No access, customer declined..."
+          style="width:100%;" />
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <label style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.04em;">Added by</label>
+        <select id="exc-added-by" style="width:100%;">
+          <option value="">Select technician...</option>
+          ${techOptions}
+        </select>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px;">
+        <button onclick="closeExceptionModal()">Cancel</button>
+        <button class="primary" onclick="saveException('${sensor_id}','${server}')">Save exception</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  document.getElementById('exc-reason').focus();
+}
+
+function closeExceptionModal() {
+  document.getElementById('exception-modal')?.remove();
+}
+
+async function saveException(sensor_id, server) {
+  const sensor = allSensors.find(s =>
+    String(s.sensor_id) === String(sensor_id) && s.server === server
+  );
+  const reason   = document.getElementById('exc-reason').value.trim();
+  const added_by = document.getElementById('exc-added-by').value;
+  if (!reason || !added_by) {
+    document.getElementById('exc-reason').style.borderColor =
+      !reason ? 'var(--accent-red)' : '';
+    return;
+  }
+
+  await fetch(`${CONFIG.WORKER_URL}/exceptions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Api-Key': CONFIG.API_KEY },
+    body: JSON.stringify({
+      sensor_id:   String(sensor_id),
+      server,
+      sensor_name: sensor?.sensor_name ?? null,
+      zone:        sensor?.zone ?? null,
+      reason,
+      year:        CURRENT_YEAR,
+      added_by,
+    })
+  });
+
+  closeExceptionModal();
+  window.location.reload();
+}
+
+
+
+// exception tab rendering ==========================
+function buildExceptionsTable() {
+  const current  = allExceptions.filter(e => e.year === CURRENT_YEAR);
+  const prevYear = allExceptions.filter(e => e.year === CURRENT_YEAR - 1);
+  const prevIds  = new Set(prevYear.map(e => `${e.sensor_id}|${e.server}`));
+
+  if (!current.length) {
+    return `<div style="padding:2.5rem;text-align:center;color:var(--text-muted);font-size:13px;">
+      No exceptions logged for ${CURRENT_YEAR}.</div>`;
+  }
+
+  return `<table class="summary">
+    <thead><tr>
+      <th>ID</th><th>Sensor</th><th>Zone</th><th>SID</th>
+      <th>Reason</th><th>Added by</th><th>Date</th><th>Repeat</th><th></th>
+    </tr></thead>
+    <tbody>${current.map(e => {
+      const repeat = prevIds.has(`${e.sensor_id}|${e.server}`);
+      return `<tr>
+        <td class="muted mono">#${e.sensor_id}</td>
+        <td>${e.sensor_name || '—'}</td>
+        <td class="muted">${e.zone || '—'}</td>
+        <td class="muted mono">${e.server}</td>
+        <td>${e.reason}</td>
+        <td class="muted">${e.added_by || '—'}</td>
+        <td class="muted">${fmtDate(e.added_at)}</td>
+        <td>${repeat
+          ? `<span class="qual qual-warn" title="Also excepted in ${CURRENT_YEAR-1}">repeat</span>`
+          : '<span class="muted">—</span>'}</td>
+        <td><button class="danger" onclick="removeException(${e.id})">Remove</button></td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table>`;
+}
+
+async function removeException(id) {
+  await fetch(`${CONFIG.WORKER_URL}/exceptions/${id}`, {
+    method: 'DELETE',
+    headers: { 'X-Api-Key': CONFIG.API_KEY }
+  });
+  window.location.reload();
+}
+
+
 
 /* ─── Init ──────────────────────────────────────────────── */
 document.getElementById('server-input')

@@ -63,6 +63,47 @@ export default {
       return json({ ok: true });
     }
 
+    // GET /exceptions — fetch all exceptions, optionally filtered by server
+    if (request.method === 'GET' && pathname === '/exceptions') {
+      const server = url.searchParams.get('server');
+      let query = `SELECT * FROM exceptions WHERE 1=1`;
+      const bindings: any[] = [];
+      if (server) { query += ` AND server = ?`; bindings.push(server); }
+      query += ` ORDER BY added_at DESC`;
+      const { results } = await env.DB.prepare(query).bind(...bindings).all();
+      return json(results);
+    }
+
+    // POST /exceptions — add an exception
+    if (request.method === 'POST' && pathname === '/exceptions') {
+      const body = await request.json() as Record<string, any>;
+      const { sensor_id, server, sensor_name, zone, reason, year, added_by } = body;
+      if (!sensor_id || !server || !reason || !year) {
+        return new Response('Missing required fields', { status: 400 });
+      }
+      await env.DB.prepare(`
+        INSERT INTO exceptions (sensor_id, server, sensor_name, zone, reason, year, added_by)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(sensor_id, server, year) DO UPDATE SET
+          reason     = excluded.reason,
+          added_by   = excluded.added_by,
+          sensor_name= excluded.sensor_name,
+          zone       = excluded.zone,
+          added_at   = datetime('now')
+      `).bind(
+        sensor_id, server, sensor_name ?? null, zone ?? null,
+        reason, year, added_by ?? null
+      ).run();
+      return json({ ok: true });
+    }
+
+    // DELETE /exceptions/:id
+    if (request.method === 'DELETE' && pathname.startsWith('/exceptions/')) {
+      const id = pathname.split('/').pop();
+      await env.DB.prepare(`DELETE FROM exceptions WHERE id = ?`).bind(id).run();
+      return json({ ok: true });
+    }
+
     // ── POST /calibration — single record (calsensor confirmation) ──────────
     if (request.method === 'POST' && pathname === '/calibration') {
       const body = await request.json() as Record<string, any>;
