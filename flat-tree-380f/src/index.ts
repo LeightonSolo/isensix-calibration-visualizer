@@ -11,6 +11,16 @@ function corsHeaders() {
   };
 }
 
+function normalizeMinute(dt: string | null | undefined) {
+  if (!dt) return null;
+
+  // Accepts:
+  // 2026-06-29 11:26
+  // 2026-06-29 11:26:14
+  // 2026-06-29T11:26:14
+  return dt.replace('T', ' ').slice(0, 16);
+}
+
 function json(data: unknown, status = 200) {
   return Response.json(data, { status, headers: corsHeaders() });
 }
@@ -104,6 +114,7 @@ export default {
       return json({ ok: true });
     }
 
+    
     // ── POST /calibration — single record (calsensor confirmation) ──────────
     if (request.method === 'POST' && pathname === '/calibration') {
       const body = await request.json() as Record<string, any>;
@@ -113,6 +124,7 @@ export default {
         status, sensor_type, zone, calibrated_at,
         calibrated_by, server, cal_cert, canned_msg,
       } = body;
+      const normalizedCalibratedAt = normalizeMinute(calibrated_at);
 
       if (!sensor_id || !calibrated_at) {
         return new Response('Missing sensor_id or calibrated_at', { status: 400 });
@@ -147,7 +159,7 @@ export default {
         cp_address    ?? null, sensor_name  ?? null, serial_number ?? null,
         old_offset    ?? null, new_offset   ?? null, access_point  ?? null,
         quality       ?? null, status       ?? null, sensor_type   ?? null,
-        zone          ?? null, calibrated_at,
+        zone          ?? null, normalizedCalibratedAt,
         calibrated_by ?? null, server       ?? null, cal_cert      ?? null,
         canned_msg    ?? null,
       ).run();
@@ -184,27 +196,21 @@ export default {
           zone          = COALESCE(excluded.zone, zone),
           calibrated_at = CASE
             WHEN excluded.calibrated_at IS NOT NULL
-            AND excluded.calibrated_at > COALESCE(calibrated_at, '')
+            AND excluded.calibrated_at >= COALESCE(calibrated_at, '')
             THEN excluded.calibrated_at
             ELSE calibrated_at
           END,
           calibrated_by = CASE
             WHEN excluded.calibrated_at IS NOT NULL
             AND excluded.calibrated_by IS NOT NULL
-            AND (
-              calibrated_at IS NULL
-              OR julianday(excluded.calibrated_at) >= julianday(calibrated_at) - 0.000694
-            )
+            AND excluded.calibrated_at >= COALESCE(calibrated_at, '')
             THEN excluded.calibrated_by
             ELSE calibrated_by
           END,
           cal_cert = CASE
             WHEN excluded.calibrated_at IS NOT NULL
             AND excluded.cal_cert IS NOT NULL
-            AND (
-              calibrated_at IS NULL
-              OR julianday(excluded.calibrated_at) >= julianday(calibrated_at) - 0.000694
-            )
+            AND excluded.calibrated_at >= COALESCE(calibrated_at, '')
             THEN excluded.cal_cert
             ELSE cal_cert
           END,
@@ -218,7 +224,7 @@ await env.DB.batch(
     s.cp_address    ?? null, s.sensor_name   ?? null, s.serial_number ?? null,
     s.old_offset    ?? null, s.new_offset    ?? null, s.access_point  ?? null,
     s.quality       ?? null, s.status        ?? null, s.sensor_type   ?? null,
-    s.zone          ?? null, s.calibrated_at ?? null, s.calibrated_by ?? null,
+    s.zone          ?? null, normalizeMinute(s.calibrated_at), s.calibrated_by ?? null,
     s.cal_cert      ?? null, s.server        ?? null,
   ))
 );
