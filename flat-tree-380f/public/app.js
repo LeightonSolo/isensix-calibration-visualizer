@@ -73,10 +73,12 @@ function getException(s) {
 /* ─── Formatting ────────────────────────────────────────── */
 function fmtDate(iso) {
   if (!iso) return '<span class="muted">—</span>';
+
   const d = new Date(iso);
-  return `${d.getMonth()+1}/${d.getDate()} `
-       + `${String(d.getHours()).padStart(2,'0')}:`
-       + `${String(d.getMinutes()).padStart(2,'0')}`;
+
+  return `${d.getMonth() + 1}/${d.getDate()}/${String(d.getFullYear()).slice(-2)} `
+       + `${String(d.getHours()).padStart(2, '0')}:`
+       + `${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
 function fmtOffset(v) {
