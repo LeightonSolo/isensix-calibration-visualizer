@@ -14,11 +14,11 @@ function corsHeaders() {
 function normalizeMinute(dt: string | null | undefined) {
   if (!dt) return null;
 
-  // Accepts:
-  // 2026-06-29 11:26
-  // 2026-06-29 11:26:14
-  // 2026-06-29T11:26:14
-  return dt.replace('T', ' ').slice(0, 16);
+  return dt
+    .trim()
+    .replace('T', ' ')
+    .replace('Z', '')
+    .slice(0, 16);
 }
 
 function json(data: unknown, status = 200) {
@@ -126,7 +126,7 @@ export default {
       } = body;
       const normalizedCalibratedAt = normalizeMinute(calibrated_at);
 
-      if (!sensor_id || !calibrated_at) {
+      if (!sensor_id || !normalizedCalibratedAt) {
         return new Response('Missing sensor_id or calibrated_at', { status: 400 });
       }
 
@@ -201,12 +201,14 @@ export default {
             ELSE calibrated_at
           END,
           calibrated_by = CASE
-            WHEN excluded.calibrated_at >= COALESCE(calibrated_at, '')
+            WHEN excluded.calibrated_at IS NOT NULL
+            AND excluded.calibrated_at >= COALESCE(calibrated_at, '')
             THEN COALESCE(excluded.calibrated_by, calibrated_by)
             ELSE calibrated_by
           END,
           cal_cert = CASE
-            WHEN excluded.calibrated_at >= COALESCE(calibrated_at, '')
+            WHEN excluded.calibrated_at IS NOT NULL
+            AND excluded.calibrated_at >= COALESCE(calibrated_at, '')
             THEN COALESCE(excluded.cal_cert, cal_cert)
             ELSE cal_cert
           END,
