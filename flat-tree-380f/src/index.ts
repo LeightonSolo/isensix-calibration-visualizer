@@ -201,17 +201,13 @@ export default {
             ELSE calibrated_at
           END,
           calibrated_by = CASE
-            WHEN excluded.calibrated_at IS NOT NULL
-            AND excluded.calibrated_by IS NOT NULL
-            AND excluded.calibrated_at >= COALESCE(calibrated_at, '')
-            THEN excluded.calibrated_by
+            WHEN excluded.calibrated_at >= COALESCE(calibrated_at, '')
+            THEN COALESCE(excluded.calibrated_by, calibrated_by)
             ELSE calibrated_by
           END,
           cal_cert = CASE
-            WHEN excluded.calibrated_at IS NOT NULL
-            AND excluded.cal_cert IS NOT NULL
-            AND excluded.calibrated_at >= COALESCE(calibrated_at, '')
-            THEN excluded.cal_cert
+            WHEN excluded.calibrated_at >= COALESCE(calibrated_at, '')
+            THEN COALESCE(excluded.cal_cert, cal_cert)
             ELSE cal_cert
           END,
           server        = COALESCE(excluded.server, server),
