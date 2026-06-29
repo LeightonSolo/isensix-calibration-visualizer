@@ -9,7 +9,7 @@
   --bg-input:      #1e1e24;
   --bg-tag:        #1e1e28;
   --bg-metric:     #1a1a22;
-  --bg-failure:    rgba(200, 50, 50, 0.08);
+  --bg-failure:    rgba(200, 50, 50, 0.1);
   --bg-header:     #111115;
 
   --border:        #2a2a35;
@@ -25,7 +25,7 @@
   --accent-blue:    #3a7bd5;
 
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
-  --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+  --font-mono: 'Arial', 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
 
   --radius-sm: 4px;
   --radius-md: 7px;
@@ -299,10 +299,10 @@ table.rt tr:nth-child(even) td { background: var(--bg-row-alt); }
 table.rt tr:hover td { background: var(--bg-row-hover); }
 table.rt tr.failure-row td { background: var(--bg-failure); }
 table.rt tr.failure-row:hover td { background: rgba(200,50,50,0.14); }
-table.rt tr.done-row td { background: rgba(78, 198, 23, 0.06); }
-table.rt tr.done-row:hover td { background: rgba(90, 198, 47, 0.11); }
-table.summary tr.done-row td { background: rgba(90, 198, 47, 0.06); }
-table.summary tr.done-row:hover td { background: rgba(90, 198, 47, 0.11); }
+table.rt tr.done-row td { background: rgba(78, 198, 23, 0.1); }
+table.rt tr.done-row:hover td { background: rgba(90, 198, 47, 0.15); }
+table.summary tr.done-row td { background: rgba(90, 198, 47, 0.1); }
+table.summary tr.done-row:hover td { background: rgba(90, 198, 47, 0.15); }
 
 td.muted, span.muted { color: var(--text-muted); }
 td.mono { font-family: var(--font-mono); font-size: 11px; }
