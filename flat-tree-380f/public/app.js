@@ -857,6 +857,23 @@ async function removeException(id) {
 }
 
 
+let autoRefreshInterval = null;
+
+function toggleAutoRefresh() {
+  const btn = document.getElementById('auto-refresh-btn');
+  if (autoRefreshInterval) {
+    clearInterval(autoRefreshInterval);
+    autoRefreshInterval = null;
+    btn.textContent = '⏱ Auto-refresh: Off';
+    btn.classList.remove('primary');
+  } else {
+    autoRefreshInterval = setInterval(loadData, 3 * 60 * 1000);
+    btn.textContent = '⏱ Auto-refresh: On';
+    btn.classList.add('primary');
+  }
+}
+
+
 
 /* ─── Init ──────────────────────────────────────────────── */
 document.getElementById('server-input')
