@@ -1,6 +1,6 @@
 const CONFIG = {
   WORKER_URL: 'https://flat-tree-380f.leightonsolo.workers.dev',
-  API_KEY: 'Aerodrive123!',
+  API_KEY: 'U87iy7VynFYLJUDnfUYBJHnRKbRiQO3Z',
   ROLLING_DAYS: 7,
 
   // Default failure thresholds — max absolute new_offset per sensor type
