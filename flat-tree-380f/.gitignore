@@ -160,6 +160,7 @@ dist
 
 # wrangler project
 
+insert_servers.sql
 public/config.js
 .dev.vars*
 !.dev.vars.example
