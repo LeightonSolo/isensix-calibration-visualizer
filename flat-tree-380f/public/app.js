@@ -12,6 +12,42 @@ let sortDir    = 1;
 let allExceptions = [];
 
 
+
+
+let currentPage = "dashboard";
+
+function showPage(page) {
+
+    currentPage = page;
+
+    document.querySelectorAll(".page").forEach(p => {
+        p.style.display = "none";
+    });
+
+    document.getElementById("dashboard-page").style.display =
+        page === "dashboard" ? "" : "none";
+
+    document.getElementById("summary-page").style.display =
+        page === "summary" ? "" : "none";
+
+    document.getElementById("resources-page").style.display =
+        page === "resources" ? "" : "none";
+
+    document.getElementById("about-page").style.display =
+        page === "about" ? "" : "none";
+
+    document.querySelectorAll(".nav-btn").forEach(b => {
+        b.classList.toggle("active", b.dataset.page === page);
+    });
+
+    document.getElementById("topbar").style.display =
+        page === "dashboard" ? "" : "none";
+}
+
+document.querySelectorAll(".nav-btn").forEach(btn => {
+    btn.onclick = () => showPage(btn.dataset.page);
+});
+
 /* ─── Persistence ───────────────────────────────────────── */
 function saveServers()    { localStorage.setItem('cal_servers',    JSON.stringify(servers)); }
 function saveThresholds() { localStorage.setItem('cal_thresholds', JSON.stringify(thresholds)); }

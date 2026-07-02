@@ -14,18 +14,49 @@
 <body>
 <div id="app">
 
-  <!-- Top bar -->
+  <!-- Main Navigation -->
+  <nav id="navbar">
+    <div class="nav-brand">
+      <i class="ti ti-activity-heartbeat"></i>
+      <span>Isensix Calibration</span>
+    </div>
+
+    <div class="nav-links">
+      <button class="nav-btn active" data-page="dashboard">
+        <i class="ti ti-layout-dashboard"></i>
+        Dashboard
+      </button>
+
+      <button class="nav-btn" data-page="summary">
+        <i class="ti ti-file-text"></i>
+        Summary
+      </button>
+
+      <button class="nav-btn" data-page="resources">
+        <i class="ti ti-books"></i>
+        Resources
+      </button>
+
+      <button class="nav-btn" data-page="about">
+        <i class="ti ti-info-circle"></i>
+        About
+      </button>
+    </div>
+  </nav>
+
+  <!-- Dashboard Toolbar -->
   <div id="topbar">
-    <h1><i class="ti ti-activity-heartbeat"></i> Isensix Calibration</h1>
+    <!-- <h1><i class="ti ti-activity-heartbeat"></i> Isensix Calibration</h1> -->
     <input id="server-input" type="text" placeholder="Server ID (e.g. 243)" style="width:165px;"/>
     <button class="primary" onclick="addServer()">Add server</button>
     <button onclick="loadData()"><i class="ti ti-refresh"></i> Refresh</button>
-    <button id="auto-refresh-btn" onclick="toggleAutoRefresh()">⏱ Auto-refresh: Off</button>
-    <button onclick="toggleSettings()"><i class="ti ti-adjustments-horizontal"></i> Thresholds</button>
+    <button id="auto-refresh-btn" onclick="toggleAutoRefresh()" title="Reload every 3 minutes">⏱ Auto-refresh: Off</button>
+    <button onclick="toggleSettings()" title="Configure failure thresholds"><i class="ti ti-adjustments-horizontal"></i> Thresholds</button>
     <button onclick="toggleServerConfig()"><i class="ti ti-server-2"></i> All Servers</button>
     <span id="status-msg"></span>
   </div>
 
+<div id="dashboard-page">
   <!-- Server tags -->
   <div id="server-tags"></div>
 
@@ -112,6 +143,28 @@
     <i class="ti ti-database-off"></i>
     Add server IDs above and click Refresh to load data.
   </div>
+</div> <!-- end dashboard-page -->
+
+<div id="summary-page" class="page" style="display:none;">
+    <div class="panel">
+        <h2>Calibration Summary</h2>
+        <p>Coming soon.</p>
+    </div>
+</div>
+
+<div id="resources-page" class="page" style="display:none;">
+    <div class="panel">
+        <h2>Resources</h2>
+        <p>Coming soon.</p>
+    </div>
+</div>
+
+<div id="about-page" class="page" style="display:none;">
+    <div class="panel">
+        <h2>About</h2>
+        <p>Coming soon.</p>
+    </div>
+</div>
 
 </div>
 <script src="config.js"></script>

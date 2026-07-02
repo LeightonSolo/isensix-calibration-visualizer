@@ -54,7 +54,41 @@ html, body {
   gap: 16px;
 }
 
+#dashboard-page {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.page {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
 /* ─── Top bar ───────────────────────────────────────────── */
+
+#navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+}
+
+.nav-links {
+    display: flex;
+    gap: 8px;
+}
+
+.nav-brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 16px;
+    font-weight: 600;
+}
+
 #topbar {
   display: flex;
   align-items: center;
