@@ -196,20 +196,26 @@ function removeServer(s) {
 
 /* ─── Settings ──────────────────────────────────────────── */
 function toggleSettings() {
-  const p = document.getElementById('settings-panel');
-  const visible = p.style.display === 'block';
-  p.style.display = visible ? 'none' : 'block';
-  if (!visible) {
-    renderThresholdInputs();
-    renderColorInputs();
-  }
+    const panel = document.getElementById("settings-panel");
+
+    const isOpen = panel.style.display === "block";
+
+    panel.style.display = isOpen ? "none" : "block";
+
+    if (!isOpen) {
+        renderThresholdInputs();
+        //renderColorInputs();
+    }
+
+    setButtonActive("threshold-btn", !isOpen);
 }
 
 function toggleServerConfig() {
   const p = document.getElementById('server-config-panel');
-  const visible = p.style.display === 'block';
-  p.style.display = visible ? 'none' : 'block';
-  if (!visible) renderServerConfig();
+  const isOpen = p.style.display === "block";
+  p.style.display = isOpen ? 'none' : 'block';
+  if (!isOpen) renderServerConfig();
+  setButtonActive("server-config-btn", !isOpen);
 }
 
 function renderThresholdInputs() {
@@ -276,6 +282,10 @@ function deleteTypeColor(t) {
   renderTable();
 }
 
+
+function setButtonActive(id, active) {
+    document.getElementById(id)?.classList.toggle("active", active);
+}
 
 /* ─── Data loading ──────────────────────────────────────── */
 async function loadData() {
@@ -901,11 +911,11 @@ function toggleAutoRefresh() {
     clearInterval(autoRefreshInterval);
     autoRefreshInterval = null;
     btn.textContent = '⏱ Auto-refresh: Off';
-    btn.classList.remove('primary');
+    btn.classList.remove('active');
   } else {
     autoRefreshInterval = setInterval(loadData, 3 * 60 * 1000);
     btn.textContent = '⏱ Auto-refresh: On';
-    btn.classList.add('primary');
+    btn.classList.add('active');
   }
 }
 

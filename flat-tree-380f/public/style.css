@@ -22,7 +22,7 @@
   --accent-green:   #5a9e2f;
   --accent-red:     #c83232;
   --accent-orange:  #c47a1a;
-  --accent-blue:    #3a7bd5;
+  --accent-blue:    #0445a0;
 
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
   --font-mono: 'Arial', 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
@@ -64,6 +64,17 @@ html, body {
     display: flex;
     flex-direction: column;
     gap: 16px;
+}
+
+
+button.active {
+  background: var(--accent-blue);
+  border-color: var(--accent-blue);
+  color: #fff;
+}
+
+button.active:hover {
+  background: #02327a;
 }
 
 /* ─── Top bar ───────────────────────────────────────────── */
@@ -236,7 +247,7 @@ button.danger { color: var(--accent-red); }
 }
 .tab-btn:hover { color: var(--text-primary); background: var(--bg-row-hover); }
 .tab-btn.active {
-  background: var(--bg-metric);
+  background: var(--accent-blue);
   color: var(--text-primary);
   border-color: #3a3a50;
 }
