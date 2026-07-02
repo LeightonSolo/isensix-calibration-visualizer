@@ -460,3 +460,57 @@ table.summary tr:hover td { background: var(--bg-row-hover); }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #2a2a38; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #3a3a4e; }
+
+
+
+/* ─── Image Modal ───────────────────────────────────────────── */
+
+/* The dark background overlay */
+.modal-overlay {
+    position: fixed;
+    z-index: 10000; /* Ensure it sits on top of everything, even confetti */
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.85); /* Semi-transparent black */
+    
+    /* We will use Flexbox in JS to center the image */
+    display: none; 
+    justify-content: center;
+    align-items: center;
+}
+
+/* The actual full-resolution image */
+.modal-content {
+    max-width: 90%;
+    max-height: 90vh;
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    /* A smooth pop-in animation */
+    animation: zoomIn 0.3s ease; 
+}
+
+/* The Close Button (x) */
+.close-modal {
+    position: absolute;
+    top: 20px;
+    right: 35px;
+    color: #e8e8f0;
+    font-size: 40px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.close-modal:hover,
+.close-modal:focus {
+    color: #5a9e2f; /* Highlight green on hover */
+    text-decoration: none;
+}
+
+/* The pop-in animation */
+@keyframes zoomIn {
+    from { transform: scale(0.9); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}

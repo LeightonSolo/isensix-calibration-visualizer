@@ -157,8 +157,263 @@
 <div id="resources-page" class="page" style="display:none;">
     <div class="panel" style="padding:16px;">
         <h2>Resources</h2>
+
         <br>
-        <p>Coming soon.</p>
+        <div style="margin-bottom: 32px;">
+            <h3 style="border-bottom: 1px solid #2a2a38; padding-bottom: 8px; margin-bottom: 16px;">Helpful Links</h3>
+            <ul style="list-style-type: none; padding-left: 0; margin: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px 16px;">
+                <li style="margin-bottom: 12px;">
+                    <a href="https://cms2.isensix.com:3331/src/pages/customers/index.html" target="_blank" style="color: #5a9e2f; text-decoration: none; font-weight: 700;">CMS</a>
+                    <span style="color: #888; display: block; font-size: 1em;">All Isensix customer servers and their information</span>
+                </li>
+                <li style="margin-bottom: 12px;">
+                    <a href="https://omegaeng.sharepoint.com/sites/DMS/DMS/Forms/AllItems.aspx?id=%2Fsites%2FDMS%2FDMS%2FSupport%2FPublic" target="_blank" style="color: #5a9e2f; text-decoration: none; font-weight: 700;">DMS</a>
+                    <span style="color: #888; display: block; font-size: 1em;">Isensix Document Management System</span>
+                </li>
+                <li style="margin-bottom: 12px;">
+                    <a href="https://docs.google.com/document/d/1SPD0375j1HjBwO5maCj5_XXBmlDgxA0cy09b2oa6IgQ/edit?usp=sharing" target="_blank" style="color: #5a9e2f; text-decoration: none; font-weight: 700;">Leighton's Tools Info and Download</a>
+                    <span style="color: #888; display: block; font-size: 1em;">Instructions on installing and the scripts to make your life easier</span>
+                </li>
+                <li style="margin-bottom: 12px;">
+                    <a href="https://docs.google.com/spreadsheets/d/1PUloOWhKZbaCLRhF2Q3_vS0X_H62KmZYL3A8Ti1o6JQ/edit?usp=sharing" target="_blank" style="color: #5a9e2f; text-decoration: none; font-weight: 700;">Isensix Job Info</a>
+                    <span style="color: #888; display: block; font-size: 1em;">Google Sheet with all job information</span>
+                </li>
+                <li style="margin-bottom: 12px;">
+                    <a href="https://www.zeemaps.com/map?group=4965569#" target="_blank" style="color: #5a9e2f; text-decoration: none; font-weight: 700;">Zeemaps of All Jobs</a>
+                    <span style="color: #888; display: block; font-size: 1em;">Interactive map showing all Isensix jobs geographically</span>
+                </li>
+                <li style="margin-bottom: 12px;">
+                    <a href="http://172.16.64.2/sshto/ping.php" target="_blank" style="color: #5a9e2f; text-decoration: none; font-weight: 700;">Ping Tool</a>
+                    <span style="color: #888; display: block; font-size: 1em;">Tool for testing access point connectivity</span>
+                </li>
+            </ul>
+        </div>
+        <h3>Sensor Type Specifications</h3>
+        <div style="overflow-x: auto; margin-bottom: 32px;">
+            <table class="reference-table" style="width: 100%; border-collapse: collapse; text-align: left;">
+                <thead>
+                    <tr style="border-bottom: 2px solid #2a2a38;">
+                        <th style="padding: 8px;">Sensor Type</th>
+                        <th style="padding: 8px;">Application</th>
+                        <th style="padding: 8px;">Settle Time</th>
+                        <th style="padding: 8px;">Max. Offset</th>
+                        <th style="padding: 8px;">Nominal Range</th>
+                        <th style="padding: 8px;">Calibration or Validation</th>
+                        <th style="padding: 8px;">Buffering Solution</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr style="border-bottom: 1px solid #e8e8f0;">
+                        <td style="padding: 8px;">SC</td>
+                        <td style="padding: 8px;">Ultra-Low Freezer</td>
+                        <td style="padding: 8px;">20-30 min</td>
+                        <td style="padding: 8px;">+/- 3.0ºC</td>
+                        <td style="padding: 8px;">-90ºC to -45ºC</td>
+                        <td style="padding: 8px;">Calibrate</td>
+                        <td style="padding: 8px;">100% methanol/propanol</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #e8e8f0;">
+                        <td style="padding: 8px;">RE</td>
+                        <td style="padding: 8px;">Freezer</td>
+                        <td style="padding: 8px;">15-20 min</td>
+                        <td style="padding: 8px;">+/- 1.5ºC</td>
+                        <td style="padding: 8px;">-35ºC to 0ºC</td>
+                        <td style="padding: 8px;">Calibrate</td>
+                        <td style="padding: 8px;">100% alcohol/propanol (frz)</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #e8e8f0;">
+                        <td style="padding: 8px;">RE</td>
+                        <td style="padding: 8px;">Refrigerator</td>
+                        <td style="padding: 8px;">10-15 min</td>
+                        <td style="padding: 8px;">+/- 1.5ºC</td>
+                        <td style="padding: 8px;">2ºC to 8ºC</td>
+                        <td style="padding: 8px;">Calibrate</td>
+                        <td style="padding: 8px;">70% Glycerin/30% water (ref)</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #e8e8f0;">
+                        <td style="padding: 8px;">RM-S</td>
+                        <td style="padding: 8px;">Room</td>
+                        <td style="padding: 8px;">5-10 min</td>
+                        <td style="padding: 8px;">+/- 1.5ºC</td>
+                        <td style="padding: 8px;">+15ºC to +50ºC</td>
+                        <td style="padding: 8px;">Calibrate</td>
+                        <td style="padding: 8px;">Air</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #e8e8f0;">
+                        <td style="padding: 8px;">RM-L</td>
+                        <td style="padding: 8px;">Incubator</td>
+                        <td style="padding: 8px;">10-15 min</td>
+                        <td style="padding: 8px;">+/- 1.5ºC</td>
+                        <td style="padding: 8px;">+15ºC to +50ºC</td>
+                        <td style="padding: 8px;">Calibrate</td>
+                        <td style="padding: 8px;">Air or fluid temperature</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #e8e8f0;">
+                        <td style="padding: 8px;">RM-G</td>
+                        <td style="padding: 8px;">Gel Inc</td>
+                        <td style="padding: 8px;">10-15 min</td>
+                        <td style="padding: 8px;">+/- 2.0ºC</td>
+                        <td style="padding: 8px;">+15ºC to +50ºC</td>
+                        <td style="padding: 8px;">Calibrate</td>
+                        <td style="padding: 8px;">Gel Cartridges</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #e8e8f0;">
+                        <td style="padding: 8px;">RM-H</td>
+                        <td style="padding: 8px;">Heat Block</td>
+                        <td style="padding: 8px;">10-15 min</td>
+                        <td style="padding: 8px;">+/- 2.0ºC</td>
+                        <td style="padding: 8px;">+20ºC to +50ºC</td>
+                        <td style="padding: 8px;">Calibrate</td>
+                        <td style="padding: 8px;">Heat Blocks &lt; 0.8in deep</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #e8e8f0;">
+                        <td style="padding: 8px;">TC</td>
+                        <td style="padding: 8px;">Thermocycler/Water Baths</td>
+                        <td style="padding: 8px;">10-15 min</td>
+                        <td style="padding: 8px;">+/- 2.0ºC</td>
+                        <td style="padding: 8px;">+50ºC to +105ºC</td>
+                        <td style="padding: 8px;">Calibrate</td>
+                        <td style="padding: 8px;">Water Bath Solution</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #e8e8f0;">
+                        <td style="padding: 8px;">HU-S</td>
+                        <td style="padding: 8px;">Room Humidity</td>
+                        <td style="padding: 8px;">10-15 min</td>
+                        <td style="padding: 8px;">+/- 5.0%</td>
+                        <td style="padding: 8px;">10% to 95%</td>
+                        <td style="padding: 8px;">Calibrate</td>
+                        <td style="padding: 8px;">Air</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #e8e8f0;">
+                        <td style="padding: 8px;">HU-L</td>
+                        <td style="padding: 8px;">Inc. Humidity</td>
+                        <td style="padding: 8px;">10-15 min</td>
+                        <td style="padding: 8px;">+/- 5.0%</td>
+                        <td style="padding: 8px;">10% to 95%</td>
+                        <td style="padding: 8px;">Calibrate</td>
+                        <td style="padding: 8px;">Air</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #e8e8f0;">
+                        <td style="padding: 8px;">TMC</td>
+                        <td style="padding: 8px;">LN2</td>
+                        <td style="padding: 8px;">20-30 min</td>
+                        <td style="padding: 8px;">+/- 4.0ºC</td>
+                        <td style="padding: 8px;">-200ºC to -90ºC</td>
+                        <td style="padding: 8px;">Calibrate</td>
+                        <td style="padding: 8px;">Liquid Nitrogen or Vapor Phase</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #e8e8f0;">
+                        <td style="padding: 8px;">CO2</td>
+                        <td style="padding: 8px;">Carbon Dioxide</td>
+                        <td style="padding: 8px;">20-30 min</td>
+                        <td style="padding: 8px;">+/- 2.0%</td>
+                        <td style="padding: 8px;">0% to 20%</td>
+                        <td style="padding: 8px;">Calibrate</td>
+                        <td style="padding: 8px;">Air</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #e8e8f0;">
+                        <td style="padding: 8px;">O2</td>
+                        <td style="padding: 8px;">Oxygen</td>
+                        <td style="padding: 8px;">10-15 min</td>
+                        <td style="padding: 8px;">+/- 2.0%</td>
+                        <td style="padding: 8px;">0% to 25%</td>
+                        <td style="padding: 8px;">Validate</td>
+                        <td style="padding: 8px;">Air</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #e8e8f0;">
+                        <td style="padding: 8px;">BTTP (RM-L)</td>
+                        <td style="padding: 8px;">BacT Temp</td>
+                        <td style="padding: 8px;">10-15 min</td>
+                        <td style="padding: 8px;">+/- 1.5ºC</td>
+                        <td style="padding: 8px;">+15ºC to +50ºC</td>
+                        <td style="padding: 8px;">Calibrate</td>
+                        <td style="padding: 8px;">Blood Culture Incubation Chamber</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #e8e8f0;">
+                        <td style="padding: 8px;">DA</td>
+                        <td style="padding: 8px;">Door Access</td>
+                        <td style="padding: 8px;">N/A</td>
+                        <td style="padding: 8px;">N/A</td>
+                        <td style="padding: 8px;">Open / Closed</td>
+                        <td style="padding: 8px;">Validate</td>
+                        <td style="padding: 8px;"></td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #e8e8f0;">
+                        <td style="padding: 8px;">MPM</td>
+                        <td style="padding: 8px;">Platelet Inc Motion</td>
+                        <td style="padding: 8px;">N/A</td>
+                        <td style="padding: 8px;">N/A</td>
+                        <td style="padding: 8px;">Horizontal Motions/Min</td>
+                        <td style="padding: 8px;">Validate</td>
+                        <td style="padding: 8px;"></td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #e8e8f0;">
+                        <td style="padding: 8px;">DP</td>
+                        <td style="padding: 8px;">Differential Pressure</td>
+                        <td style="padding: 8px;">10 sec</td>
+                        <td style="padding: 8px;">+/- 0.05%</td>
+                        <td style="padding: 8px;">0 to 0.020 in. of H2O</td>
+                        <td style="padding: 8px;">Calibrate</td>
+                        <td style="padding: 8px;">Air</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #e8e8f0;">
+                        <td style="padding: 8px;">AF</td>
+                        <td style="padding: 8px;">Air Flow</td>
+                        <td style="padding: 8px;">N/A</td>
+                        <td style="padding: 8px;">N/A</td>
+                        <td style="padding: 8px;">30 to 200 fps</td>
+                        <td style="padding: 8px;">Validate</td>
+                        <td style="padding: 8px;">Air</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #e8e8f0;">
+                        <td style="padding: 8px;">BIN</td>
+                        <td style="padding: 8px;">Binary (Dry Contacts)</td>
+                        <td style="padding: 8px;">N/A</td>
+                        <td style="padding: 8px;">N/A</td>
+                        <td style="padding: 8px;">Application Specific</td>
+                        <td style="padding: 8px;">Validate</td>
+                        <td style="padding: 8px;">Dry Contacts</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #e8e8f0;">
+                        <td style="padding: 8px;">4-20mA</td>
+                        <td style="padding: 8px;">4-20mA output</td>
+                        <td style="padding: 8px;">N/A</td>
+                        <td style="padding: 8px;">N/A</td>
+                        <td style="padding: 8px;">Application Specific</td>
+                        <td style="padding: 8px;">Validate</td>
+                        <td style="padding: 8px;"></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        
+
+        <div>
+            <h3 style="border-bottom: 1px solid #2a2a38; padding-bottom: 8px; margin-bottom: 16px;">Reference Images</h3>
+            <h4 style="margin-bottom: 8px;">Click to Expand</h4>
+            
+            <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+                
+                  <div style="border: 1px dashed #5a9e2f; border-radius: 8px; padding: 16px; text-align: center; width: 200px;">
+                    <span style="color: #888; display: block; margin-bottom: 8px;">Guardian CP Codes</span>
+                    <img class="clickable-thumbnail" src="guardian cp codes.png" alt="Guardian CP Codes" style="max-width: 100%; height: auto; border-radius: 4px; cursor: pointer; transition: transform 0.2s;">
+                </div>
+
+                <div style="border: 1px dashed #5a9e2f; border-radius: 8px; padding: 16px; text-align: center; width: 200px;">
+                    <span style="color: #888; display: block; margin-bottom: 8px;">ARMS CP Codes</span>
+                    <img class="clickable-thumbnail" src="arms cp codes.png" alt="ARMS CP Codes" style="max-width: 100%; height: auto; border-radius: 4px; cursor: pointer; transition: transform 0.2s;">
+                </div>
+
+                <div style="border: 1px dashed #5a9e2f; border-radius: 8px; padding: 16px; text-align: center; width: 200px;">
+                    <span style="color: #888; display: block; margin-bottom: 8px;">ARMS vs Guardian </span>
+                    <img class="clickable-thumbnail" src="arms guardian hardware comparison.png" alt="Differences between ARMS and Guardian Hardware" style="max-width: 100%; height: auto; border-radius: 4px; cursor: pointer; transition: transform 0.2s;">
+                </div>
+
+
+            </div>
+        </div>
+
     </div>
 </div>
 
@@ -173,6 +428,11 @@
     </div>
 </div>
 
+</div>
+
+<div id="image-modal" class="modal-overlay" style="display: none;">
+    <span class="close-modal">&times;</span>
+    <img id="modal-image-content" class="modal-content" src="" alt="Full Resolution">
 </div>
 <script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>

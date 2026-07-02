@@ -964,6 +964,47 @@ function fireConfettiFromElement(elementSelector) {
 }
 
 
+// Image lightbox functionality =========================================
+function setupImageLightboxes() {
+    const modal = document.getElementById('image-modal');
+    const modalImg = document.getElementById('modal-image-content');
+    const closeBtn = document.querySelector('.close-modal');
+    
+    // Find all images that we want to be clickable
+    const thumbnails = document.querySelectorAll('.clickable-thumbnail');
+
+    // 1. Open modal on thumbnail click
+    thumbnails.forEach(img => {
+        img.addEventListener('click', function() {
+            modal.style.display = 'flex'; // Use flex to center the content
+            
+            // Set the full-res image source. 
+            // If your thumbnails and high-res are the same file, just use this.src.
+            // If you have separate high-res files, you could use a data attribute like this.dataset.highres
+            modalImg.src = this.src; 
+            modalImg.alt = this.alt;
+        });
+    });
+
+    // 2. Close modal on the "X" click
+    closeBtn.addEventListener('click', function() {
+        modal.style.display = 'none';
+        modalImg.src = ''; // Clear memory
+    });
+
+    // 3. Close modal if user clicks anywhere outside the image (on the dark background)
+    modal.addEventListener('click', function(event) {
+        if (event.target === modal) {
+            modal.style.display = 'none';
+            modalImg.src = '';
+        }
+    });
+}
+
+// Make sure to call this function after your DOM has loaded
+document.addEventListener('DOMContentLoaded', setupImageLightboxes);
+
+
 
 /* ─── Init ──────────────────────────────────────────────── */
 document.getElementById('server-input')
