@@ -340,6 +340,9 @@ function showEmpty(b) {
   document.getElementById('filter-bar').style.display   = b ? 'none'  : 'flex';
 }
 
+let hasCelebratedCompletion = false;
+
+
 /* ─── Metrics ───────────────────────────────────────────── */
 function renderMetrics() {
   const sensors = getActiveSensors(); 
@@ -351,6 +354,8 @@ function renderMetrics() {
   const r = 26, circ = 2 * Math.PI * r, dash = (pct / 100) * circ;
   const track = '#2a2a38';
   const excepted = allSensors.filter(isExcepted).length;
+
+  
 
 
   document.getElementById('metrics').innerHTML = `
@@ -379,7 +384,7 @@ function renderMetrics() {
       <div class="metric-value" style="color:var(--text-secondary);">${excepted}</div>
       <div class="metric-sub">this year</div>
     </div>
-    <div class="metric-card donut-card">
+    <div id="donut-card" class="metric-card donut-card">
       <svg width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="Progress ${pct}%">
         <circle cx="32" cy="32" r="${r}" fill="none" stroke="${track}" stroke-width="7"/>
         <circle cx="32" cy="32" r="${r}" fill="none" stroke="#5a9e2f" stroke-width="7"
@@ -398,6 +403,11 @@ function renderMetrics() {
         </div>
       </div>
     </div>`;
+
+    if(left == 0 && !hasCelebratedCompletion) {
+      fireConfettiFromElement('#donut-card');
+      hasCelebratedCompletion = true;
+    }
 }
 
 /* ─── Filters ───────────────────────────────────────────── */
@@ -917,6 +927,40 @@ function toggleAutoRefresh() {
     btn.textContent = '⏱ Auto-refresh: On';
     btn.classList.add('active');
   }
+}
+
+
+
+
+// A targeted confetti function
+function fireConfettiFromElement(elementSelector) {
+  const element = document.querySelector(elementSelector);
+  
+  if (!element) {
+    console.error(`Element ${elementSelector} not found.`);
+    return;
+  }
+
+  // Get the element's exact size and position on the screen
+  const rect = element.getBoundingClientRect();
+
+  //Calculate the exact center of the element in pixels
+  const xCenter = rect.left + (rect.width / 2);
+  const yCenter = rect.top + (rect.height / 2);
+
+  // Convert those pixels into percentages (0 to 1) for the confetti library
+  const xRelative = (xCenter / window.innerWidth)-0.035; // Adjusted to fire slightly left of center
+  const yRelative = yCenter / window.innerHeight;
+
+  // Fire the confetti using the newly calculated relative coordinates
+  confetti({
+    particleCount: 150,
+    spread: 40,
+    origin: { x: xRelative, y: yRelative },
+    zIndex: 9999,
+    ticks: 400,
+    colors: ['#5a9e2f', '#e8e8f0', '#2a2a38'] // Matching SVG colors
+  });
 }
 
 
