@@ -404,7 +404,7 @@ function renderMetrics() {
       </div>
     </div>`;
 
-    if(left == 0 && !hasCelebratedCompletion) {
+    if((left == 0) && (!hasCelebratedCompletion) && (cal > 0)) {
       fireConfettiFromElement('#donut-card');
       hasCelebratedCompletion = true;
     }
