@@ -419,19 +419,58 @@ table.summary tr:hover td { background: var(--bg-row-hover); }
 
 /* ─── Settings panel ─────────────────────────────────────── */
 #settings-panel {
+  display: grid; /* Activates grid layout */
+  grid-template-columns: repeat(2, 1fr); /* Creates 2 equal-width columns */
+  gap: 16px; /* Adds spacing between items */
   background: var(--bg-panel);
   border: 0.5px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 16px;
   display: none;
 }
+#settings-panel details {
+    margin-bottom: 12px;
+}
+#settings-panel summary {
+  
+    cursor: pointer;
+    font-weight: 600;
+    padding: 8px 0;
+}
+#settings-panel summary:hover {
+    color: var(--accent-blue);
+}
 .settings-title {
+  
   font-size: 11px;
   font-weight: 500;
   color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin-bottom: 12px;
+}
+.settings-help {
+    margin-top: 10px;
+    padding: 10px 12px;
+    background: rgba(255,255,255,.03);
+    border-left: 3px solid var(--accent-blue);
+    border-radius: 6px;
+    color: var(--text-secondary);
+    font-size: 12px;
+    line-height: 1.5;
+}
+.settings-row {
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    gap: 24px;
+    align-items: start;
+}
+
+.settings-description {
+    color: var(--text-secondary);
+    font-size: 12px;
+    line-height: 1.5;
+    margin-bottom: 8px;
 }
 .threshold-row {
   display: flex;

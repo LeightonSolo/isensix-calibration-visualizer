@@ -52,18 +52,84 @@
     <button class="primary" onclick="addServer()">Add server</button>
     <button onclick="loadData()"><i class="ti ti-refresh"></i> Refresh</button>
     <button id="auto-refresh-btn" onclick="toggleAutoRefresh()" title="Reload every 3 minutes">⏱ Auto-refresh: Off</button>
-    <button id="threshold-btn" onclick="toggleSettings()" title="Configure failure thresholds"><i class="ti ti-adjustments-horizontal"></i> Thresholds</button>
-    <button id="server-config-btn" onclick="toggleServerConfig()" title="Configure servers"><i class="ti ti-server-2"></i> All Servers</button>
+    <!-- <button id="threshold-btn" onclick="toggleSettings()" title="Configure failure thresholds"><i class="ti ti-adjustments-horizontal"></i> Thresholds</button> -->
+    <!-- <button id="server-config-btn" onclick="toggleServerConfig()" title="Configure servers"><i class="ti ti-server-2"></i> All Servers</button> -->
+     <button id="settings-btn" onclick="toggleSettings()"><i class="ti ti-settings"></i> Settings</button>
     <span id="status-msg"></span>
     <span id="latest-cal-msg" style="font-size:14px;color:var(--text-muted);margin-left:8px;"></span>
   </div>
+
+  <!--<div id="settings-panel">
+    <details open>
+        <summary>Calibration</summary>
+        Rolling Days
+        <input type="number" id="rolling-days">
+    </details>
+    <details>
+        <summary>Thresholds</summary>
+        <div id="threshold-inputs"></div>
+    </details>
+    <details>
+        <summary>Servers</summary>
+        <div id="server-config-panel"></div>
+    </details>
+</div>-->
 
 <div id="dashboard-page">
   <!-- Server tags -->
   <div id="server-tags"></div>
 
+    <div id="settings-panel" class="panel" style="display:none;">
+
+        <details open>
+            <div class="settings-description">
+            Sensors calibrated within the last
+            <strong>Rolling Days</strong> are counted as complete.
+            The default is 7 days.
+            </div>
+            <summary>Calibration</summary>
+
+            <label>Rolling Days</label>
+            <input type="number" id="rolling-days" title="How many days in past to check for calibration" min="1" max="999" onchange="updateRollingDays()">
+
+        </details>
+
+        <details>
+            <div class="settings-description"> 
+            Sensors that exceed these max offsets for their type are counted as failures.</div>
+            <summary>Thresholds</summary>
+
+            <div id="threshold-inputs"></div>
+            <div style="display:flex;gap:8px;margin-top:12px;align-items:center;">
+            <input id="new-type-name" type="text" placeholder="e.g. Temp-SC" style="width:110px;"/>
+            <input id="new-type-val" type="number" placeholder="Max offset" step="0.01" style="width:110px;"/>
+            <button onclick="addThreshold()">Add type</button>
+            </div>
+
+        </details>
+
+        <details>
+             <div class="settings-description"> 
+            The data below determines the calibration links to the sensors based on server version, and tunnel to use based on hostname (ics1 or ics3).</div>
+            <summary>Servers</summary>
+
+           <div id="server-config-list"></div>
+            <div style="display:flex;gap:8px;margin-top:12px;align-items:center;flex-wrap:wrap;">
+            <input id="sc-server" type="text" placeholder="Server ID (e.g. 005)" style="width:100px;"/>
+            <select id="sc-version" style="width:90px;">
+                <option value="G3.0">G3.0</option>
+                <option value="G2.1">G2.1</option>
+                <option value="G2.0">G2.0</option>
+            </select>
+            <input id="sc-hostname" type="text" placeholder="Hostname" style="width:220px;" value="ics1.ca.isensix.com"/>
+            <input id="sc-notes" type="text" placeholder="Notes (optional)" style="width:150px;"/>
+            <button onclick="saveServerConfig()">Save</button>
+            </div>
+        </details>
+
+    </div>
   <!-- Thresholds settings panel -->
-  <div id="settings-panel">
+  <!-- <div id="settings-panel">
     <div class="settings-title">Failure thresholds — max absolute offset per sensor type</div>
     <div id="threshold-inputs"></div>
     <div style="display:flex;gap:8px;margin-top:12px;align-items:center;">
@@ -71,27 +137,9 @@
       <input id="new-type-val" type="number" placeholder="Max offset" step="0.01" style="width:110px;"/>
       <button onclick="addThreshold()">Add type</button>
     </div>
-  </div>
-
-
-  <div id="server-config-panel" style="display:none;" class="panel" style="padding:16px;">
-  <div style="padding:16px;">
-    <div class="settings-title">Server configuration</div>
-    <div id="server-config-list"></div>
-    <div style="display:flex;gap:8px;margin-top:12px;align-items:center;flex-wrap:wrap;">
-      <input id="sc-server" type="text" placeholder="Server ID (e.g. 005)" style="width:100px;"/>
-      <select id="sc-version" style="width:90px;">
-        <option value="G3.0">G3.0</option>
-        <option value="G2.1">G2.1</option>
-        <option value="G2.0">G2.0</option>
-      </select>
-      <input id="sc-hostname" type="text" placeholder="Hostname" style="width:220px;" value="ics1.ca.isensix.com"/>
-      <input id="sc-notes" type="text" placeholder="Notes (optional)" style="width:150px;"/>
-      <button onclick="saveServerConfig()">Save</button>
-    </div>
-  </div>
-</div>
-
+  </div> -->
+  
+    
 
 <!-- NOT LETTING USERS CHANGE TYPE COLORS FOR NOW
   <div style="border-top:0.5px solid var(--border);margin-top:16px;padding-top:16px;">

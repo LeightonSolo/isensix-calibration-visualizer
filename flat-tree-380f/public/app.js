@@ -11,6 +11,12 @@ let sortCol    = null;
 let sortDir    = 1;
 let allExceptions = [];
 
+const savedRollingDays = localStorage.getItem("rollingDays");
+
+if (savedRollingDays !== null) {
+    CONFIG.ROLLING_DAYS = Number(savedRollingDays);
+}
+
 
 
 
@@ -195,7 +201,7 @@ function removeServer(s) {
 }
 
 /* ─── Settings ──────────────────────────────────────────── */
-function toggleSettings() {
+/*function toggleSettings() {
     const panel = document.getElementById("settings-panel");
 
     const isOpen = panel.style.display === "block";
@@ -208,6 +214,33 @@ function toggleSettings() {
     }
 
     setButtonActive("threshold-btn", !isOpen);
+} OLD TOGGLE SETTINGS */
+
+function toggleSettings() {
+
+    const panel = document.getElementById("settings-panel");
+    const isOpen = panel.style.display === "block";
+    panel.style.display = isOpen ? "none" : "block";
+    setButtonActive("settings-btn", !isOpen);
+    if (!isOpen) {
+        renderThresholdInputs();
+        renderServerConfig();
+        document.getElementById("rolling-days").value =
+            CONFIG.ROLLING_DAYS;
+    }
+
+}
+
+function updateRollingDays() {
+    const value = Number(document.getElementById("rolling-days").value);
+
+    if (!Number.isFinite(value) || value < 1) return;
+
+    CONFIG.ROLLING_DAYS = value;
+    localStorage.setItem("rollingDays", value);
+
+    renderMetrics();
+    renderTable();
 }
 
 function toggleServerConfig() {
