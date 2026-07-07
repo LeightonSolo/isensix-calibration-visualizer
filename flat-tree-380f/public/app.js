@@ -337,7 +337,7 @@ async function loadExceptions() {
 function showEmpty(b) {
   document.getElementById('empty-state').style.display  = b ? 'block' : 'none';
   document.getElementById('main-panel').style.display   = b ? 'none'  : 'block';
-  document.getElementById('filter-bar').style.display   = b ? 'none'  : 'flex';
+  //document.getElementById('filter-bar').style.display   = b ? 'none'  : 'flex';
 }
 
 let hasCelebratedCompletion = false;
@@ -615,6 +615,10 @@ function renderTable() {
   const title = document.getElementById('panel-title');
   const count = document.getElementById('panel-count');
   const area  = document.getElementById('table-area');
+
+  // sync filter bar visibility with current tab on every render
+  const showFilter = ['left','calibrated','failures','all'].includes(currentTab);
+  document.getElementById('filter-bar').style.display = showFilter ? 'flex' : 'none';
 
   if (currentTab === 'types') {
     title.textContent = 'Sensor type breakdown';
