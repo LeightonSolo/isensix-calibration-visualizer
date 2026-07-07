@@ -400,6 +400,11 @@ function renderMetrics() {
   const r = 26, circ = 2 * Math.PI * r, dash = (pct / 100) * circ;
   const track = '#2a2a38';
   const excepted = allSensors.filter(isExcepted).length;
+  const check = allSensors.filter(s =>
+    s.status?.toUpperCase() === 'ENABLED' &&
+    s.quality &&
+    s.quality.toUpperCase() !== 'GOOD'
+  ).length;
 
   
 
@@ -424,6 +429,11 @@ function renderMetrics() {
       <div class="metric-label">Failures</div>
       <div class="metric-value red">${fail}</div>
       <div class="metric-sub">offset exceeded</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">In CHECK</div>
+      <div class="metric-value" style="color:var(--accent-purple);">${check}</div>
+      <div class="metric-sub">sensors with errors</div>
     </div>
     <div class="metric-card">
       <div class="metric-label">Exceptions</div>
@@ -684,6 +694,17 @@ function renderTable() {
     area.innerHTML = buildExceptionsTable();
     return;
   }
+  if (currentTab === 'check') {
+  title.textContent = 'Sensors in CHECK';
+  const checkSensors = allSensors.filter(s =>
+    s.status?.toUpperCase() === 'ENABLED' &&
+    s.quality &&
+    s.quality.toUpperCase() !== 'GOOD'
+  );
+  count.textContent = `${checkSensors.length} sensor${checkSensors.length !== 1 ? 's' : ''}`;
+  area.innerHTML = buildCheckTable(checkSensors);
+  return;
+  }
 
   let rows = getActiveSensors();
   if (currentTab === 'left')        rows = rows.filter(s => !isCalibrated(s));
@@ -917,7 +938,52 @@ async function saveException(sensor_id, server) {
   window.location.reload();
 }
 
+// exception table for CHECK tab ==========================
+function buildCheckTable(sensors) {
+  if (!sensors.length) {
+    return `<div style="padding:2.5rem;text-align:center;color:var(--text-muted);font-size:13px;">
+      No sensors in CHECK.</div>`;
+  }
 
+  const sorted = [...sensors].sort((a, b) => {
+    // Sort by: excepted last, then calibrated, then by quality, then by zone
+    const aExc = isExcepted(a) ? 1 : 0;
+    const bExc = isExcepted(b) ? 1 : 0;
+    if (aExc !== bExc) return aExc - bExc;
+    return (a.zone || '').localeCompare(b.zone || '');
+  });
+
+  return `<table class="summary">
+    <thead><tr>
+      <th>ID</th>
+      <th>CP Addr</th>
+      <th>Sensor</th>
+      <th>Zone</th>
+      <th>SID</th>
+      <th>Quality</th>
+      <th>Exception</th>
+      <th>Calibrated</th>
+    </tr></thead>
+    <tbody>${sorted.map(s => {
+      const excepted   = isExcepted(s);
+      const calibrated = isCalibrated(s);
+      return `<tr class="${excepted ? 'done-row' : ''}">
+        <td class="muted mono">#${s.sensor_id}</td>
+        <td class="mono muted">${s.cp_address || '—'}</td>
+        <td title="${s.sensor_name || ''}">${s.sensor_name || '—'}</td>
+        <td class="muted">${s.zone || '—'}</td>
+        <td class="muted mono">${s.server || '—'}</td>
+        <td>${qualBadge(s.quality)}</td>
+        <td style="${!excepted ? 'color:var(--accent-red);font-weight:500;' : 'color:var(--accent-green);'}">
+          ${excepted ? 'YES' : 'NO'}
+        </td>
+        <td style="${!calibrated ? 'color:var(--accent-red);font-weight:500;' : 'color:var(--accent-green);'}">
+          ${calibrated ? 'YES' : 'NO'}
+        </td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table>`;
+}
 
 // exception tab rendering ==========================
 function buildExceptionsTable() {
