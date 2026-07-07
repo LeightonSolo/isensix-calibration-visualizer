@@ -309,10 +309,11 @@ async function loadData() {
       loadServerMeta(),
     ]);
     allSensors = sensorResults.flat();
-    setStatus(`${allSensors.length} sensors — ${new Date().toLocaleTimeString()}`);
+    setStatus(`${allSensors.length} total sensors — updated ${new Date().toLocaleTimeString()}`);
     populateFilters();
     renderMetrics();
     renderTable();
+    updateLatestCalibration();
   } catch (e) {
     setStatus('Error loading data');
     console.error(e);
@@ -340,6 +341,18 @@ function showEmpty(b) {
   //document.getElementById('filter-bar').style.display   = b ? 'none'  : 'flex';
 }
 
+
+function updateLatestCalibration() {
+  const el = document.getElementById('latest-cal-msg');
+  if (!el) return;
+  const calibrated = allSensors.filter(s => s.calibrated_at);
+  if (!calibrated.length) { el.textContent = ''; return; }
+  const latest = calibrated.reduce((a, b) =>
+    a.calibrated_at > b.calibrated_at ? a : b
+  );
+  el.textContent = ` Latest Calibration: ${latest.sensor_name || '#' + latest.sensor_id} (${fmtDate(latest.calibrated_at)})`;
+}
+
 let hasCelebratedCompletion = false;
 
 
@@ -360,7 +373,7 @@ function renderMetrics() {
 
   document.getElementById('metrics').innerHTML = `
     <div class="metric-card">
-      <div class="metric-label">Total sensors</div>
+      <div class="metric-label">Total Enabled Sensors</div>
       <div class="metric-value">${total}</div>
       <div class="metric-sub">${servers.length} server${servers.length !== 1 ? 's' : ''}</div>
     </div>

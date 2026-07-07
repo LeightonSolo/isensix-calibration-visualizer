@@ -17,7 +17,7 @@
 
   --text-primary:   #e8e8f0;
   --text-secondary: #888899;
-  --text-muted:     #555566;
+  --text-muted:     #656570;
 
   --accent-green:   #5a9e2f;
   --accent-red:     #c83232;
@@ -116,7 +116,7 @@ button.active:hover {
 }
 
 #status-msg {
-  font-size: 11px;
+  font-size: 14px;
   color: var(--text-muted);
   margin-left: 4px;
 }
