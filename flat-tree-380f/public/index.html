@@ -23,25 +23,24 @@
     </div>
 
     <div class="nav-links">
-      <button class="nav-btn active" data-page="dashboard">
+      <button class="nav-btn active" data-page="dashboard" style="padding:5px">
         <i class="ti ti-layout-dashboard"></i>
         Dashboard
       </button>
 
-      <button class="nav-btn" data-page="summary">
+      <button class="nav-btn" data-page="summary" style="padding:5px">
         <i class="ti ti-file-text"></i>
         Summary
       </button>
 
-      <button class="nav-btn" data-page="resources">
+      <button class="nav-btn" data-page="resources" style="padding:5px">
         <i class="ti ti-books"></i>
         Resources
       </button>
 
-      <button class="nav-btn" data-page="about">
-        <i class="ti ti-info-circle"></i>
-        About
-      </button>
+      
+
+      
     </div>
   </nav>
 
@@ -206,8 +205,20 @@
     </div>
 </div>
 
+<div id="about-page" class="page" style="display:none;">
+    <div class="metric-card" style="padding:16px;">
+        <h2>About</h2>
+        <br>
+        <p>The Isensix Calibration Dashboard is a work in progress tool to visualize multiple Isensix servers simultaneously to monitor, validate, summarize, and improve efficiency of the Isensix calibration process. 
+          In combination with tampermonkey scripts, the data on this page will update automatically after every calibration. It will eventually replace the Google Sheets based tool.</p>
+          <br>
+          <p>By Leighton Solomon</p>
+    </div>
+</div>
+
 <div id="resources-page" class="page" style="display:none;">
     <div class="panel" style="padding:16px;">
+        
         <h2>Resources</h2>
 
         <br>
@@ -469,16 +480,12 @@
     </div>
 </div>
 
-<div id="about-page" class="page" style="display:none;">
-    <div class="metric-card" style="padding:16px;">
-        <h2>About</h2>
-        <br>
-        <p>The Isensix Calibration Dashboard is a work in progress tool to visualize multiple Isensix servers simultaneously to monitor, validate, summarize, and improve efficiency of the Isensix calibration process. 
-          In combination with tampermonkey scripts, the data on this page will update automatically after every calibration. It will eventually replace the Google Sheets based tool.</p>
-          <br>
-          <p>By Leighton Solomon</p>
-    </div>
-</div>
+
+<button class="nav-btn" data-page="about" style="width:80px" style="padding:5px">
+        <i class="ti ti-info-circle"></i>
+        About
+      </button>
+
 
 </div>
 
@@ -486,6 +493,9 @@
     <span class="close-modal">&times;</span>
     <img id="modal-image-content" class="modal-content" src="" alt="Full Resolution">
 </div>
+
+
+
 <script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
 <script src="app.js"></script>

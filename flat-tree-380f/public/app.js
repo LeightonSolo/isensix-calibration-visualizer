@@ -54,6 +54,8 @@ document.querySelectorAll(".nav-btn").forEach(btn => {
     btn.onclick = () => showPage(btn.dataset.page);
 });
 
+
+
 /* ─── Persistence ───────────────────────────────────────── */
 function saveServers()    { localStorage.setItem('cal_servers',    JSON.stringify(servers)); }
 function saveThresholds() { localStorage.setItem('cal_thresholds', JSON.stringify(thresholds)); }
@@ -411,7 +413,7 @@ function renderMetrics() {
 
   document.getElementById('metrics').innerHTML = `
     <div class="metric-card">
-      <div class="metric-label">Total Enabled Sensors</div>
+      <div class="metric-label">Enabled Sensors</div>
       <div class="metric-value">${total}</div>
       <div class="metric-sub">${servers.length} server${servers.length !== 1 ? 's' : ''}</div>
     </div>

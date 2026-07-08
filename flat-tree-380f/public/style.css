@@ -45,9 +45,10 @@ html, body {
   -webkit-font-smoothing: antialiased;
 }
 
+
 /* ─── Layout ────────────────────────────────────────────── */
 #app {
-  max-width: 1800px;
+  max-width: 2000px;
   margin: 0 auto;
   padding: 20px 24px 40px;
   display: flex;
@@ -90,15 +91,17 @@ button.active:hover {
 
 .nav-links {
     display: flex;
-    gap: 8px;
+    gap: 4px;
+    font-size: 10px;
 }
 
 .nav-brand {
     display: flex;
     align-items: center;
-    gap: 8px;
-    font-size: 16px;
+    gap: 6px;
+    font-size: 15px;
     font-weight: 600;
+    margin-right: 6px;
 }
 
 #topbar {
@@ -209,7 +212,7 @@ button.danger { color: var(--accent-red); }
   padding: 10px 10px;
 }
 .metric-label {
-  font-size: 14px;
+  font-size: 13px;
   color: var(--text-secondary);
   margin-bottom: 4px;
   text-transform: uppercase;
@@ -227,10 +230,10 @@ button.danger { color: var(--accent-red); }
 .metric-value.green  { color: var(--accent-green); }
 .metric-value.orange { color: var(--accent-orange); }
 .metric-value.red    { color: var(--accent-red); }
-.donut-card { display: flex; align-items: center; gap: 14px; margin-left: 3px;}
+.donut-card { display: flex; align-items: center; gap: 14px;}
 .donut-legend { display: flex; flex-direction: column; }
 .donut-legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-secondary); }
-.donut-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.donut-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 1; }
 
 /* ─── Tabs ──────────────────────────────────────────────── */
 #tab-bar {
@@ -253,6 +256,14 @@ button.danger { color: var(--accent-red); }
   background: var(--accent-blue);
   color: var(--text-primary);
   border-color: #3a3a50;
+}
+
+.pinned-button {
+  position: fixed;
+  bottom: 0;
+  right: 0;
+  /*width: 100%;*/
+  /* z-index: 1000; /* Keeps it above other content */
 }
 
 /* ─── Filter bar ────────────────────────────────────────── */
@@ -504,10 +515,10 @@ table.summary tr:hover td { background: var(--bg-row-hover); }
 #empty-state i { font-size: 36px; display: block; margin-bottom: 10px; }
 
 /* ─── Scrollbar ───────────────────────────────────────────── */
-::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar { width: 8px; height: 10px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #2a2a38; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #3a3a4e; }
+::-webkit-scrollbar-thumb:hover { background: #555563; }
 
 
 
