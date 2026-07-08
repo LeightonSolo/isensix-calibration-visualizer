@@ -886,7 +886,17 @@ function openExceptionModal(sensor_id, server) {
       <div style="display:flex;flex-direction:column;gap:8px;">
         <label style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.04em;">Reason</label>
         <input id="exc-reason" type="text" placeholder="e.g. No access, customer declined..."
-          style="width:100%;" />
+          style="width:100%;" list="options"/>
+        <datalist id="options">
+          <option value="Sensor Removed">
+          <option value="Not in Use">
+          <option value="Check Network">
+          <option value="Check Sensor">
+          <option value="Bad CP">
+          <option value="No access to sensor">
+          <option value="Replacement sensor not arrived">
+          <option value="Will be calibrated by customer">
+        </datalist>
       </div>
       <div style="display:flex;flex-direction:column;gap:8px;">
         <label style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.04em;">Added by</label>
@@ -963,24 +973,31 @@ function buildCheckTable(sensors) {
       <th>Quality</th>
       <th>Exception</th>
       <th>Calibrated</th>
+      <th></th>
     </tr></thead>
     <tbody>${sorted.map(s => {
       const excepted   = isExcepted(s);
       const calibrated = isCalibrated(s);
-      return `<tr class="${excepted ? 'done-row' : ''}">
-        <td class="muted mono">#${s.sensor_id}</td>
-        <td class="mono muted">${s.cp_address || '—'}</td>
-        <td title="${s.sensor_name || ''}">${s.sensor_name || '—'}</td>
-        <td class="muted">${s.zone || '—'}</td>
-        <td class="muted mono">${s.server || '—'}</td>
-        <td>${qualBadge(s.quality)}</td>
-        <td style="${!excepted ? 'color:var(--accent-red);font-weight:500;' : 'color:var(--accent-green);'}">
-          ${excepted ? 'YES' : 'NO'}
-        </td>
-        <td style="${!calibrated ? 'color:var(--accent-red);font-weight:500;' : 'color:var(--accent-green);'}">
-          ${calibrated ? 'YES' : 'NO'}
-        </td>
-      </tr>`;
+      const resolved   = excepted || calibrated;
+      return `<tr class="${resolved ? 'done-row' : ''}">
+      <td class="muted mono">#${s.sensor_id}</td>
+      <td class="mono muted">${s.cp_address || '—'}</td>
+      <td title="${s.sensor_name || ''}">${s.sensor_name || '—'}</td>
+      <td class="muted">${s.zone || '—'}</td>
+      <td class="muted mono">${s.server || '—'}</td>
+      <td>${qualBadge(s.quality)}</td>
+      <td style="color:${excepted ? 'var(--accent-green)' : resolved ? 'var(--accent-green)' : 'var(--accent-red)'};font-weight:500;">
+        ${excepted ? 'YES' : 'NO'}
+      </td>
+      <td style="color:${calibrated ? 'var(--accent-green)' : resolved ? 'var(--accent-green)' : 'var(--accent-red)'};font-weight:500;">
+        ${calibrated ? 'YES' : 'NO'}
+      </td>
+      <td>${excepted
+        ? `<span class="qual qual-good" style="cursor:default;">excepted</span>`
+        : `<button onclick="openExceptionModal('${s.sensor_id}','${s.server}')"
+            style="font-size:11px;padding:3px 8px;">+ exception</button>`
+      }</td>
+    </tr>`;
     }).join('')}</tbody>
   </table>`;
 }
