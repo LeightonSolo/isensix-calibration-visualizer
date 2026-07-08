@@ -288,6 +288,12 @@ button.danger { color: var(--accent-red); }
 }
 .panel-count { font-size: 12px; color: var(--text-muted); }
 
+.close-button{
+    display: flex;
+    justify-content: flex-end;
+    width: 100%; /* Ensures it spans the required area */
+}
+
 /* ─── Resizable table ───────────────────────────────────── */
 .rt-wrap {
   overflow-x: auto;
