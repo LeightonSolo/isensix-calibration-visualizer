@@ -160,13 +160,13 @@
   <!-- Tab bar -->
   <div id="tab-bar">
     <button class="tab-btn active" data-tab="left">Sensors left</button>
-    <button class="tab-btn" data-tab="calibrated">Calibrated</button>
-    <button class="tab-btn" data-tab="failures">Failures</button>
-    <button class="tab-btn" data-tab="exceptions">Exceptions</button>
-    <button class="tab-btn" data-tab="types">By type</button>
-    <button class="tab-btn" data-tab="zones">By zone</button>
-    <button class="tab-btn" data-tab="check">In CHECK</button>
-    <button class="tab-btn" data-tab="all">All sensors</button>
+    <button class="tab-btn" style="background-color: rgb(0, 25, 0);" data-tab="calibrated">Calibrated</button>
+    <button class="tab-btn" style="background-color: rgb(25, 0, 0);" data-tab="failures">Failures</button>
+    <button class="tab-btn" style="background-color: rgb(31, 19, 0);" data-tab="exceptions">Exceptions</button>
+    <button class="tab-btn" style="background-color: rgb(5, 5, 5);" data-tab="check">In CHECK</button>
+    <button class="tab-btn" data-tab="types">By Type</button>
+    <button class="tab-btn" data-tab="zones">By Zone</button>
+    <button class="tab-btn" data-tab="all">All Sensors</button>
     <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-secondary);cursor:pointer;">
     <input type="checkbox" id="show-disabled" onchange="renderTable()" style="cursor:pointer;"/>
     Show disabled

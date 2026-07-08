@@ -17,8 +17,16 @@ if (savedRollingDays !== null) {
     CONFIG.ROLLING_DAYS = Number(savedRollingDays);
 }
 
-
-
+// Status message turns red after not being update for 15 minutes
+let lastUpdated = null;
+function updateStatusColor() {
+  const el = document.getElementById('status-msg');
+  if (!el || !lastUpdated) return;
+  const stale = Date.now() - lastUpdated > 15 * 60 * 1000;
+  el.style.color = stale ? 'var(--accent-red)' : 'var(--text-muted)';
+}
+setInterval(updateStatusColor, 30 * 1000); // check every 30 seconds
+//==============================================================
 
 let currentPage = "dashboard";
 
@@ -344,7 +352,11 @@ async function loadData() {
       loadServerMeta(),
     ]);
     allSensors = sensorResults.flat();
+
+    lastUpdated = Date.now();
     setStatus(`${allSensors.length} total sensors — updated ${new Date().toLocaleTimeString()}`);
+    updateStatusColor(); // reset to normal immediately after a fresh load
+
     populateFilters();
     renderMetrics();
     renderTable();
@@ -414,7 +426,7 @@ function renderMetrics() {
   document.getElementById('metrics').innerHTML = `
     <div class="metric-card">
       <div class="metric-label">Enabled Sensors</div>
-      <div class="metric-value">${total}</div>
+      <div class="metric-value" title="Total enabled sensors across all added servers">${total}</div>
       <div class="metric-sub">${servers.length} server${servers.length !== 1 ? 's' : ''}</div>
     </div>
     <div class="metric-card">
@@ -424,7 +436,7 @@ function renderMetrics() {
     </div>
     <div class="metric-card">
       <div class="metric-label">Remaining</div>
-      <div class="metric-value orange">${left}</div>
+      <div class="metric-value blue">${left}</div>
       <div class="metric-sub">not yet calibrated</div>
     </div>
     <div class="metric-card">
@@ -434,12 +446,12 @@ function renderMetrics() {
     </div>
     <div class="metric-card">
       <div class="metric-label">In CHECK</div>
-      <div class="metric-value" style="color:var(--accent-purple);">${check}</div>
+      <div class="metric-value" style="color:white);">${check}</div>
       <div class="metric-sub">sensors with errors</div>
     </div>
     <div class="metric-card">
       <div class="metric-label">Exceptions</div>
-      <div class="metric-value" style="color:var(--text-secondary);">${excepted}</div>
+      <div class="metric-value orange" style="color:var(--accent-orange);">${excepted}</div>
       <div class="metric-sub">this year</div>
     </div>
     <div id="donut-card" class="metric-card donut-card">

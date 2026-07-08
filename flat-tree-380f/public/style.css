@@ -9,20 +9,21 @@
   --bg-input:      #1e1e24;
   --bg-tag:        #1e1e28;
   --bg-metric:     #1a1a22;
-  --bg-failure:    rgba(200, 50, 50, 0.1);
+  --bg-failure:    rgba(220, 0, 0, 0.1);
   --bg-header:     #111115;
 
   --border:        #2a2a35;
   --border-light:  #222230;
 
   --text-primary:   #e8e8f0;
-  --text-secondary: #888899;
+  --text-secondary: #b0b0c5;
   --text-muted:     #656570;
 
   --accent-green:   #5a9e2f;
   --accent-red:     #c83232;
   --accent-orange:  #c47a1a;
   --accent-blue:    #0445a0;
+  --accent-light-blue:    #0060e7;
   --accent-purple:  #8c3fc7;
 
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
@@ -138,7 +139,7 @@ input[type="text"],
 input[type="number"],
 select {
   background: var(--bg-input);
-  border: 0.5px solid var(--border);
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   color: var(--text-primary);
   font-family: var(--font-sans);
@@ -230,6 +231,7 @@ button.danger { color: var(--accent-red); }
 .metric-value.green  { color: var(--accent-green); }
 .metric-value.orange { color: var(--accent-orange); }
 .metric-value.red    { color: var(--accent-red); }
+.metric-value.blue   { color: var(--accent-light-blue); }
 .donut-card { display: flex; align-items: center; gap: 14px;}
 .donut-legend { display: flex; flex-direction: column; }
 .donut-legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-secondary); }
@@ -244,7 +246,7 @@ button.danger { color: var(--accent-red); }
 }
 
 .tab-btn {
-  background: none;
+  /*background: none;*/
   border: 0.5px solid var(--border);
   border-radius: var(--radius-md);
   color: var(--text-secondary);
@@ -371,11 +373,11 @@ table.rt tr:last-child td { border-bottom: none; }
 table.rt tr:nth-child(even) td { background: var(--bg-row-alt); }
 table.rt tr:hover td { background: var(--bg-row-hover); }
 table.rt tr.failure-row td { background: var(--bg-failure); }
-table.rt tr.failure-row:hover td { background: rgba(200,50,50,0.14); }
-table.rt tr.done-row td { background: rgba(78, 198, 23, 0.1); }
-table.rt tr.done-row:hover td { background: rgba(90, 198, 47, 0.15); }
-table.summary tr.done-row td { background: rgba(90, 198, 47, 0.1); }
-table.summary tr.done-row:hover td { background: rgba(90, 198, 47, 0.15); }
+table.rt tr.failure-row:hover td { background: rgba(250,0,0,0.2); }
+table.rt tr.done-row td { background: rgba(0, 150, 0, 0.1); }
+table.rt tr.done-row:hover td { background: rgba(0, 198, 0, 0.2); }
+table.summary tr.done-row td { background: rgba(0, 198, 0, 0.1); }
+table.summary tr.done-row:hover td { background: rgba(0, 198, 0, 0.2); }
 
 td.muted, span.muted { color: var(--text-muted); }
 td.mono { font-family: var(--font-mono); font-size: 11px; }
