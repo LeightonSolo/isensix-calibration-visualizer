@@ -10,6 +10,10 @@ let currentTab = 'left';
 let sortCol    = null;
 let sortDir    = 1;
 let allExceptions = [];
+let zoneSort   = { col: 'left',  dir: -1 };
+let typeSort   = { col: 'left',  dir: -1 };
+let checkSort  = { col: null,    dir:  1 };
+let excSort    = { col: null,    dir:  1 };
 
 const savedRollingDays = localStorage.getItem("rollingDays");
 
@@ -406,19 +410,33 @@ let hasCelebratedCompletion = false;
 /* ─── Metrics ───────────────────────────────────────────── */
 function renderMetrics() {
   const sensors = getActiveSensors(); 
-  const total = sensors.length;
-  const cal   = sensors.filter(isCalibrated).length;
+  const total = sensors.length; //total enabled sensors
+  const cal   = sensors.filter(isCalibrated).length; //total calibrated sensors
   const left  = total - cal;
   const fail  = sensors.filter(isFailed).length;
   const pct   = total > 0 ? Math.round((cal / total) * 100) : 0;
   const r = 26, circ = 2 * Math.PI * r, dash = (pct / 100) * circ;
   const track = '#2a2a38';
   const excepted = allSensors.filter(isExcepted).length;
-  const check = allSensors.filter(s =>
+  const check = allSensors.filter(s =>   //sensors in check
     s.status?.toUpperCase() === 'ENABLED' &&
     s.quality &&
     s.quality.toUpperCase() !== 'GOOD'
   ).length;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  const calToday = sensors.filter(s =>
+    s.calibrated_at && new Date(s.calibrated_at) >= today
+  ).length;
+
+  const calYesterday = sensors.filter(s => {
+    if (!s.calibrated_at) return false;
+    const d = new Date(s.calibrated_at);
+    return d >= yesterday && d < today;
+  }).length;
 
   
 
@@ -430,10 +448,13 @@ function renderMetrics() {
       <div class="metric-sub">${servers.length} server${servers.length !== 1 ? 's' : ''}</div>
     </div>
     <div class="metric-card">
-      <div class="metric-label">Calibrated (${CONFIG.ROLLING_DAYS}d)</div>
-      <div class="metric-value green">${cal}</div>
-      <div class="metric-sub">${pct}% complete</div>
-    </div>
+  <div class="metric-label">Calibrated (${CONFIG.ROLLING_DAYS}d)</div>
+  <div class="metric-value green">${cal}</div>
+  <div style="margin-top:3px; padding-top:3px; display:flex; justify-content: center; gap:10px; font-size:13px; color:var(--text-secondary);">
+    <span>Today: <span style="color:var(--accent-green); font-weight:500;">${calToday}</span></span>
+    <span>Yesterday: <span style="color:var(--text-primary); font-weight:500;">${calYesterday}</span></span>
+  </div>
+</div>
     <div class="metric-card">
       <div class="metric-label">Remaining</div>
       <div class="metric-value blue">${left}</div>
@@ -513,7 +534,7 @@ function applyFilters(rows) {
   );
 }
 
-function applySort(rows) {
+function applySort(rows) { //sort for main tables
   if (!sortCol) return rows;
   return [...rows].sort((a, b) => {
     let av = a[sortCol] ?? '', bv = b[sortCol] ?? '';
@@ -524,6 +545,11 @@ function applySort(rows) {
     return 0;
   });
 }
+//sort for the other tables
+function sortZone(col)  { toggleSummarySort(zoneSort,  col); }
+function sortType(col)  { toggleSummarySort(typeSort,  col); }
+function sortCheck(col) { toggleSummarySort(checkSort, col); }
+function sortExc(col)   { toggleSummarySort(excSort,   col); }
 
 /* ─── Tab switching ─────────────────────────────────────── */
 function switchTab(tab) {
@@ -542,6 +568,50 @@ function sortBy(col) {
   else { sortCol = col; sortDir = 1; }
   renderTable();
 }
+
+//shared sort toggler for summary tables ====================
+function toggleSummarySort(state, col) {
+  if (state.col === col) state.dir *= -1;
+  else { state.col = col; state.dir = 1; }
+  renderTable();
+}
+
+function applySummarySort(rows, state, key) {
+  if (!state.col) return rows;
+  return [...rows].sort((a, b) => {
+    let av = a[state.col] ?? '', bv = b[state.col] ?? '';
+    const an = parseFloat(av), bn = parseFloat(bv);
+    if (!isNaN(an) && !isNaN(bn)) { av = an; bv = bn; }
+    if (av < bv) return -state.dir;
+    if (av > bv) return  state.dir;
+    return 0;
+  });
+}
+
+function thSort(label, col, state, toggleFn) {
+  const cls = state.col === col ? (state.dir === 1 ? 'sort-asc' : 'sort-desc') : '';
+  return `<th class="${cls}" onclick="${toggleFn}('${col}')" style="cursor:pointer;">
+    ${label}<span class="rt-resizer" onmousedown="startResize(event,this)"></span>
+  </th>`;
+}
+//==============================================================
+
+
+
+function isUnderWarranty(serial) {
+  if (!serial) return false;
+  // Find 4-digit group after a dash: matches "1225" in "RM-1225-4234"
+  const m = serial.match(/-(\d{2})(\d{2})-/);
+  if (!m) return false;
+  const month = parseInt(m[1], 10);
+  const year  = 2000 + parseInt(m[2], 10);
+  if (month < 1 || month > 12) return false;
+  const manufactured = new Date(year, month - 1, 1);
+  const cutoff = new Date();
+  cutoff.setFullYear(cutoff.getFullYear() - 1); // 1 year warranty
+  return manufactured >= cutoff;
+}
+
 
 /* ─── Sensor columns definition ─────────────────────────── */
 const SENSOR_COLS = [
@@ -595,7 +665,13 @@ function buildSensorTable(rows) {
       <td class="muted" title="${s.zone||''}">${s.zone || '—'}</td>
       <td class="muted mono">${s.server || '—'}</td>
       <td>${badge(s.sensor_type)}</td>
-      <td class="mono muted" title="${s.serial_number||''}">${s.serial_number || '—'}</td>
+      <td title="${s.serial_number||''}">
+        ${s.serial_number
+          ? (isFailed(s) && isUnderWarranty(s.serial_number)
+              ? `<span class="warranty-serial" title="Under warranty — sensor should be replaced at no charge">${s.serial_number}</span>`
+              : `<span class="mono muted">${s.serial_number}</span>`)
+          : '<span class="muted">—</span>'}
+      </td>
       <td class="muted" title="${s.access_point||''}">${s.access_point || '—'}</td>
       <td>${qualBadge(s.quality)}</td>
       <td>${statusCell(s.status)}</td>
@@ -617,33 +693,39 @@ function buildTypesTable() {
     !s.status || s.status.toUpperCase() !== 'DISABLED'
   );
   const types = [...new Set(sensors.map(s => s.sensor_type).filter(Boolean))].sort();
-  const rows = types.map(t => {
-    const g    = sensors.filter(s => s.sensor_type === t);
-    const cal  = g.filter(s => isCalibrated(s) && !isExcepted(s)).length;
-    const exc  = g.filter(isExcepted).length;
-    const fail = g.filter(isFailed).length;
-    const left = g.length - cal - exc;
-    const srv  = [...new Set(g.map(s => s.server).filter(Boolean))].join(', ');
-    return { t, total: g.length, cal, exc, left, fail, srv };
+  let rows = types.map(t => {
+    const g   = sensors.filter(s => s.sensor_type === t);
+    const cal = g.filter(s => isCalibrated(s) && !isExcepted(s)).length;
+    const exc = g.filter(isExcepted).length;
+    const fail= g.filter(isFailed).length;
+    const left= g.length - cal - exc;
+    const srv = [...new Set(g.map(s => s.server).filter(Boolean))].join(', ');
+    return { t, total: g.length, cal, exc, left, fail, srv, done: left === 0 };
   });
+  rows = applySummarySort(rows, typeSort, 't');
 
-  return `<table class="summary">
+  return `<div class="rt-wrap"><table class="rt">
     <thead><tr>
-      <th>Type</th><th>Total</th><th>Calibrated</th><th>Exceptions</th><th>Remaining</th><th>Failures</th><th>Servers</th>
+      ${thSort('Type',       't',     typeSort, 'sortType')}
+      ${thSort('Total',      'total', typeSort, 'sortType')}
+      ${thSort('Calibrated', 'cal',   typeSort, 'sortType')}
+      ${thSort('Exceptions', 'exc',   typeSort, 'sortType')}
+      ${thSort('Remaining',  'left',  typeSort, 'sortType')}
+      ${thSort('Failures',   'fail',  typeSort, 'sortType')}
+      ${thSort('Servers',    'srv',   typeSort, 'sortType')}
     </tr></thead>
     <tbody>${rows.map(r => {
-      const done = r.left === 0;
-      return `<tr class="${done ? 'done-row' : ''}">
+      return `<tr class="${r.done ? 'done-row' : ''}">
         <td>${badge(r.t)}</td>
         <td>${r.total}</td>
         <td class="green-val">${r.cal}</td>
-        <td class="${r.exc > 0 ? 'orange-val' : 'muted'}">${r.exc}</td>
+        <td class="${r.exc  > 0 ? 'orange-val' : 'muted'}">${r.exc}</td>
         <td class="${r.left > 0 ? 'orange-val' : 'muted'}">${r.left}</td>
-        <td class="${r.fail > 0 ? 'fail-val' : 'muted'}">${r.fail}</td>
+        <td class="${r.fail > 0 ? 'fail-val'   : 'muted'}">${r.fail}</td>
         <td class="muted">${r.srv}</td>
       </tr>`;
     }).join('')}</tbody>
-  </table>`;
+  </table></div>`;
 }
 
 /* ─── Zones table ───────────────────────────────────────── */
@@ -652,32 +734,37 @@ function buildZonesTable() {
     !s.status || s.status.toUpperCase() !== 'DISABLED'
   );
   const zones = [...new Set(sensors.map(s => s.zone).filter(Boolean))].sort();
-  const rows = zones.map(z => {
-    const g       = sensors.filter(s => s.zone === z);
-    const cal     = g.filter(s => isCalibrated(s) && !isExcepted(s)).length;
-    const exc     = g.filter(isExcepted).length;
-    const fail    = g.filter(isFailed).length;
-    const left    = g.length - cal - exc;
-    const done    = left <= 0;
-    const srv     = [...new Set(g.map(s => s.server).filter(Boolean))].join(', ');
-    return { z, total: g.length, cal, exc, left, fail, done, srv };
-  }).sort((a, b) => b.left - a.left);
+  let rows = zones.map(z => {
+    const g   = sensors.filter(s => s.zone === z);
+    const cal = g.filter(s => isCalibrated(s) && !isExcepted(s)).length;
+    const exc = g.filter(isExcepted).length;
+    const fail= g.filter(isFailed).length;
+    const left= g.length - cal - exc;
+    const srv = [...new Set(g.map(s => s.server).filter(Boolean))].join(', ');
+    return { z, srv, total: g.length, cal, exc, left, fail, done: left <= 0 };
+  });
+  rows = applySummarySort(rows, zoneSort, 'z');
 
-  return `<table class="summary">
+  return `<div class="rt-wrap"><table class="rt">
     <thead><tr>
-      <th>Zone</th><th>SID</th><th>Sensors</th><th>Calibrated</th>
-      <th>Exceptions</th><th>Remaining</th><th>Failures</th>
+      ${thSort('Zone',       'z',     zoneSort, 'sortZone')}
+      ${thSort('SID',        'srv',   zoneSort, 'sortZone')}
+      ${thSort('Sensors',    'total', zoneSort, 'sortZone')}
+      ${thSort('Calibrated', 'cal',   zoneSort, 'sortZone')}
+      ${thSort('Exceptions', 'exc',   zoneSort, 'sortZone')}
+      ${thSort('Remaining',  'left',  zoneSort, 'sortZone')}
+      ${thSort('Failures',   'fail',  zoneSort, 'sortZone')}
     </tr></thead>
     <tbody>${rows.map(r => `<tr class="${r.done ? 'done-row' : ''}">
       <td title="${r.z}">${r.z}</td>
       <td class="muted">${r.srv}</td>
       <td>${r.total}</td>
       <td class="green-val">${r.cal}</td>
-      <td class="${r.exc > 0 ? 'orange-val' : 'muted'}">${r.exc}</td>
+      <td class="${r.exc  > 0 ? 'orange-val' : 'muted'}">${r.exc}</td>
       <td class="${r.left > 0 ? 'orange-val' : 'muted'}">${r.left}</td>
-      <td class="${r.fail > 0 ? 'fail-val' : 'muted'}">${r.fail}</td>
+      <td class="${r.fail > 0 ? 'fail-val'   : 'muted'}">${r.fail}</td>
     </tr>`).join('')}</tbody>
-  </table>`;
+  </table></div>`;
 }
 
 /* ─── renderTable ───────────────────────────────────────── */
@@ -969,52 +1056,46 @@ function buildCheckTable(sensors) {
       No sensors in CHECK.</div>`;
   }
 
-  const sorted = [...sensors].sort((a, b) => {
-    // Sort by: excepted last, then calibrated, then by quality, then by zone
-    const aExc = isExcepted(a) ? 1 : 0;
-    const bExc = isExcepted(b) ? 1 : 0;
-    if (aExc !== bExc) return aExc - bExc;
-    return (a.zone || '').localeCompare(b.zone || '');
-  });
+  let rows = sensors.map(s => ({
+    ...s,
+    _excepted:  isExcepted(s),
+    _calibrated: isCalibrated(s),
+    _resolved:  isExcepted(s) || isCalibrated(s),
+  }));
+  rows = applySummarySort(rows, checkSort, 'sensor_id');
+  if (!checkSort.col) {
+    rows.sort((a, b) => a._resolved - b._resolved || (a.zone||'').localeCompare(b.zone||''));
+  }
 
-  return `<table class="summary">
+  return `<div class="rt-wrap"><table class="rt">
     <thead><tr>
-      <th>ID</th>
-      <th>CP Addr</th>
-      <th>Sensor</th>
-      <th>Zone</th>
-      <th>SID</th>
-      <th>Quality</th>
-      <th>Exception</th>
-      <th>Calibrated</th>
+      ${thSort('ID',         'sensor_id',  checkSort, 'sortCheck')}
+      ${thSort('CP Addr',    'cp_address', checkSort, 'sortCheck')}
+      ${thSort('Sensor',     'sensor_name',checkSort, 'sortCheck')}
+      ${thSort('Zone',       'zone',       checkSort, 'sortCheck')}
+      ${thSort('SID',        'server',     checkSort, 'sortCheck')}
+      ${thSort('Quality',    'quality',    checkSort, 'sortCheck')}
+      ${thSort('Exception',  '_excepted',  checkSort, 'sortCheck')}
+      ${thSort('Calibrated', '_calibrated',checkSort, 'sortCheck')}
       <th></th>
     </tr></thead>
-    <tbody>${sorted.map(s => {
-      const excepted   = isExcepted(s);
-      const calibrated = isCalibrated(s);
-      const resolved   = excepted || calibrated;
-      return `<tr class="${resolved ? 'done-row' : ''}">
+    <tbody>${rows.map(s => `<tr class="${s._resolved ? 'done-row' : ''}">
       <td class="muted mono">#${s.sensor_id}</td>
       <td class="mono muted">${s.cp_address || '—'}</td>
-      <td title="${s.sensor_name || ''}">${s.sensor_name || '—'}</td>
+      <td title="${s.sensor_name||''}">${s.sensor_name || '—'}</td>
       <td class="muted">${s.zone || '—'}</td>
       <td class="muted mono">${s.server || '—'}</td>
       <td>${qualBadge(s.quality)}</td>
-      <td style="color:${excepted ? 'var(--accent-green)' : resolved ? 'var(--accent-green)' : 'var(--accent-red)'};font-weight:500;">
-        ${excepted ? 'YES' : 'NO'}
-      </td>
-      <td style="color:${calibrated ? 'var(--accent-green)' : resolved ? 'var(--accent-green)' : 'var(--accent-red)'};font-weight:500;">
-        ${calibrated ? 'YES' : 'NO'}
-      </td>
-      <td>${excepted
+      <td style="color:${s._excepted  ? 'var(--accent-green)' : s._resolved ? 'var(--accent-green)' : 'var(--accent-red)'};font-weight:500;">${s._excepted  ? 'YES' : 'NO'}</td>
+      <td style="color:${s._calibrated? 'var(--accent-green)' : s._resolved ? 'var(--accent-green)' : 'var(--accent-red)'};font-weight:500;">${s._calibrated? 'YES' : 'NO'}</td>
+      <td>${s._excepted
         ? `<span class="qual qual-good" style="cursor:default;">excepted</span>`
-        : `<button onclick="openExceptionModal('${s.sensor_id}','${s.server}')"
-            style="font-size:11px;padding:3px 8px;">+ exception</button>`
+        : `<button onclick="openExceptionModal('${s.sensor_id}','${s.server}')" style="font-size:11px;padding:3px 8px;">+ exception</button>`
       }</td>
-    </tr>`;
-    }).join('')}</tbody>
-  </table>`;
+    </tr>`).join('')}</tbody>
+  </table></div>`;
 }
+
 
 // exception tab rendering ==========================
 function buildExceptionsTable() {
@@ -1027,28 +1108,35 @@ function buildExceptionsTable() {
       No exceptions logged for ${CURRENT_YEAR}.</div>`;
   }
 
-  return `<table class="summary">
+  let rows = current.map(e => ({ ...e, _repeat: prevIds.has(`${e.sensor_id}|${e.server}`) }));
+  rows = applySummarySort(rows, excSort, 'sensor_id');
+
+  return `<div class="rt-wrap"><table class="rt">
     <thead><tr>
-      <th>ID</th><th>Sensor</th><th>Zone</th><th>SID</th>
-      <th>Reason</th><th>Added by</th><th>Date</th><th>Repeat</th><th></th>
+      ${thSort('ID',       'sensor_id',  excSort, 'sortExc')}
+      ${thSort('Sensor',   'sensor_name',excSort, 'sortExc')}
+      ${thSort('Zone',     'zone',       excSort, 'sortExc')}
+      ${thSort('SID',      'server',     excSort, 'sortExc')}
+      ${thSort('Reason',   'reason',     excSort, 'sortExc')}
+      ${thSort('Added by', 'added_by',   excSort, 'sortExc')}
+      ${thSort('Date',     'added_at',   excSort, 'sortExc')}
+      ${thSort('Repeat',   '_repeat',    excSort, 'sortExc')}
+      <th></th>
     </tr></thead>
-    <tbody>${current.map(e => {
-      const repeat = prevIds.has(`${e.sensor_id}|${e.server}`);
-      return `<tr>
-        <td class="muted mono">#${e.sensor_id}</td>
-        <td>${e.sensor_name || '—'}</td>
-        <td class="muted">${e.zone || '—'}</td>
-        <td class="muted mono">${e.server}</td>
-        <td>${e.reason}</td>
-        <td class="muted">${e.added_by || '—'}</td>
-        <td class="muted">${fmtDate(e.added_at)}</td>
-        <td>${repeat
-          ? `<span class="qual qual-warn" title="Also excepted in ${CURRENT_YEAR-1}">repeat</span>`
-          : '<span class="muted">—</span>'}</td>
-        <td><button class="danger" onclick="removeException(${e.id})">Remove</button></td>
-      </tr>`;
-    }).join('')}</tbody>
-  </table>`;
+    <tbody>${rows.map(e => `<tr>
+      <td class="muted mono">#${e.sensor_id}</td>
+      <td>${e.sensor_name || '—'}</td>
+      <td class="muted">${e.zone || '—'}</td>
+      <td class="muted mono">${e.server}</td>
+      <td>${e.reason}</td>
+      <td class="muted">${e.added_by || '—'}</td>
+      <td class="muted">${fmtDate(e.added_at)}</td>
+      <td>${e._repeat
+        ? `<span class="qual qual-warn" title="Also excepted in ${CURRENT_YEAR-1}">repeat</span>`
+        : '<span class="muted">—</span>'}</td>
+      <td><button class="danger" onclick="removeException(${e.id})">Remove</button></td>
+    </tr>`).join('')}</tbody>
+  </table></div>`;
 }
 
 async function removeException(id) {

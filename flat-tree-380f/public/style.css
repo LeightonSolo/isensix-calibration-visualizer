@@ -523,6 +523,22 @@ table.summary tr:hover td { background: var(--bg-row-hover); }
 ::-webkit-scrollbar-thumb:hover { background: #555563; }
 
 
+/* ─── Glowing In Warranty ───────────────────────────────────────────── */
+
+.warranty-serial {
+  color: #f0c040;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-shadow: 0 0 8px rgba(240, 192, 64, 0.7),
+               0 0 16px rgba(240, 192, 64, 0.4);
+  animation: warranty-pulse 2s ease-in-out infinite;
+}
+
+@keyframes warranty-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.65; }
+}
 
 /* ─── Image Modal ───────────────────────────────────────────── */
 
