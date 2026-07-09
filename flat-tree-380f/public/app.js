@@ -21,14 +21,19 @@ if (savedRollingDays !== null) {
     CONFIG.ROLLING_DAYS = Number(savedRollingDays);
 }
 
-// Status message turns red after not being update for 15 minutes
-let lastUpdated = null;
+// Status message turns red after not being updated for 20 minutes
+let lastUpdated = null; // Assuming you set this to Date.now() when fetching data
+
 function updateStatusColor() {
-  const el = document.getElementById('status-msg');
-  if (!el || !lastUpdated) return;
-  const stale = Date.now() - lastUpdated > 15 * 60 * 1000;
-  el.style.color = stale ? 'var(--accent-red)' : 'var(--text-muted)';
+  // Target our new nested span instead of the main status-msg
+  const timeEl = document.getElementById('time-display');
+  
+  if (!timeEl || !lastUpdated) return;
+  
+  const stale = Date.now() - lastUpdated > 20 * 60 * 1000;
+  timeEl.style.color = stale ? 'var(--accent-red)' : 'var(--text-muted)';
 }
+
 setInterval(updateStatusColor, 30 * 1000); // check every 30 seconds
 //==============================================================
 
@@ -177,8 +182,17 @@ function statusCell(s) {
 }
 
 /* ─── Status bar ────────────────────────────────────────── */
-function setStatus(msg) {
-  document.getElementById('status-msg').textContent = msg;
+function setStatus(primaryText, timeString) {
+  const container = document.getElementById('status-msg');
+  
+  // If we only passed one argument like setStatus('Loading...'))
+  // timeString will be undefined. Just print the raw text.
+  if (!timeString) {
+    container.innerHTML = primaryText;
+    return;
+  }
+  //if we have both, build formatted string
+  container.innerHTML = `${primaryText} total sensors — <span id="time-display">updated ${timeString}</span>`;
 }
 
 /* ─── Server tags ───────────────────────────────────────── */
@@ -358,7 +372,8 @@ async function loadData() {
     allSensors = sensorResults.flat();
 
     lastUpdated = Date.now();
-    setStatus(`${allSensors.length} total sensors — updated ${new Date().toLocaleTimeString()}`);
+    //setStatus(`${allSensors.length} total sensors — updated ${new Date().toLocaleTimeString()}`);
+    setStatus(allSensors.length, new Date().toLocaleTimeString());
     updateStatusColor(); // reset to normal immediately after a fresh load
 
     populateFilters();
@@ -1236,7 +1251,7 @@ function setupImageLightboxes() {
     });
 }
 
-// Make sure to call this function after your DOM has loaded
+//call this function after DOM has loaded
 document.addEventListener('DOMContentLoaded', setupImageLightboxes);
 
 
