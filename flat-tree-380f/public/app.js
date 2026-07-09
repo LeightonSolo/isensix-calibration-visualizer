@@ -891,13 +891,14 @@ const VERSION_PATHS = {
   'G3.0': '/guardian/calibration/calsensor.php',
   'G2.1': '/arms2/calibration/calsensor.php',
   'G2.0': '/arms2/calsensor.php',
-  // add future versions here
+  'ARMS': '/arms/admin/index.php?mode=11&',
 };
 
 const VERSION_PORTS = {
   'G3.0': (server) => `7${server}`,
   'G2.1': (server) => `7${server}`,
   'G2.0': (server) => `7${server}`,
+  'ARMS': (server) => `7${server}`,
   // if port format ever differs by version, handle it here
 };
 
@@ -907,7 +908,11 @@ function sensorUrl(sensor_id, server) {
   const version = meta.version || '3.0';
   const path = VERSION_PATHS[version] || VERSION_PATHS['3.0'];
   const port = `7${server}`;
-  return `https://${meta.hostname}:${port}${path}?id=${sensor_id}`;
+  if(version === "ARMS"){
+    return `https://${meta.hostname}:${port}${path}&id=${sensor_id}`;
+  }else{
+    return `https://${meta.hostname}:${port}${path}?id=${sensor_id}`;
+  }
 }
 
 async function renderServerConfig() {
