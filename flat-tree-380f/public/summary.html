@@ -42,7 +42,7 @@
 
     /* ─── Layout ──────────────────────────────────────────── */
     #page {
-      max-width: 1200px;
+      max-width: 1500px;
       margin: 0 auto;
       padding: 24px 28px 60px;
       display: flex;
@@ -237,45 +237,33 @@
       border-radius: var(--radius) var(--radius) 0 0;
     }
     .summary-section-title {
-      font-size: 11px;
+      font-size: 12px;
       font-weight: 600;
       color: var(--text);
       text-transform: uppercase;
       letter-spacing: 0.05em;
     }
     .summary-section-count {
-      font-size: 11px;
-      color: var(--text-muted);
+      font-size: 12px;
+      color: var(--text-primary);
+      text-align: left;
+    }
+    table.sum-table {
+      table-layout: auto;
+      width: 100%;
     }
 
-    table.sum-table {
-      width: 100%;
-      border-collapse: collapse;
-      border: 0.5px solid var(--border);
-      border-top: none;
-      border-radius: 0 0 var(--radius) var(--radius);
-      overflow: hidden;
+    .sum-table-wrap {
+      overflow-x: auto;
     }
+
+    table.sum-table td,
     table.sum-table th {
-      padding: 5px 8px;
-      font-size: 10px;
-      font-weight: 500;
-      color: var(--text-sec);
-      text-align: left;
-      background: var(--bg-header);
-      border-bottom: 0.5px solid var(--border);
-      text-transform: uppercase;
-      letter-spacing: 0.03em;
-    }
-    table.sum-table td {
-      padding: 5px 8px;
-      font-size: 10px;
-      color: var(--text);
-      border-bottom: 0.5px solid var(--border-light);
-      overflow: hidden;
-      text-overflow: ellipsis;
       white-space: nowrap;
-      max-width: 0;
+      overflow: visible;
+      text-overflow: clip;
+      max-width: none;
+      text-align: left;
     }
     table.sum-table tr:last-child td { border-bottom: none; }
     table.sum-table tr:nth-child(even) td { background: var(--bg-row-alt); }
@@ -434,7 +422,7 @@
     <!-- Comments -->
     <div id="comments-row">
       <div class="section-label">Additional Comments</div>
-      <textarea id="field-comments" rows="3" placeholder="Enter any additional notes for the customer…" style="width:100%;"></textarea>
+      <textarea id="field-comments" rows="3" placeholder="Enter additional notes if any…" style="width:100%;"></textarea>
     </div>
 
     <!-- Three tables -->
@@ -641,12 +629,12 @@ function renderStats() {
     </div>
     <div class="stat-card">
       <div class="stat-label">Not Calibrated</div>
-      <div class="stat-value orange">${notCal}</div>
+      <div class="stat-value blue">${notCal}</div>
       <div class="stat-sub">excluding exceptions</div>
     </div>
     <div class="stat-card">
       <div class="stat-label">Exceptions</div>
-      <div class="stat-value" style="color:var(--text-sec);">${exc}</div>
+      <div class="stat-value orange">${exc}</div>
       <div class="stat-sub">not calibrated this visit</div>
     </div>
     <div class="stat-card">
@@ -656,7 +644,7 @@ function renderStats() {
     </div>
     <div class="stat-card">
       <div class="stat-label">Sensors with Errors</div>
-      <div class="stat-value orange">${check}</div>
+      <div class="stat-value" style="color:var(--text-sec);">${check}</div>
       <div class="stat-sub">errors detected</div>
     </div>`;
 }
@@ -692,12 +680,13 @@ function buildExcTable(rows) {
         <span class="summary-section-title">Exceptions</span>
         <span class="summary-section-count">${rows.length}</span>
       </div>
+      <div class="sum-table-wrap">
       <table class="sum-table">
         <thead><tr>
-          <th style="width:70px;">CP Addr</th>
+          <th>CP Addr</th>
           <th>Sensor Name</th>
-          <th style="width:90px;">Zone</th>
-          <th style="width:110px;">Reason</th>
+          <th>Zone</th>
+          <th>Reason</th>
         </tr></thead>
         <tbody>${rows.length ? rows.map(s => `<tr>
           <td class="muted" style="font-family:var(--mono);">${s.cp_address || '—'}</td>
@@ -707,6 +696,7 @@ function buildExcTable(rows) {
         </tr>`).join('') : `<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:12px;">None</td></tr>`}
         </tbody>
       </table>
+      </div>
     </div>`;
 }
 
@@ -717,6 +707,7 @@ function buildFailTable(rows) {
         <span class="summary-section-title">Failures</span>
         <span class="summary-section-count">${rows.length}</span>
       </div>
+      <div class="sum-table-wrap">
       <table class="sum-table">
         <thead><tr>
           <th style="width:70px;">CP Addr</th>
@@ -738,6 +729,7 @@ function buildFailTable(rows) {
         }).join('') : `<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:12px;">None</td></tr>`}
         </tbody>
       </table>
+      </div>
     </div>`;
 }
 
@@ -748,6 +740,7 @@ function buildCheckTable(rows) {
         <span class="summary-section-title">Sensors with Errors</span>
         <span class="summary-section-count">${rows.length}</span>
       </div>
+      <div class="sum-table-wrap">
       <table class="sum-table">
         <thead><tr>
           <th style="width:70px;">CP Addr</th>
@@ -763,6 +756,7 @@ function buildCheckTable(rows) {
         </tr>`).join('') : `<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:12px;">None</td></tr>`}
         </tbody>
       </table>
+      </div>
     </div>`;
 }
 
@@ -806,6 +800,46 @@ function clearSig() {
   const canvas = document.getElementById('sig-canvas');
   canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
 }
+
+function getCanvasDataForPrint() {
+  const canvas = document.getElementById('sig-canvas');
+  const ctx = canvas.getContext('2d');
+  
+  // Get current image data
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const data = imageData.data;
+  
+  // Replace light pixels with dark ones
+  for (let i = 0; i < data.length; i += 4) {
+    const r = data[i], g = data[i+1], b = data[i+2], a = data[i+3];
+    if (a > 10) { // non-transparent pixel (part of signature)
+      data[i]   = 20;  // R
+      data[i+1] = 20;  // G
+      data[i+2] = 40;  // B
+    }
+  }
+  ctx.putImageData(imageData, 0, 0);
+}
+
+function restoreCanvasAfterPrint() {
+  const canvas = document.getElementById('sig-canvas');
+  const ctx = canvas.getContext('2d');
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const data = imageData.data;
+  
+  for (let i = 0; i < data.length; i += 4) {
+    const a = data[i+3];
+    if (a > 10) {
+      data[i]   = 232; // R — matches --text: #e8e8f0
+      data[i+1] = 232; // G
+      data[i+2] = 240; // B
+    }
+  }
+  ctx.putImageData(imageData, 0, 0);
+}
+
+window.addEventListener('beforeprint', getCanvasDataForPrint);
+window.addEventListener('afterprint',  restoreCanvasAfterPrint);
 
 /* ─── Auto-refresh ────────────────────────────────────────── */
 setInterval(loadData, CONFIG.ROLLING_DAYS ? 5 * 60 * 1000 : 5 * 60 * 1000);
