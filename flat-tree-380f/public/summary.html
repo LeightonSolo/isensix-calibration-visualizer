@@ -164,7 +164,7 @@
     #stat-cards {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-      gap: 12px;
+      gap: 10px;
     }
     .stat-card {
       background: var(--bg-card);
@@ -624,12 +624,12 @@ function renderStats() {
       <div class="stat-sub">${servers.length} server${servers.length !== 1 ? 's' : ''}</div>
     </div>
     <div class="stat-card">
-      <div class="stat-label">Sensors Calibrated</div>
+      <div class="stat-label">Sensors <br>Calibrated</div>
       <div class="stat-value green">${cal}</div>
       <div class="stat-sub">${pct}% of job complete</div>
     </div>
     <div class="stat-card">
-      <div class="stat-label">Not Calibrated</div>
+      <div class="stat-label">Not <br>Calibrated</div>
       <div class="stat-value blue">${notCal}</div>
       <div class="stat-sub">excluding exceptions</div>
     </div>
@@ -644,9 +644,9 @@ function renderStats() {
       <div class="stat-sub">offset exceeded</div>
     </div>
     <div class="stat-card">
-      <div class="stat-label">Sensors with Errors</div>
+      <div class="stat-label">Sensor Errors</div>
       <div class="stat-value" style="color:var(--text-sec);">${check}</div>
-      <div class="stat-sub">errors detected</div>
+      <div class="stat-sub">Sensors in an error state</div>
     </div>`;
 }
 
@@ -689,6 +689,7 @@ function buildExcTable(rows) {
           <th>Zone</th>
           <th>Reason</th>
         </tr></thead>
+        
         <tbody>${rows.length ? rows.map(s => `<tr>
           <td class="muted" style="font-family:var(--mono);">${s.cp_address || '—'}</td>
           <td title="${s.sensor_name||''}">${s.sensor_name || '—'}</td>
@@ -713,9 +714,15 @@ function buildFailTable(rows) {
         <thead><tr>
           <th style="width:70px;">CP Addr</th>
           <th>Sensor Name</th>
-          <th style="width:90px;">Zone</th>
+          <th style="width:160px;">Zone</th>
           <th style="width:90px;">Serial</th>
         </tr></thead>
+        <colgroup>
+            <col style="width:75px">
+            <col>
+            <col style="width:170px">
+            <col style="width:90px">
+        </colgroup>
         <tbody>${rows.length ? rows.map(s => {
           const warranty = isUnderWarranty(s.serial_number);
           return `<tr>
@@ -746,9 +753,15 @@ function buildCheckTable(rows) {
         <thead><tr>
           <th style="width:70px;">CP Addr</th>
           <th>Sensor Name</th>
-          <th style="width:90px;">Zone</th>
+          <th style="width:160px;">Zone</th>
           <th style="width:70px;">Issue</th>
         </tr></thead>
+        <colgroup>
+            <col style="width:75px">
+            <col>
+            <col style="width:170px">
+            <col style="width:90px">
+        </colgroup>
         <tbody>${rows.length ? rows.map(s => `<tr>
           <td class="muted" style="font-family:var(--mono);">${s.cp_address || '—'}</td>
           <td title="${s.sensor_name||''}">${s.sensor_name || '—'}</td>
