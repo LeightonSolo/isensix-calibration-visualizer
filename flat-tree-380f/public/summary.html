@@ -43,7 +43,7 @@
 
     /* ─── Layout ──────────────────────────────────────────── */
     #page {
-      max-width: 1500px;
+      max-width: 2000px;
       margin: 0 auto;
       padding: 24px 28px 60px;
       display: flex;
@@ -226,32 +226,35 @@
     .summary-section {
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      /*gap: 2px;*/
     }
     .summary-section-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 7px 10px;
+      padding: 5px 10px;
       background: var(--bg-header);
       border: 0.5px solid var(--border);
       border-radius: var(--radius) var(--radius) 0 0;
     }
     .summary-section-title {
-      font-size: 12px;
+      font-size: 15px;
       font-weight: 600;
       color: var(--text);
       text-transform: uppercase;
       letter-spacing: 0.05em;
     }
     .summary-section-count {
-      font-size: 12px;
+      font-size: 15px;
       color: var(--text-primary);
       text-align: left;
     }
     table.sum-table {
       table-layout: auto;
       width: 100%;
+      font-size: 14px;
+      border: 0.5px solid var(--border);
+      
     }
 
     .sum-table-wrap {
@@ -265,9 +268,11 @@
       text-overflow: clip;
       max-width: none;
       text-align: left;
+      border-left: 0.5px solid var(--border);
+      padding: 0px 5px 0px; /*just left and right padding*/
     }
     table.sum-table tr:last-child td { border-bottom: none; }
-    table.sum-table tr:nth-child(even) td { background: var(--bg-row-alt); }
+    table.sum-table tr:nth-child(even) td { background: var(--bg-row-alt);border-top: 0.5px solid var(--border); border-bottom: 0.5px solid var(--border);}
     .muted { color: var(--text-muted); }
     .red-text { color: var(--red); }
 
@@ -346,6 +351,8 @@
       }
 
       .summary-tables { gap: 10px; }
+
+      
 
       #sig-canvas { background: #f9f9f9; }
       .sig-controls { display: none !important; }
@@ -494,6 +501,13 @@ function restoreFields() {
 }
 
 /* ─── Helpers ─────────────────────────────────────────────── */
+
+const savedRollingDays = localStorage.getItem("rollingDays");
+
+if (savedRollingDays !== null) {
+    CONFIG.ROLLING_DAYS = Number(savedRollingDays);
+}
+
 function getCutoff() {
   const d = new Date();
   d.setDate(d.getDate() - CONFIG.ROLLING_DAYS);
@@ -631,22 +645,22 @@ function renderStats() {
     <div class="stat-card">
       <div class="stat-label">Not <br>Calibrated</div>
       <div class="stat-value blue">${notCal}</div>
-      <div class="stat-sub">excluding exceptions</div>
+      <div class="stat-sub">Excluding exceptions</div>
     </div>
     <div class="stat-card">
       <div class="stat-label">Exceptions</div>
       <div class="stat-value orange">${exc}</div>
-      <div class="stat-sub">not calibrated this visit</div>
+      <div class="stat-sub">Sensors not calibrated this visit</div>
     </div>
     <div class="stat-card">
       <div class="stat-label">Failures</div>
       <div class="stat-value red">${fail}</div>
-      <div class="stat-sub">offset exceeded</div>
+      <div class="stat-sub">Sensors should be replaced</div>
     </div>
     <div class="stat-card">
       <div class="stat-label">Sensor Errors</div>
       <div class="stat-value" style="color:var(--text-sec);">${check}</div>
-      <div class="stat-sub">Sensors in an error state</div>
+      <div class="stat-sub">Sensors currently in an error state</div>
     </div>`;
 }
 
@@ -720,7 +734,7 @@ function buildFailTable(rows) {
         <colgroup>
             <col style="width:75px">
             <col>
-            <col style="width:170px">
+            <col style="width:210px">
             <col style="width:90px">
         </colgroup>
         <tbody>${rows.length ? rows.map(s => {
@@ -759,7 +773,7 @@ function buildCheckTable(rows) {
         <colgroup>
             <col style="width:75px">
             <col>
-            <col style="width:170px">
+            <col style="width:210px">
             <col style="width:90px">
         </colgroup>
         <tbody>${rows.length ? rows.map(s => `<tr>
