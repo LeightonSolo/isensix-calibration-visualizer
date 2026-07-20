@@ -29,7 +29,6 @@
       </button>
 
       
-        
 
       <button class="nav-btn" data-page="resources" style="padding:5px">
         <i class="ti ti-books"></i>
@@ -120,17 +119,18 @@
 
            <div id="server-config-list"></div>
             <div style="display:flex;gap:8px;margin-top:12px;align-items:center;flex-wrap:wrap;">
-            <input id="sc-server" type="text" placeholder="Server ID (e.g. 005)" style="width:100px;"/>
+            <input id="sc-server"   type="text" placeholder="Server ID (e.g. 005)" style="width:100px;"/>
             <select id="sc-version" style="width:90px;">
-                <option value="G3.0">G3.0</option>
-                <option value="G2.1">G2.1</option>
-                <option value="G2.0">G2.0</option>
+                <option value="3.0">G3.0</option>
+                <option value="2.1">G2.1</option>
+                <option value="2.0">G2.0</option>
                 <option value="ARMS">ARMS</option>
             </select>
-            <input id="sc-hostname" type="text" placeholder="Hostname" style="width:220px;" value="ics1.ca.isensix.com"/>
-            <input id="sc-notes" type="text" placeholder="Notes (optional)" style="width:150px;"/>
+            <input id="sc-hostname" type="text" placeholder="Hostname" style="width:200px;" value="ics1.ca.isensix.com"/>
+            <input id="sc-customer" type="text" placeholder="Customer name" style="width:160px;"/>
+            <input id="sc-notes"    type="text" placeholder="Notes (optional)" style="width:130px;"/>
             <button onclick="saveServerConfig()">Save</button>
-            </div>
+          </div>
         </details>
 
     </div>
@@ -176,6 +176,7 @@
     <input type="checkbox" id="show-disabled" onchange="renderTable()" style="cursor:pointer;"/>
     Show disabled
     </label>
+    <button class="tab-btn right" data-tab="jobinfo">Job Info</button>
   </div>
 
   <!-- Filter bar -->

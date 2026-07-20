@@ -199,6 +199,46 @@ button.danger { color: var(--accent-red); }
 }
 .server-tag .remove-btn:hover { color: var(--accent-red); background: none; border: none; }
 
+.server-header {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 6px;
+    margin-bottom: 4px;
+}
+
+.server-version-header {
+    background: transparent;
+    color: var(--text-secondary);
+    border: none;
+}
+
+.server-customer {
+    flex: 1;
+    font-size: 11px;
+    color: var(--text-primary);
+}
+
+.server-notes {
+    flex: 1;
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.server-hostname {
+    width: 180px;
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.server-actions {
+    width: 70px;
+    text-align: center;
+}
+
 /* ─── Metrics ───────────────────────────────────────────── */
 #metrics {
   display: grid;
@@ -258,6 +298,15 @@ button.danger { color: var(--accent-red); }
   background: var(--accent-blue);
   color: var(--text-primary);
   border-color: #3a3a50;
+}
+.tab-btn.right{
+  /*background: none;*/
+  margin-left: auto;
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-size: 12px;
+  padding: 5px 13px;
 }
 
 .pinned-button {
@@ -505,6 +554,61 @@ table.summary tr:hover td { background: var(--bg-row-hover); }
   font-family: var(--font-mono);
   font-size: 12px;
 }
+
+
+/* ─── Job Info table ──────────────────────────────────── */
+.ji-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.ji-table th {
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-align: left;
+  border-bottom: 0.5px solid var(--border);
+  background: var(--bg-header);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.ji-table td {
+  padding: 7px 12px;
+  font-size: 12px;
+  border-bottom: 0.5px solid var(--border-light);
+  vertical-align: middle;
+}
+.ji-table tr:last-child td { border-bottom: none; }
+.ji-table tr:hover td { background: var(--bg-row-hover); }
+.ji-label {
+  font-weight: 500;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  width: 160px;
+}
+.ji-auto {
+  color: var(--text-primary);
+  width: 240px;
+}
+.ji-input { color: var(--text-primary); }
+.ji-input input, .ji-input textarea, .ji-input select {
+  background: var(--bg-input);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  padding: 4px 8px;
+  outline: none;
+}
+.ji-input input:focus,
+.ji-input textarea:focus,
+.ji-input select:focus { border-color: var(--accent-blue); }
+.ji-input textarea { resize: vertical; }
+
+/* end job info */
+
+
 
 /* ─── Empty state ─────────────────────────────────────────── */
 #empty-state {

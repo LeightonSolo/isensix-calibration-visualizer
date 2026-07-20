@@ -50,19 +50,20 @@ export default {
     // POST /servers — upsert a server record
     if (request.method === 'POST' && pathname === '/servers') {
       const body = await request.json() as Record<string, any>;
-      const { server, version, hostname, notes } = body;
+      const { server, version, hostname, notes, customer } = body;
       if (!server || !version) {
         return new Response('Missing server or version', { status: 400 });
       }
       await env.DB.prepare(`
-        INSERT INTO servers (server, version, hostname, notes)
-        VALUES (?, ?, ?, ?)
+        INSERT INTO servers (server, version, hostname, notes, customer)
+        VALUES (?, ?, ?, ?, ?)
         ON CONFLICT(server) DO UPDATE SET
           version    = excluded.version,
           hostname   = excluded.hostname,
           notes      = excluded.notes,
+          customer   = excluded.customer,
           updated_at = datetime('now')
-      `).bind(server, version, hostname ?? null, notes ?? null).run();
+      `).bind(server, version, hostname ?? null, notes ?? null, customer ?? null).run();
       return json({ ok: true });
     }
 
@@ -216,16 +217,16 @@ export default {
           captured_at   = datetime('now')
       `);
 
-await env.DB.batch(
-  sensors.map(s => stmt.bind(
-    s.sensor_id,
-    s.cp_address    ?? null, s.sensor_name   ?? null, s.serial_number ?? null,
-    s.old_offset    ?? null, s.new_offset    ?? null, s.access_point  ?? null,
-    s.quality       ?? null, s.status        ?? null, s.sensor_type   ?? null,
-    s.zone          ?? null, normalizeMinute(s.calibrated_at), s.calibrated_by ?? null,
-    s.cal_cert      ?? null, s.server        ?? null,
-  ))
-);
+    await env.DB.batch(
+      sensors.map(s => stmt.bind(
+        s.sensor_id,
+        s.cp_address    ?? null, s.sensor_name   ?? null, s.serial_number ?? null,
+        s.old_offset    ?? null, s.new_offset    ?? null, s.access_point  ?? null,
+        s.quality       ?? null, s.status        ?? null, s.sensor_type   ?? null,
+        s.zone          ?? null, normalizeMinute(s.calibrated_at), s.calibrated_by ?? null,
+        s.cal_cert      ?? null, s.server        ?? null,
+      ))
+    );
 
       return json({ ok: true, count: sensors.length });
     }
@@ -247,6 +248,123 @@ await env.DB.batch(
 
       const { results } = await env.DB.prepare(query).bind(...bindings).all();
       return json(results);
+    }
+
+
+    // GET /jobinfo/:customer
+    if (request.method === 'GET' && pathname.startsWith('/jobinfo/')) {
+      const customer = decodeURIComponent(pathname.split('/').pop() || '');
+      if (!customer) return new Response('Missing customer', { status: 400 });
+      const result = await env.DB.prepare(
+        `SELECT * FROM job_info WHERE customer = ?`
+      ).bind(customer).first();
+      return json(result || {});
+    }
+
+    // POST /jobinfo — upsert job info for a customer
+    if (request.method === 'POST' && pathname === '/jobinfo') {
+      const body = await request.json() as Record<string, any>;
+      const { customer } = body;
+
+      if (!customer) {
+        return new Response('Missing customer', { status: 400 });
+      }
+
+      await env.DB.prepare(`
+        INSERT INTO job_info (
+          customer,
+          job_name,
+          servers,
+          sensors,
+          meters,
+          o2,
+          server_version,
+          hardware,
+          report,
+          num_tech,
+          site_address,
+          offsites,
+          comments,
+          vpn_works,
+          airport_info,
+          emerald_aisle,
+          prev_hotel,
+          hotel_comments,
+          main_contact,
+          other_contacts,
+          contact_notes,
+          credentials,
+          primary_tech,
+          restaurants,
+          other_notes,
+          active,
+          scheduled_date,
+          scheduled_with
+        )
+        VALUES (
+          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(customer) DO UPDATE SET
+          job_name         = excluded.job_name,
+          servers          = excluded.servers,
+          sensors          = excluded.sensors,
+          meters           = excluded.meters,
+          o2               = excluded.o2,
+          server_version   = excluded.server_version,
+          hardware         = excluded.hardware,
+          report           = excluded.report,
+          num_tech         = excluded.num_tech,
+          site_address     = excluded.site_address,
+          offsites         = excluded.offsites,
+          comments         = excluded.comments,
+          vpn_works        = excluded.vpn_works,
+          airport_info     = excluded.airport_info,
+          emerald_aisle    = excluded.emerald_aisle,
+          prev_hotel       = excluded.prev_hotel,
+          hotel_comments   = excluded.hotel_comments,
+          main_contact     = excluded.main_contact,
+          other_contacts   = excluded.other_contacts,
+          contact_notes    = excluded.contact_notes,
+          credentials      = excluded.credentials,
+          primary_tech     = excluded.primary_tech,
+          restaurants      = excluded.restaurants,
+          other_notes      = excluded.other_notes,
+          active           = excluded.active,
+          scheduled_date   = excluded.scheduled_date,
+          scheduled_with   = excluded.scheduled_with,
+          updated_at       = datetime('now')
+      `).bind(
+        customer,
+        body.job_name ?? null,
+        body.servers ?? null,
+        body.sensors ?? null,
+        body.meters ?? null,
+        body.o2 ?? null,
+        body.server_version ?? null,
+        body.hardware ?? null,
+        body.report ?? null,
+        body.num_tech ?? null,
+        body.site_address ?? null,
+        body.offsites ?? null,
+        body.comments ?? null,
+        body.vpn_works ?? null,
+        body.airport_info ?? null,
+        body.emerald_aisle ?? null,
+        body.prev_hotel ?? null,
+        body.hotel_comments ?? null,
+        body.main_contact ?? null,
+        body.other_contacts ?? null,
+        body.contact_notes ?? null,
+        body.credentials ?? null,
+        body.primary_tech ?? null,
+        body.restaurants ?? null,
+        body.other_notes ?? null,
+        body.active ?? 1,
+        body.scheduled_date ?? null,
+        body.scheduled_with ?? null
+      ).run();
+
+      return json({ ok: true });
+
     }
 
     return new Response('Not found', { status: 404 });
