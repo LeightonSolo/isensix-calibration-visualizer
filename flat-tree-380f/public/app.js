@@ -1427,7 +1427,7 @@ function buildJobInfoHTML() {
           <td class="ji-label">VPN Works?</td>
           <td class="ji-auto">—</td>
           <td class="ji-input">
-            <input type="text" id="ji-vpn" list="vpn-options" style="width:100%;" placeholder="—">
+            <input type="text" id="ji-vpn" list="vpn-options" style="width:100%;" placeholder="">
             <datalist id="vpn-options">
               <option value="Yes"></option>
               <option value="No"></option>
@@ -1439,7 +1439,7 @@ function buildJobInfoHTML() {
           <td class="ji-label">Emerald Aisle</td>
           <td class="ji-auto">—</td>
           <td class="ji-input">
-            <input type="text" id="ji-emerald" list="emerald-options" style="width:100%;" placeholder="—">
+            <input type="text" id="ji-emerald" list="emerald-options" style="width:100%;" placeholder="">
             <datalist id="emerald-options">
               <option value="Yes"></option>
               <option value="No"></option>
@@ -1455,7 +1455,7 @@ function buildJobInfoHTML() {
           <td class="ji-label">Credentials</td>
           <td class="ji-auto">—</td>
           <td class="ji-input">
-            <input type="text" id="ji-credentials" list="credentials-options" style="width:100%;" placeholder="—">
+            <input type="text" id="ji-credentials" list="credentials-options" style="width:100%;" placeholder="">
             <datalist id="credentials-options">
               <option value="None"></option>
               <option value="Vendormate"></option>
