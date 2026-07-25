@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Isensix Calibration Report</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <style>
+    /* ─── Variables ─────────────────────────────────────── */
+    :root {
+      --bg:           #0e0e10;
+      --bg-panel:     #16161a;
+      --bg-card:      #1a1a22;
+      --bg-header:    #111115;
+      --bg-row-alt:   #1a1a1f;
+      --bg-row-hover: #1f1f26;
+      --border:       #2a2a35;
+      --border-light: #222230;
+      --text:         #e8e8f0;
+      --text-sec:     #888899;
+      --text-muted:   #555566;
+      --green:        #5a9e2f;
+      --red:          #c83232;
+      --orange:       #c47a1a;
+      --yellow:       #b8960a;
+      --blue:         #3a7bd5;
+      --font:         'Inter', system-ui, sans-serif;
+      --mono:         'JetBrains Mono', monospace;
+      --radius:       6px;
+    }
+
+    /* ─── Reset ─────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 12px;
+      line-height: 1.4;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ─── Screen layout ─────────────────────────────────── */
+    #top-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 24px;
+      background: var(--bg-panel);
+      border-bottom: 0.5px solid var(--border);
+      flex-wrap: wrap;
+    }
+    #top-bar a { color: var(--text-sec); font-size: 12px; text-decoration: none; }
+    #top-bar a:hover { color: var(--text); }
+    #status-msg { font-size: 11px; color: var(--text-muted); margin-left: auto; }
+
+    button {
+      background: #1e1e24;
+      border: 0.5px solid var(--border);
+      border-radius: 4px;
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 12px;
+      padding: 5px 12px;
+      cursor: pointer;
+    }
+    button:hover { background: #1f1f26; }
+    button.primary { background: var(--blue); border-color: var(--blue); color: #fff; }
+    button.primary:hover { background: #2f68c0; }
+
+    #report {
+      max-width: 1600px;
+      margin: 0 auto;
+      padding: 24px 28px 60px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* ─── Report header ─────────────────────────────────── */
+    #report-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      padding-bottom: 16px;
+      border-bottom: 0.5px solid var(--border);
+    }
+    .logo-text {
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: -0.04em;
+    }
+    .logo-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--blue);
+      display: inline-block;
+      margin: 0 1px;
+    }
+    .logo-sub { font-size: 10px; color: var(--text-sec); }
+    .report-title { font-size: 20px; font-weight: 600; letter-spacing: -0.02em; }
+    .report-meta { font-size: 13px; color: var(--text-sec); margin-top: 4px; }
+
+    /* ─── Stats bar ─────────────────────────────────────── */
+    #stats-bar {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .stat-pill {
+      background: var(--bg-card);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 8px 14px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 90px;
+    }
+    .stat-pill-label { font-size: 10px; color: var(--text-sec); text-transform: uppercase; letter-spacing: 0.05em; }
+    .stat-pill-value { font-size: 20px; font-weight: 600; letter-spacing: -0.02em; margin-top: 2px; }
+    .green  { color: var(--green); }
+    .orange { color: var(--orange); }
+    .red    { color: var(--red); }
+    .yellow { color: var(--yellow); }
+    .muted  { color: var(--text-muted); }
+
+    /* ─── Section ───────────────────────────────────────── */
+    .section {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .section-hdr {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+    }
+    .section-hdr-title {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .section-hdr-count { font-size: 11px; color: var(--text-muted); }
+
+    .hdr-calibrated  { background: rgba(90,158,47,0.15);  border-bottom: 0.5px solid rgba(90,158,47,0.3);  }
+    .hdr-calibrated .section-hdr-title  { color: var(--green); }
+    .hdr-exceptions  { background: rgba(196,122,26,0.15); border-bottom: 0.5px solid rgba(196,122,26,0.3); }
+    .hdr-exceptions .section-hdr-title  { color: var(--orange); }
+    .hdr-failures    { background: rgba(200,50,50,0.15);  border-bottom: 0.5px solid rgba(200,50,50,0.3);  }
+    .hdr-failures .section-hdr-title    { color: var(--red); }
+    .hdr-check       { background: rgba(184,150,10,0.15); border-bottom: 0.5px solid rgba(184,150,10,0.3); }
+    .hdr-check .section-hdr-title       { color: var(--yellow); }
+    .hdr-remaining   { background: var(--bg-header);      border-bottom: 0.5px solid var(--border); }
+    .hdr-remaining .section-hdr-title   { color: var(--text-sec); }
+    .hdr-disabled    { background: var(--bg-header);      border-bottom: 0.5px solid var(--border); }
+    .hdr-disabled .section-hdr-title    { color: var(--text-muted); }
+
+    /* ─── Sensor table ──────────────────────────────────── */
+    .sensor-table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+    .sensor-table thead {
+      background: var(--bg-header);
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+    .sensor-table th {
+      padding: 5px 7px;
+      font-size: 10px;
+      font-weight: 500;
+      color: var(--text-sec);
+      text-align: left;
+      border-bottom: 0.5px solid var(--border);
+      border-right: 0.5px solid var(--border-light);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .sensor-table th:last-child { border-right: none; }
+    .sensor-table td {
+      padding: 5px 7px;
+      font-size: 11px;
+      color: var(--text);
+      border-bottom: 0.5px solid var(--border-light);
+      border-right: 0.5px solid var(--border-light);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .sensor-table td:last-child { border-right: none; }
+    .sensor-table tr:last-child td { border-bottom: none; }
+    .sensor-table tr:nth-child(even) td { background: var(--bg-row-alt); }
+    .sensor-table tr.disabled-row td { color: var(--text-muted); opacity: 0.6; }
+
+    .mono { font-family: var(--mono); font-size: 10px; }
+    .fail-val { color: var(--red); font-weight: 600; }
+    .empty-section {
+      padding: 16px;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 12px;
+    }
+
+    /* ─── Loading ───────────────────────────────────────── */
+    #loading {
+      text-align: center;
+      padding: 4rem;
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+
+    /* ─── Print styles ──────────────────────────────────── */
+    @page { size: A4 landscape; margin: 12mm 10mm; }
+
+    @media print {
+      :root {
+        --bg: #fff;
+        --bg-panel: #fff;
+        --bg-card: #f5f5f5;
+        --bg-header: #eeeeee;
+        --bg-row-alt: #f9f9f9;
+        --bg-row-hover: #f9f9f9;
+        --border: #cccccc;
+        --border-light: #e0e0e0;
+        --text: #111111;
+        --text-sec: #444444;
+        --text-muted: #888888;
+        --green:  #2a6e0a;
+        --red:    #a01010;
+        --orange: #8a4e00;
+        --yellow: #7a6000;
+        --blue:   #1a4ea0;
+      }
+
+      html, body { background: #fff; font-size: 10px; }
+      #top-bar, .noprint { display: none !important; }
+      #report { padding: 0; gap: 12px; max-width: 100%; }
+
+      .section { break-inside: avoid; }
+      .section-hdr { break-inside: avoid; }
+
+      .hdr-calibrated  { background: #eaf5e0 !important; }
+      .hdr-exceptions  { background: #fdf0de !important; }
+      .hdr-failures    { background: #fde8e8 !important; }
+      .hdr-check       { background: #fdf8de !important; }
+      .hdr-remaining   { background: #eeeeee !important; }
+      .hdr-disabled    { background: #f5f5f5 !important; }
+
+      .stat-pill { background: #f5f5f5; border-color: #ccc; }
+
+      .sensor-table thead { position: static; }
+      .sensor-table { page-break-inside: auto; }
+      .sensor-table tr { page-break-inside: avoid; }
+
+      .sensor-table tr.disabled-row td { color: #aaaaaa !important; }
+    }
+
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #2a2a38; border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+<!-- Top bar (screen only) -->
+<div id="top-bar" class="noprint">
+  <a href="index.html">← Dashboard</a>
+  <a href="summary.html">Summary</a>
+  <span id="status-msg"></span>
+  <button class="primary" onclick="window.print()">⬇ Download / Print PDF</button>
+  <button onclick="loadData()">↻ Refresh</button>
+</div>
+
+<div id="loading">Loading calibration report…</div>
+
+<div id="report" style="display:none;">
+
+  <!-- Header -->
+  <div id="report-header">
+    <div>
+      <div class="logo-text">Isensix</div>
+      <div class="logo-sub">a DwyerOmega brand</div>
+    </div>
+    <div style="text-align:center;">
+      <div class="report-title">Calibration Report</div>
+      <div class="report-meta" id="report-meta"></div>
+    </div>
+    <div style="text-align:right;">
+      <div class="report-meta" id="report-date"></div>
+      <div class="report-meta" id="report-servers"></div>
+    </div>
+  </div>
+
+  <!-- Stats bar -->
+  <div id="stats-bar"></div>
+
+  <!-- Sections -->
+  <div id="section-calibrated"></div>
+  <div id="section-exceptions"></div>
+  <div id="section-failures"></div>
+  <div id="section-check"></div>
+  <div id="section-remaining"></div>
+  <div id="section-disabled"></div>
+
+  <!-- Footer -->
+  <div style="text-align:center;font-size:10px;color:var(--text-muted);padding-top:8px;border-top:0.5px solid var(--border);" class="noprint">
+    Isensix Calibration Report · Generated <span id="gen-time"></span>
+  </div>
+
+</div>
+
+<script src="config.js"></script>
+<script>
+/* ─── State ─────────────────────────────────────────────── */
+let allSensors    = [];
+let allExceptions = [];
+let serverMeta    = {};
+let thresholds    = JSON.parse(localStorage.getItem('cal_thresholds') || 'null')
+                    || { ...CONFIG.DEFAULT_THRESHOLDS };
+let servers       = JSON.parse(localStorage.getItem('cal_servers') || '[]');
+const CURRENT_YEAR = new Date().getFullYear();
+
+/* ─── Helpers ─────────────────────────────────────────────── */
+
+const savedRollingDays = localStorage.getItem("rollingDays");
+
+if (savedRollingDays !== null) {
+    CONFIG.ROLLING_DAYS = Number(savedRollingDays);
+}
+
+function getCutoff() {
+  const d = new Date();
+  d.setDate(d.getDate() - CONFIG.ROLLING_DAYS);
+  return d;
+}
+function isCalibrated(s) {
+  if (!s.calibrated_at) return false;
+  return new Date(s.calibrated_at) >= getCutoff();
+}
+function isFailed(s) {
+  if (s.new_offset === null || s.new_offset === undefined) return false;
+  const max = thresholds[s.sensor_type];
+  if (max === undefined) return false;
+  return Math.abs(parseFloat(s.new_offset)) > max;
+}
+function isExcepted(s) {
+  return allExceptions.some(e =>
+    e.sensor_id === String(s.sensor_id) &&
+    e.server    === s.server &&
+    e.year      === CURRENT_YEAR
+  );
+}
+function getExceptionReason(s) {
+  return allExceptions.find(e =>
+    e.sensor_id === String(s.sensor_id) &&
+    e.server    === s.server &&
+    e.year      === CURRENT_YEAR
+  )?.reason || '—';
+}
+function isEnabled(s) {
+  return !s.status || s.status.toUpperCase() === 'ENABLED';
+}
+function isInCheck(s) {
+  return isEnabled(s) && s.quality && s.quality.toUpperCase() !== 'GOOD';
+}
+function isUnderWarranty(serial) {
+  if (!serial) return false;
+  const m = serial.match(/-(\d{2})(\d{2})-/);
+  if (!m) return false;
+  const month = parseInt(m[1], 10);
+  const year  = 2000 + parseInt(m[2], 10);
+  if (month < 1 || month > 12) return false;
+  const manufactured = new Date(year, month - 1, 1);
+  const cutoff = new Date();
+  cutoff.setFullYear(cutoff.getFullYear() - 1);
+  return manufactured >= cutoff;
+}
+function fmtDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return `${d.getMonth()+1}/${d.getDate()}/${String(d.getFullYear()).slice(-2)} `
+       + `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+function fmtOffset(v) {
+  if (v === null || v === undefined || v === '') return '—';
+  return parseFloat(v).toFixed(2);
+}
+function setStatus(msg) {
+  document.getElementById('status-msg').textContent = msg;
+}
+
+/* ─── Column widths ─────────────────────────────────────── */
+const COLS = [
+  { label: 'ID',          w: '44px',  key: 'sensor_id' },
+  { label: 'CP Addr',    w: '72px',  key: 'cp_address' },
+  { label: 'Sensor Name',w: '180px', key: 'sensor_name' },
+  { label: 'Zone',       w: '130px', key: 'zone' },
+  { label: 'SID',        w: '40px',  key: 'server' },
+  { label: 'Type',       w: '90px',  key: 'sensor_type' },
+  { label: 'Serial',     w: '110px', key: 'serial_number' },
+  { label: 'Access Point',w:'150px', key: 'access_point' },
+  { label: 'Quality',       w: '60px',  key: 'quality' },
+  { label: 'Status',     w: '60px',  key: 'status' },
+  { label: 'Old',        w: '52px',  key: 'old_offset' },
+  { label: 'New',        w: '52px',  key: 'new_offset' },
+  { label: 'Calibrated', w: '88px',  key: 'calibrated_at' },
+  { label: 'By',         w: '120px', key: 'calibrated_by' },
+  { label: 'Certificate',w: '150px', key: 'cal_cert' },
+  { label: 'Note',       w: '130px', key: '_note' }, // exception reason or warranty warning
+];
+
+function buildTableHead() {
+  return `<thead><tr>${COLS.map(c =>
+    `<th style="width:${c.w};" title="${c.label}">${c.label}</th>`
+  ).join('')}</tr></thead>`;
+}
+
+function buildRow(s, note, rowClass) {
+  const fail    = isFailed(s);
+  const warranty = fail && isUnderWarranty(s.serial_number);
+  return `<tr class="${rowClass}">
+    <td class="mono">#${s.sensor_id}</td>
+    <td class="mono" title="${s.cp_address||''}">${s.cp_address||'—'}</td>
+    <td title="${s.sensor_name||''}">${s.sensor_name||'—'}</td>
+    <td title="${s.zone||''}">${s.zone||'—'}</td>
+    <td class="mono">${s.server||'—'}</td>
+    <td title="${s.sensor_type||''}">${s.sensor_type||'—'}</td>
+    <td class="mono" style="${warranty?'color:#f0c040;font-weight:600;':''}"
+        title="${s.serial_number||''}">${s.serial_number||'—'}</td>
+    <td title="${s.access_point||''}">${s.access_point||'—'}</td>
+    <td>${s.quality||'—'}</td>
+    <td>${s.status||'—'}</td>
+    <td class="mono">${fmtOffset(s.old_offset)}</td>
+    <td class="mono ${fail?'fail-val':''}">${fmtOffset(s.new_offset)}</td>
+    <td>${fmtDate(s.calibrated_at)}</td>
+    <td title="${s.calibrated_by||''}">${s.calibrated_by||'—'}</td>
+    <td title="${s.cal_cert||''}">${s.cal_cert||'—'}</td>
+    <td style="${note&&note!=='—'?'color:var(--orange);':''}"
+        title="${note||''}">${note||'—'}</td>
+  </tr>`;
+}
+
+function buildSection(containerId, hdrClass, title, rows, notesFn, rowClass) {
+  const el = document.getElementById(containerId);
+  if (!rows.length) {
+    el.innerHTML = `
+      <div class="section">
+        <div class="section-hdr ${hdrClass}">
+          <span class="section-hdr-title">${title}</span>
+          <span class="section-hdr-count">0</span>
+        </div>
+        <div class="empty-section">None</div>
+      </div>`;
+    return;
+  }
+  const sorted = [...rows].sort((a,b) =>
+    (a.zone||'').localeCompare(b.zone||'') ||
+    (a.sensor_name||'').localeCompare(b.sensor_name||'')
+  );
+  const tbody = sorted.map(s =>
+    buildRow(s, notesFn ? notesFn(s) : '—', rowClass || '')
+  ).join('');
+  el.innerHTML = `
+    <div class="section">
+      <div class="section-hdr ${hdrClass}">
+        <span class="section-hdr-title">${title}</span>
+        <span class="section-hdr-count">${rows.length} sensor${rows.length!==1?'s':''}</span>
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="sensor-table">
+          ${buildTableHead()}
+          <tbody>${tbody}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+/* ─── Data loading ─────────────────────────────────────── */
+async function loadServerMeta() {
+  try {
+    const res = await fetch(`${CONFIG.WORKER_URL}/servers`, {
+      headers: { 'X-Api-Key': CONFIG.API_KEY }
+    });
+    const rows = await res.json();
+    serverMeta = Object.fromEntries(rows.map(r => [r.server, r]));
+  } catch(e) { console.error('Failed to load server meta', e); }
+}
+
+async function loadData() {
+  if (!servers.length) {
+    document.getElementById('loading').textContent =
+      'No servers selected. Go back to the dashboard and add servers first.';
+    return;
+  }
+  document.getElementById('loading').style.display = 'block';
+  document.getElementById('report').style.display = 'none';
+  setStatus('Loading…');
+
+  try {
+    const [sensorResults, excResults] = await Promise.all([
+      Promise.all(servers.map(s =>
+        fetch(`${CONFIG.WORKER_URL}/calibrations?server=${s}`, {
+          headers: { 'X-Api-Key': CONFIG.API_KEY }
+        }).then(r => r.json())
+      )),
+      Promise.all(servers.map(s =>
+        fetch(`${CONFIG.WORKER_URL}/exceptions?server=${s}`, {
+          headers: { 'X-Api-Key': CONFIG.API_KEY }
+        }).then(r => r.json())
+      )),
+      loadServerMeta(),
+    ]);
+
+    allSensors    = sensorResults.flat();
+    allExceptions = excResults.flat();
+
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('report').style.display  = 'flex';
+    document.getElementById('gen-time').textContent  = new Date().toLocaleString();
+
+    renderReport();
+    setStatus(`${allSensors.length} sensors — ${new Date().toLocaleTimeString()}`);
+
+  } catch(e) {
+    setStatus('Error loading data');
+    document.getElementById('loading').textContent = 'Error loading data.';
+    console.error(e);
+  }
+}
+
+/* ─── Render ───────────────────────────────────────────── */
+function renderReport() {
+  const enabled  = allSensors.filter(isEnabled);
+  const disabled = allSensors.filter(s => !isEnabled(s));
+
+  const calibrated = enabled.filter(s => isCalibrated(s) && !isExcepted(s));
+  const excepted   = enabled.filter(isExcepted);
+  const failures   = enabled.filter(isFailed);
+  const inCheck    = enabled.filter(isInCheck);
+  const remaining  = enabled.filter(s =>
+    !isCalibrated(s) && !isExcepted(s)
+  );
+
+  // Determine job name from majority customer
+  const counts = {};
+  servers.forEach(s => {
+    const c = serverMeta[s]?.customer;
+    if (c) counts[c] = (counts[c] || 0) + 1;
+  });
+  const customer = Object.entries(counts).sort((a,b)=>b[1]-a[1])[0]?.[0] || null;
+  const jobName  = customer || 'Calibration Report';
+
+  // Header
+  document.getElementById('report-meta').textContent =
+    `${jobName} · ${enabled.length} enabled sensors`;
+  document.getElementById('report-date').textContent =
+    `Generated ${new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}`;
+  document.getElementById('report-servers').textContent =
+    `Servers: ${servers.map(s=>`${s}`).join(', ')}`;
+
+  // Stats
+  const pct = enabled.length > 0
+    ? Math.round(((calibrated.length + excepted.length) / enabled.length) * 100)
+    : 0;
+  document.getElementById('stats-bar').innerHTML = `
+    <div class="stat-pill">
+      <span class="stat-pill-label">Total enabled</span>
+      <span class="stat-pill-value">${enabled.length}</span>
+    </div>
+    <div class="stat-pill">
+      <span class="stat-pill-label">Calibrated</span>
+      <span class="stat-pill-value green">${calibrated.length}</span>
+    </div>
+    <div class="stat-pill">
+      <span class="stat-pill-label">Exceptions</span>
+      <span class="stat-pill-value orange">${excepted.length}</span>
+    </div>
+    <div class="stat-pill">
+      <span class="stat-pill-label">Remaining</span>
+      <span class="stat-pill-value ${remaining.length>0?'orange':'green'}">${remaining.length}</span>
+    </div>
+    <div class="stat-pill">
+      <span class="stat-pill-label">Failures</span>
+      <span class="stat-pill-value ${failures.length>0?'red':'muted'}">${failures.length}</span>
+    </div>
+    <div class="stat-pill">
+      <span class="stat-pill-label">In CHECK</span>
+      <span class="stat-pill-value ${inCheck.length>0?'yellow':'muted'}">${inCheck.length}</span>
+    </div>
+    <div class="stat-pill">
+      <span class="stat-pill-label">Disabled</span>
+      <span class="stat-pill-value muted">${disabled.length}</span>
+    </div>
+    <div class="stat-pill">
+      <span class="stat-pill-label">Complete</span>
+      <span class="stat-pill-value ${pct===100?'green':'orange'}">${pct}%</span>
+    </div>`;
+
+  // Sections
+  buildSection(
+    'section-calibrated', 'hdr-calibrated',
+    'Calibrated',
+    calibrated,
+    s => isUnderWarranty(s.serial_number) && isFailed(s) ? '⚠ Warranty' : '—',
+    ''
+  );
+
+  buildSection(
+    'section-exceptions', 'hdr-exceptions',
+    'Exceptions',
+    excepted,
+    s => getExceptionReason(s),
+    ''
+  );
+
+  buildSection(
+    'section-failures', 'hdr-failures',
+    'Failures — offset exceeded threshold',
+    failures,
+    s => isUnderWarranty(s.serial_number) ? '⚠ Under warranty' : '—',
+    ''
+  );
+
+  buildSection(
+    'section-check', 'hdr-check',
+    'Sensors in CHECK',
+    inCheck,
+    s => s.quality || '—',
+    ''
+  );
+
+  buildSection(
+    'section-remaining', 'hdr-remaining',
+    'Remaining — not yet calibrated',
+    remaining,
+    () => '—',
+    ''
+  );
+
+  // Disabled section — sorted same way but grayed out
+  const disabledSorted = [...disabled].sort((a,b) =>
+    (a.zone||'').localeCompare(b.zone||'') ||
+    (a.sensor_name||'').localeCompare(b.sensor_name||'')
+  );
+  const disEl = document.getElementById('section-disabled');
+  if (!disabledSorted.length) {
+    disEl.innerHTML = '';
+    return;
+  }
+  const disBody = disabledSorted.map(s => buildRow(s, '—', 'disabled-row')).join('');
+  disEl.innerHTML = `
+    <div class="section">
+      <div class="section-hdr hdr-disabled">
+        <span class="section-hdr-title">Disabled sensors</span>
+        <span class="section-hdr-count">${disabledSorted.length}</span>
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="sensor-table">
+          ${buildTableHead()}
+          <tbody>${disBody}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+/* ─── Init ─────────────────────────────────────────────── */
+loadData();
+</script>
+</body>
+</html>
