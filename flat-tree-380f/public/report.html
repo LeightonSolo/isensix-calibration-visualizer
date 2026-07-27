@@ -429,6 +429,20 @@ function buildTableHead() {
 function buildRow(s, note, rowClass) {
   const fail    = isFailed(s);
   const warranty = fail && isUnderWarranty(s.serial_number);
+
+    // Determine the color based on the note contents
+  let noteStyle = '';
+
+  if (note && note !== '—') {
+      const lowerNote = String(note).toLowerCase();
+      if (lowerNote.includes('proper functionality')) {
+          noteStyle = 'color: var(--green);'; // Update with your actual green CSS variable
+      } else if (lowerNote.includes('failed')) {
+          noteStyle = 'color: var(--red);';
+      } else {
+          noteStyle = 'color: var(--orange);';
+      }
+  }
   return `<tr class="${rowClass}">
     <td class="mono">${s.sensor_id}</td>
     <td class="mono" title="${s.cp_address||''}">${s.cp_address||'—'}</td>
@@ -446,8 +460,7 @@ function buildRow(s, note, rowClass) {
     <td>${fmtDate(s.calibrated_at)}</td>
     <td title="${s.calibrated_by||''}">${s.calibrated_by||'—'}</td>
     <td title="${s.cal_cert||''}">${s.cal_cert||'—'}</td>
-    <td style="${note&&note!=='—'?'color:var(--orange);':''}"
-        title="${note||''}">${note||'—'}</td>
+    <td style="${noteStyle}" title="${note || ''}">${note || '—'}</td>
   </tr>`;
 }
 
@@ -612,8 +625,8 @@ function renderReport() {
     'section-calibrated', 'hdr-calibrated',
     'Calibrated',
     calibrated,
-    s => isUnderWarranty(s.serial_number) && isFailed(s) ? '⚠ Warranty' : '—',
-    ''
+    s => (isUnderWarranty(s.serial_number) && isFailed(s)) ? '⚠ Warranty' : (s.canned_msg || '—'), 
+  ''
   );
 
   buildSection(
