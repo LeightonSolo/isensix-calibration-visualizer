@@ -37,7 +37,7 @@
       background: var(--bg);
       color: var(--text);
       font-family: var(--font);
-      font-size: 12px;
+      font-size: 10px;
       line-height: 1.4;
       -webkit-font-smoothing: antialiased;
     }
@@ -177,7 +177,7 @@
     }
     .sensor-table th {
       padding: 5px 7px;
-      font-size: 10px;
+      font-size: 1.0rem;
       font-weight: 500;
       color: var(--text-sec);
       text-align: left;
@@ -185,25 +185,24 @@
       border-right: 0.5px solid var(--border-light);
       white-space: nowrap;
       overflow: hidden;
-      text-overflow: ellipsis;
+      text-overflow: clip;
     }
     .sensor-table th:last-child { border-right: none; }
     .sensor-table td {
       padding: 5px 7px;
-      font-size: 11px;
+      font-size: 1.1rem;
       color: var(--text);
       border-bottom: 0.5px solid var(--border-light);
       border-right: 0.5px solid var(--border-light);
       overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+      text-overflow: clip;
     }
     .sensor-table td:last-child { border-right: none; }
     .sensor-table tr:last-child td { border-bottom: none; }
     .sensor-table tr:nth-child(even) td { background: var(--bg-row-alt); }
     .sensor-table tr.disabled-row td { color: var(--text-muted); opacity: 0.6; }
 
-    .mono { font-family: var(--mono); font-size: 10px; }
+    .mono { font-family: var(--mono); font-size: 1.0rem; }
     .fail-val { color: var(--red); font-weight: 600; }
     .empty-section {
       padding: 16px;
@@ -243,9 +242,9 @@
         --blue:   #1a4ea0;
       }
 
-      html, body { background: #fff; font-size: 10px; }
+      html, body { background: #fff; font-size: 8px; }
       #top-bar, .noprint { display: none !important; }
-      #report { padding: 0; gap: 12px; max-width: 100%; }
+      #report { padding: 0; gap: 10px; max-width: 100%; }
 
       .section { break-inside: avoid; }
       .section-hdr { break-inside: avoid; }
@@ -259,6 +258,7 @@
 
       .stat-pill { background: #f5f5f5; border-color: #ccc; }
 
+      .sensor-table {table-layout: auto; width: 100%; border-collapse: collapse; }
       .sensor-table thead { position: static; }
       .sensor-table { page-break-inside: auto; }
       .sensor-table tr { page-break-inside: avoid; }
@@ -402,19 +402,19 @@ function setStatus(msg) {
 
 /* ─── Column widths ─────────────────────────────────────── */
 const COLS = [
-  { label: 'ID',          w: '44px',  key: 'sensor_id' },
-  { label: 'CP Addr',    w: '72px',  key: 'cp_address' },
+  { label: 'ID',          w: '30px',  key: 'sensor_id' },
+  { label: 'CP Addr',    w: '68px',  key: 'cp_address' },
   { label: 'Sensor Name',w: '180px', key: 'sensor_name' },
   { label: 'Zone',       w: '130px', key: 'zone' },
-  { label: 'SID',        w: '40px',  key: 'server' },
-  { label: 'Type',       w: '90px',  key: 'sensor_type' },
+  { label: 'SID',        w: '30px',  key: 'server' },
+  { label: 'Type',       w: '80px',  key: 'sensor_type' },
   { label: 'Serial',     w: '110px', key: 'serial_number' },
   { label: 'Access Point',w:'150px', key: 'access_point' },
   { label: 'Quality',       w: '60px',  key: 'quality' },
-  { label: 'Status',     w: '60px',  key: 'status' },
+  //{ label: 'Status',     w: '60px',  key: 'status' },
   { label: 'Old',        w: '52px',  key: 'old_offset' },
   { label: 'New',        w: '52px',  key: 'new_offset' },
-  { label: 'Calibrated', w: '88px',  key: 'calibrated_at' },
+  { label: 'Calibrated', w: '86px',  key: 'calibrated_at' },
   { label: 'By',         w: '120px', key: 'calibrated_by' },
   { label: 'Certificate',w: '150px', key: 'cal_cert' },
   { label: 'Note',       w: '130px', key: '_note' }, // exception reason or warranty warning
@@ -430,7 +430,7 @@ function buildRow(s, note, rowClass) {
   const fail    = isFailed(s);
   const warranty = fail && isUnderWarranty(s.serial_number);
   return `<tr class="${rowClass}">
-    <td class="mono">#${s.sensor_id}</td>
+    <td class="mono">${s.sensor_id}</td>
     <td class="mono" title="${s.cp_address||''}">${s.cp_address||'—'}</td>
     <td title="${s.sensor_name||''}">${s.sensor_name||'—'}</td>
     <td title="${s.zone||''}">${s.zone||'—'}</td>
@@ -440,7 +440,7 @@ function buildRow(s, note, rowClass) {
         title="${s.serial_number||''}">${s.serial_number||'—'}</td>
     <td title="${s.access_point||''}">${s.access_point||'—'}</td>
     <td>${s.quality||'—'}</td>
-    <td>${s.status||'—'}</td>
+    <!-- <td>${s.status||'—'}</td> -->
     <td class="mono">${fmtOffset(s.old_offset)}</td>
     <td class="mono ${fail?'fail-val':''}">${fmtOffset(s.new_offset)}</td>
     <td>${fmtDate(s.calibrated_at)}</td>
