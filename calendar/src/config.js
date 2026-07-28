@@ -12,7 +12,7 @@ export const CONFIG = {
     'Kyle',
     'Dejan',
   ],
-  EVENT_TYPES: ['calibration', 'install', 'upgrade', 'other'],
+  EVENT_TYPES: ['calibration', 'install', 'upgrade', 'mapping', 'other'],
   EVENT_STATUSES: ['ticketed', 'confirmed', 'booked'],
   TECH_EVENT_TYPES: ['pto', 'holiday', 'jury_duty', 'office', 'other'],
   STATUS_COLORS: {
