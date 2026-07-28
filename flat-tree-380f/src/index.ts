@@ -1,6 +1,7 @@
 export interface Env {
   DB: D1Database;
   API_KEY: string;
+  EDITOR_TOKEN: string;
 }
 
 function corsHeaders() {
@@ -365,6 +366,133 @@ export default {
 
       return json({ ok: true });
 
+    }
+
+
+    // ── Calendar events ──────────────────────────────────────
+
+    // GET /calendar/events?start=YYYY-MM-DD&end=YYYY-MM-DD
+    if (request.method === 'GET' && pathname === '/calendar/events') {
+      const start = url.searchParams.get('start');
+      const end   = url.searchParams.get('end');
+      let q = `SELECT * FROM calendar_events WHERE 1=1`;
+      const b: any[] = [];
+      if (start) { q += ` AND end_date >= ?`;   b.push(start); }
+      if (end)   { q += ` AND start_date <= ?`; b.push(end); }
+      q += ` ORDER BY start_date ASC`;
+      const { results } = await env.DB.prepare(q).bind(...b).all();
+      return json(results);
+    }
+
+    // GET /calendar/assignments?start=YYYY-MM-DD&end=YYYY-MM-DD
+    if (request.method === 'GET' && pathname === '/calendar/assignments') {
+      const start = url.searchParams.get('start');
+      const end   = url.searchParams.get('end');
+      let q = `SELECT * FROM event_assignments WHERE 1=1`;
+      const b: any[] = [];
+      if (start) { q += ` AND date >= ?`; b.push(start); }
+      if (end)   { q += ` AND date <= ?`; b.push(end); }
+      const { results } = await env.DB.prepare(q).bind(...b).all();
+      return json(results);
+    }
+
+    // POST /calendar/events — create or update
+    if (request.method === 'POST' && pathname === '/calendar/events') {
+      const editorKey = request.headers.get('X-Editor-Token');
+      if (editorKey !== env.EDITOR_TOKEN) {
+        return new Response('Forbidden', { status: 403 });
+      }
+      const body = await request.json() as Record<string, any>;
+      const { id, title, event_type, status, customer,
+              start_date, end_date, ticket_id, notes, assignments } = body;
+
+      let eventId = id;
+      if (id) {
+        await env.DB.prepare(`
+          UPDATE calendar_events SET
+            title=?, event_type=?, status=?, customer=?,
+            start_date=?, end_date=?, ticket_id=?, notes=?,
+            updated_at=datetime('now')
+          WHERE id=?
+        `).bind(title, event_type, status, customer ?? null,
+                start_date, end_date, ticket_id ?? null,
+                notes ?? null, id).run();
+      } else {
+        const result = await env.DB.prepare(`
+          INSERT INTO calendar_events
+            (title, event_type, status, customer, start_date, end_date, ticket_id, notes)
+          VALUES (?,?,?,?,?,?,?,?)
+        `).bind(title, event_type, status ?? 'ticketed', customer ?? null,
+                start_date, end_date, ticket_id ?? null, notes ?? null).run();
+        eventId = result.meta.last_row_id;
+      }
+
+      // Replace assignments
+      if (Array.isArray(assignments)) {
+        await env.DB.prepare(
+          `DELETE FROM event_assignments WHERE event_id = ?`
+        ).bind(eventId).run();
+        if (assignments.length) {
+          await env.DB.batch(assignments.map((a: any) =>
+            env.DB.prepare(
+              `INSERT OR IGNORE INTO event_assignments (event_id, tech_name, date)
+              VALUES (?,?,?)`
+            ).bind(eventId, a.tech_name, a.date)
+          ));
+        }
+      }
+      return json({ ok: true, id: eventId });
+    }
+
+    // DELETE /calendar/events/:id
+    if (request.method === 'DELETE' && pathname.startsWith('/calendar/events/')) {
+      const editorKey = request.headers.get('X-Editor-Token');
+      if (editorKey !== env.EDITOR_TOKEN) {
+        return new Response('Forbidden', { status: 403 });
+      }
+      const id = pathname.split('/').pop();
+      await env.DB.prepare(`DELETE FROM calendar_events WHERE id=?`).bind(id).run();
+      return json({ ok: true });
+    }
+
+    // GET /calendar/tech-events?start=YYYY-MM-DD&end=YYYY-MM-DD
+    if (request.method === 'GET' && pathname === '/calendar/tech-events') {
+      const start = url.searchParams.get('start');
+      const end   = url.searchParams.get('end');
+      let q = `SELECT * FROM tech_events WHERE 1=1`;
+      const b: any[] = [];
+      if (start) { q += ` AND date >= ?`; b.push(start); }
+      if (end)   { q += ` AND date <= ?`; b.push(end); }
+      const { results } = await env.DB.prepare(q).bind(...b).all();
+      return json(results);
+    }
+
+    // POST /calendar/tech-events
+    if (request.method === 'POST' && pathname === '/calendar/tech-events') {
+      const editorKey = request.headers.get('X-Editor-Token');
+      if (editorKey !== env.EDITOR_TOKEN) {
+        return new Response('Forbidden', { status: 403 });
+      }
+      const body = await request.json() as Record<string, any>;
+      const { tech_name, event_type, date, notes } = body;
+      await env.DB.prepare(`
+        INSERT INTO tech_events (tech_name, event_type, date, notes)
+        VALUES (?,?,?,?)
+        ON CONFLICT(tech_name, date) DO UPDATE SET
+          event_type=excluded.event_type, notes=excluded.notes
+      `).bind(tech_name, event_type, date, notes ?? null).run();
+      return json({ ok: true });
+    }
+
+    // DELETE /calendar/tech-events/:id
+    if (request.method === 'DELETE' && pathname.startsWith('/calendar/tech-events/')) {
+      const editorKey = request.headers.get('X-Editor-Token');
+      if (editorKey !== env.EDITOR_TOKEN) {
+        return new Response('Forbidden', { status: 403 });
+      }
+      const id = pathname.split('/').pop();
+      await env.DB.prepare(`DELETE FROM tech_events WHERE id=?`).bind(id).run();
+      return json({ ok: true });
     }
 
     return new Response('Not found', { status: 404 });
