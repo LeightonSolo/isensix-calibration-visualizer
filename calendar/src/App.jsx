@@ -170,7 +170,7 @@ export default function App() {
       </div>
 
       {/* Main content */}
-      <div style={{ padding: '16px 20px' }}>
+      <div style={{ padding: '8px 12px' }}>
         {tab === 'grid' && (
           <ResourceGrid
             viewDate={viewDate}

@@ -9,7 +9,7 @@ import JobModal from './JobModal';
 import TechEventModal from './TechEventModal';
 
 const CELL_W = 44;
-const ROW_H  = 34;
+const ROW_H  = 52;
 const TECH_W = 90;
 
 function getEventColor(event) {
@@ -32,6 +32,29 @@ function buildTechDateMap(events, assignments) {
     if (ev) map[key].push(ev);
   });
   return map;
+}
+
+// For a given tech, compute all unique events assigned to them
+// and find the date range they appear on
+function getTechEventSpans(tech, events, assignments, days) {
+  const dayStrs = days.map(d => format(d, 'yyyy-MM-dd'));
+  const seen = new Map(); // event_id -> { event, dates: [] }
+
+  assignments.forEach(a => {
+    if (a.tech_name !== tech) return;
+    if (!dayStrs.includes(a.date)) return;
+    const ev = events.find(e => String(e.id) === String(a.event_id));
+    if (!ev) return;
+    if (!seen.has(String(ev.id))) seen.set(String(ev.id), { event: ev, dates: [] });
+    seen.get(String(ev.id)).dates.push(a.date);
+  });
+
+  return [...seen.values()].map(({ event, dates }) => {
+    const sorted = dates.sort();
+    const startIdx = dayStrs.indexOf(sorted[0]);
+    const endIdx   = dayStrs.indexOf(sorted[sorted.length - 1]);
+    return { event, startIdx, endIdx, dates };
+  });
 }
 
 export default function ResourceGrid({
@@ -199,7 +222,7 @@ export default function ResourceGrid({
       {/* Single table — columns always aligned */}
       <div style={{
         overflowX: 'auto', overflowY: 'auto',
-        maxHeight: 'calc(100vh - 180px)',
+        maxHeight: 'calc(100vh - 100px)',
         border: '0.5px solid #2a2a35',
         borderRadius: 8,
       }}>
@@ -269,96 +292,114 @@ export default function ResourceGrid({
           </thead>
 
           <tbody>
-            {CONFIG.TECHNICIANS.map((tech, ti) => (
-              <tr key={tech} style={{ height: ROW_H }}>
-                <td style={{
-                  padding: '0 10px', fontSize: 12, fontWeight: 500,
-                  color: '#e8e8f0',
-                  borderBottom: ti < CONFIG.TECHNICIANS.length - 1 ? '0.5px solid #1a1a1f' : 'none',
-                  borderRight: '0.5px solid #2a2a35',
-                  position: 'sticky', left: 0, zIndex: 2,
-                  background: '#111115', whiteSpace: 'nowrap',
-                }}>{tech}</td>
+            {CONFIG.TECHNICIANS.map((tech, ti) => {
+              const spans = getTechEventSpans(tech, events, assignments, days);
 
-                {days.map(d => {
-                  const ds         = format(d, 'yyyy-MM-dd');
-                  const isToday    = ds === today;
-                  const isWknd     = isWeekend(d);
-                  const cellEvents = techDateMap[`${tech}||${ds}`] || [];
-                  const techEv     = techEventMap[tech]?.[ds];
+              return (
+                <tr key={tech} style={{ height: ROW_H }}>
+                  {/* Sticky tech name */}
+                  <td style={{
+                    padding: '0 10px', fontSize: 12, fontWeight: 500,
+                    color: '#e8e8f0',
+                    borderBottom: ti < CONFIG.TECHNICIANS.length - 1 ? '0.5px solid #1a1a1f' : 'none',
+                    borderRight: '0.5px solid #2a2a35',
+                    position: 'sticky', left: 0, zIndex: 2,
+                    background: '#111115', whiteSpace: 'nowrap',
+                    height: ROW_H,
+                  }}>{tech}</td>
 
-                  return (
-                    <td key={ds}
-                      onClick={() => {
-                        if (cellEvents.length === 0 && !techEv) handleCellClick(tech, d);
-                      }}
-                      onMouseUp={e => handleCellMouseUp(e, ds)}
-                      style={{
-                        position: 'relative',
-                        height: ROW_H,
-                        borderBottom: ti < CONFIG.TECHNICIANS.length - 1
-                          ? '0.5px solid #1a1a1f' : 'none',
-                        borderRight: '0.5px solid #1a1a1f',
-                        background: isToday
-                          ? 'rgba(90,158,47,0.06)'
-                          : isWknd ? 'rgba(0,0,0,0.25)' : 'transparent',
-                        opacity: isWknd ? 0.5 : 1,
-                        cursor: editorToken && cellEvents.length === 0 && !techEv ? 'pointer' : 'default',
-                        padding: 0, verticalAlign: 'top',
-                      }}>
-
-                      {techEv && (
-                        <div onClick={e => { e.stopPropagation(); setModal({ type: 'tech', event: techEv }); }}
-                          title={`${techEv.event_type}${techEv.notes ? ': ' + techEv.notes : ''}`}
-                          style={{
-                            position: 'absolute', inset: '2px 1px', borderRadius: 3, cursor: 'pointer',
-                            background: getTechEventColor(techEv).bg,
-                            border: `0.5px solid ${getTechEventColor(techEv).border}`,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            fontSize: 9, color: getTechEventColor(techEv).fg,
-                            fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em',
-                          }}>
-                          {techEv.event_type.slice(0, 3)}
-                        </div>
-                      )}
-
-                      {!techEv && cellEvents.slice(0, 2).map((ev, ei) => {
-                        const color = getEventColor(ev);
+                  {/* Single td spanning all days with absolute event blocks */}
+                  <td colSpan={days.length} style={{
+                    position: 'relative',
+                    padding: 0,
+                    height: ROW_H,
+                    borderBottom: ti < CONFIG.TECHNICIANS.length - 1 ? '0.5px solid #1a1a1f' : 'none',
+                  }}>
+                    {/* Cell backgrounds — rendered as divs for today/weekend highlighting */}
+                    <div style={{ position: 'absolute', inset: 0, display: 'flex', pointerEvents: 'none' }}>
+                      {days.map(d => {
+                        const ds = format(d, 'yyyy-MM-dd');
                         return (
-                          <div key={ev.id}
-                            onMouseDown={e => handleEventMouseDown(e, ev, tech, ds)}
-                            title={`${ev.title}${ev.ticket_id ? ' #' + ev.ticket_id : ''}${ev.notes ? '\n' + ev.notes : ''}`}
-                            style={{
-                              position: 'absolute',
-                              top: 2 + ei * 15, left: 1, right: 1, height: 13,
-                              borderRadius: 3,
-                              background: color.bg,
-                              border: `0.5px solid ${color.border}`,
-                              display: 'flex', alignItems: 'center',
-                              paddingLeft: 3, paddingRight: 2,
-                              fontSize: 9, color: color.fg, fontWeight: 500,
-                              overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
-                              cursor: 'pointer', userSelect: 'none',
+                          <div key={ds} style={{
+                            width: CELL_W, flexShrink: 0,
+                            background: ds === today ? 'rgba(90,158,47,0.06)'
+                              : isWeekend(d) ? 'rgba(0,0,0,0.25)' : 'transparent',
+                            borderRight: '0.5px solid #1a1a1f',
+                            opacity: isWeekend(d) ? 0.5 : 1,
+                          }}/>
+                        );
+                      })}
+                    </div>
+
+                    {/* Click targets per cell */}
+                    <div style={{ position: 'absolute', inset: 0, display: 'flex' }}>
+                      {days.map((d, di) => {
+                        const ds     = format(d, 'yyyy-MM-dd');
+                        const techEv = techEventMap[tech]?.[ds];
+                        const hasCellEvent = spans.some(s => s.dates.includes(ds));
+                        return (
+                          <div key={ds}
+                            style={{ width: CELL_W, flexShrink: 0, position: 'relative', height: ROW_H }}
+                            onClick={() => {
+                              if (!hasCellEvent && !techEv) handleCellClick(tech, d);
                             }}>
-                            {ev.title}
-                            {ev.ticket_id && (
-                              <span style={{ marginLeft: 3, opacity: 0.6, fontSize: 8 }}>
-                                #{ev.ticket_id}
-                              </span>
+                            {techEv && (
+                              <div onClick={e => { e.stopPropagation(); setModal({ type: 'tech', event: techEv }); }}
+                                title={`${techEv.event_type}${techEv.notes ? ': ' + techEv.notes : ''}`}
+                                style={{
+                                  position: 'absolute', inset: '3px 1px',
+                                  borderRadius: 4, cursor: 'pointer',
+                                  background: getTechEventColor(techEv).bg,
+                                  border: `0.5px solid ${getTechEventColor(techEv).border}`,
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  fontSize: 10, color: getTechEventColor(techEv).fg,
+                                  fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em',
+                                }}>
+                                {techEv.event_type.toUpperCase()}
+                              </div>
                             )}
                           </div>
                         );
                       })}
-                      {cellEvents.length > 2 && (
-                        <div style={{ position: 'absolute', bottom: 1, right: 2, fontSize: 8, color: '#555566' }}>
-                          +{cellEvents.length - 2}
+                    </div>
+
+                    {/* Spanning event blocks */}
+                    {spans.map(({ event, startIdx, endIdx }, si) => {
+                      const color = getEventColor(event);
+                      const left  = startIdx * CELL_W + 1;
+                      const width = (endIdx - startIdx + 1) * CELL_W - 2;
+                      const top   = 4 + (si % 2) * 22; // stack up to 2 events per row
+
+                      return (
+                        <div key={event.id}
+                          onMouseDown={e => handleEventMouseDown(e, event, tech,
+                            format(days[startIdx], 'yyyy-MM-dd'))}
+                          title={`${event.title}${event.ticket_id ? ' #' + event.ticket_id : ''}${event.notes ? '\n' + event.notes : ''}`}
+                          style={{
+                            position: 'absolute',
+                            left, top, width, height: 18,
+                            borderRadius: 4,
+                            background: color.bg,
+                            border: `0.5px solid ${color.border}`,
+                            display: 'flex', alignItems: 'center',
+                            paddingLeft: 6, paddingRight: 4,
+                            fontSize: 11, color: color.fg, fontWeight: 500,
+                            overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
+                            cursor: 'pointer', userSelect: 'none', zIndex: 1,
+                          }}>
+                          {event.title}
+                          {event.ticket_id && (
+                            <span style={{ marginLeft: 4, opacity: 0.6, fontSize: 10 }}>
+                              #{event.ticket_id}
+                            </span>
+                          )}
                         </div>
-                      )}
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
+                      );
+                    })}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
