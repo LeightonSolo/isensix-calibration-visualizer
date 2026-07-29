@@ -5,7 +5,7 @@ export default defineConfig({
   plugins: [react()],
   base: '/calendar/',
   build: {
-    outDir: '../dist/calendar',
+    outDir: '../flat-tree-380f/public/calendar',
     emptyOutDir: true,
   },
 })
