@@ -161,9 +161,9 @@ export default function App() {
             </button>
           )}
           <button style={STYLES.btnPrimary}
-            onClick={() => requireEditor(token =>
-              setTab('grid') // handled in ResourceGrid via onCreateRequest
-            )}>
+            onClick={() => requireEditor(token => {
+              setTab('grid');
+            })}>
             + Add event
           </button>
         </div>

@@ -1,77 +1,71 @@
 import { useState, useMemo, useRef } from 'react';
 import {
   format, eachDayOfInterval, startOfWeek, endOfWeek,
-  addWeeks, subWeeks, isWeekend, parseISO,
-  addDays, differenceInCalendarDays, isSameMonth,
+  addWeeks, subWeeks, isWeekend, parseISO, addDays,
+  differenceInCalendarDays,
 } from 'date-fns';
 import { CONFIG } from '../config';
 import JobModal from './JobModal';
 import TechEventModal from './TechEventModal';
 
-const COL_W  = 130;  // px per tech column
-const ROW_H  = 36;   // px per date row
-const DATE_W = 72;   // date label column width
+const COL_W  = 130;
+const ROW_H  = 36;
+const DATE_W = 72;
 
-function getEventColor(event) {
-  if (event.event_type !== 'calibration') {
-    return CONFIG.TYPE_COLORS[event.event_type] || CONFIG.TYPE_COLORS.other;
-  }
-  return CONFIG.STATUS_COLORS[event.status] || CONFIG.STATUS_COLORS.ticketed;
+function getEventColor(ev) {
+  if (ev.event_type !== 'calibration')
+    return CONFIG.TYPE_COLORS[ev.event_type] || CONFIG.TYPE_COLORS.other;
+  return CONFIG.STATUS_COLORS[ev.status] || CONFIG.STATUS_COLORS.ticketed;
 }
-
 function getTechEventColor(te) {
   return CONFIG.TYPE_COLORS[te.event_type] || CONFIG.TYPE_COLORS.other;
 }
 
-// For each tech, build a map of dateStr -> [events]
-function buildAssignmentMap(events, assignments) {
-  const map = {}; // `${tech}||${date}` -> [event]
+// Build: techName -> eventId -> sorted array of dateStrings (only within visible days)
+function buildSpans(events, assignments, dayStrs) {
+  const map = {}; // tech -> evId -> Set<date>
   assignments.forEach(a => {
-    const ev = events.find(e => String(e.id) === String(a.event_id));
-    if (!ev) return;
-    const key = `${a.tech_name}||${a.date}`;
-    if (!map[key]) map[key] = [];
-    if (!map[key].find(e => e.id === ev.id)) map[key].push(ev);
+    if (!dayStrs.includes(a.date)) return;
+    if (!map[a.tech_name]) map[a.tech_name] = {};
+    const key = String(a.event_id);
+    if (!map[a.tech_name][key]) map[a.tech_name][key] = new Set();
+    map[a.tech_name][key].add(a.date);
   });
-  return map;
+
+  // tech -> evId -> { event, dates (sorted), startDate, endDate }
+  const spans = {};
+  Object.entries(map).forEach(([tech, evMap]) => {
+    spans[tech] = {};
+    Object.entries(evMap).forEach(([evId, dates]) => {
+      const ev = events.find(e => String(e.id) === evId);
+      if (!ev) return;
+      const sorted = [...dates].sort();
+      spans[tech][evId] = { event: ev, dates: sorted, startDate: sorted[0], endDate: sorted[sorted.length - 1] };
+    });
+  });
+  return spans;
 }
 
-// For a tech on a given date, find if this is the FIRST day of an event
-// and how many consecutive days it runs (for visual grouping label)
-function getEventStartInfo(tech, dateStr, events, assignments, days) {
-  const dayStrs = days.map(d => format(d, 'yyyy-MM-dd'));
-  const results = [];
+// For a given tech + date: which events start here, continue here, or are absent
+// Returns array of { event, rowSpan, isStart } sorted by startDate
+function getCellBlocks(tech, ds, spans, dayStrs) {
+  if (!spans[tech]) return [];
+  const di = dayStrs.indexOf(ds);
 
-  // Find all events assigned to this tech on this date
-  const todayAssignments = assignments.filter(
-    a => a.tech_name === tech && a.date === dateStr
-  );
-
-  todayAssignments.forEach(a => {
-    const ev = events.find(e => String(e.id) === String(a.event_id));
-    if (!ev) return;
-
-    // Check if this tech was also assigned yesterday
-    const di = dayStrs.indexOf(dateStr);
-    const prevDs = di > 0 ? dayStrs[di - 1] : null;
-    const wasYesterday = prevDs && assignments.some(
-      x => x.tech_name === tech && String(x.event_id) === String(ev.id) && x.date === prevDs
-    );
-
-    // Count how many consecutive days from today
-    let span = 0;
-    for (let i = di; i < dayStrs.length; i++) {
-      const assigned = assignments.some(
-        x => x.tech_name === tech && String(x.event_id) === String(ev.id) && x.date === dayStrs[i]
-      );
-      if (assigned) span++;
-      else break;
-    }
-
-    results.push({ event: ev, isStart: !wasYesterday, span });
-  });
-
-  return results;
+  return Object.values(spans[tech])
+    .filter(s => s.dates.includes(ds))
+    .map(s => {
+      const startI = dayStrs.indexOf(s.startDate);
+      // rowSpan = number of consecutive days from startDate within visible window
+      let span = 0;
+      for (let i = startI; i < dayStrs.length; i++) {
+        if (s.dates.includes(dayStrs[i])) span++;
+        else break;
+      }
+      return { event: s.event, rowSpan: span, isStart: s.startDate === ds, startI };
+    })
+    .filter(b => b.isStart) // only render at start — rowSpan handles the rest
+    .sort((a, b) => a.startI - b.startI);
 }
 
 export default function ResourceGrid({
@@ -86,11 +80,12 @@ export default function ResourceGrid({
   const rangeStart = startOfWeek(subWeeks(viewDate, 2), { weekStartsOn: 1 });
   const rangeEnd   = endOfWeek(addWeeks(viewDate, 10),  { weekStartsOn: 1 });
   const days       = eachDayOfInterval({ start: rangeStart, end: rangeEnd });
+  const dayStrs    = useMemo(() => days.map(d => format(d, 'yyyy-MM-dd')), [days]);
   const today      = format(new Date(), 'yyyy-MM-dd');
 
-  const assignMap = useMemo(
-    () => buildAssignmentMap(events, assignments),
-    [events, assignments]
+  const spans = useMemo(
+    () => buildSpans(events, assignments, dayStrs),
+    [events, assignments, dayStrs]
   );
 
   const techEventMap = useMemo(() => {
@@ -102,32 +97,75 @@ export default function ResourceGrid({
     return m;
   }, [techEvents]);
 
-  // Which dates have any assignment per tech
+  // Set of dates that have any assignment, per tech (for click suppression)
   const techBusyDates = useMemo(() => {
     const m = {};
     CONFIG.TECHNICIANS.forEach(t => { m[t] = new Set(); });
-    assignments.forEach(a => {
-      if (m[a.tech_name]) m[a.tech_name].add(a.date);
-    });
+    assignments.forEach(a => { if (m[a.tech_name]) m[a.tech_name].add(a.date); });
     return m;
   }, [assignments]);
 
-  // Precompute per-cell event info
-  const cellInfo = useMemo(() => {
-    const m = {};
-    days.forEach(d => {
-      const ds = format(d, 'yyyy-MM-dd');
-      CONFIG.TECHNICIANS.forEach(tech => {
-        m[`${tech}||${ds}`] = getEventStartInfo(tech, ds, events, assignments, days);
+  // Precompute which cells are "consumed" by a rowSpan above them
+  // consumed[tech][ds] = true means this cell is covered by a span above
+  const consumed = useMemo(() => {
+    const c = {};
+    CONFIG.TECHNICIANS.forEach(tech => {
+      c[tech] = {};
+      if (!spans[tech]) return;
+      Object.values(spans[tech]).forEach(s => {
+        const startI = dayStrs.indexOf(s.startDate);
+        if (startI < 0) return;
+        // mark days 1..span-1 as consumed (day 0 is the start cell itself)
+        for (let i = startI + 1; i < dayStrs.length; i++) {
+          if (!s.dates.includes(dayStrs[i])) break;
+          c[tech][dayStrs[i]] = true;
+        }
       });
     });
-    return m;
-  }, [days, events, assignments]);
+    return c;
+  }, [spans, dayStrs]);
 
-  function handleEventClick(event) {
-    setModal({
-      type: 'job',
-      event: { ...event, assignments: assignments.filter(a => String(a.event_id) === String(event.id)) },
+  /* ── Drag to move ──────────────────────────────────────── */
+  function handleEventMouseDown(e, event, origDs) {
+    if (!editorToken) return;
+    e.stopPropagation();
+    dragRef.current = { event, origDs, startX: e.clientX, startY: e.clientY, moved: false };
+
+    function onMove(me) {
+      if (!dragRef.current) return;
+      if (Math.abs(me.clientX - dragRef.current.startX) > 5 ||
+          Math.abs(me.clientY - dragRef.current.startY) > 5)
+        dragRef.current.moved = true;
+    }
+    function onUp() {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      if (!dragRef.current) return;
+      const { moved, event } = dragRef.current;
+      dragRef.current = null;
+      if (!moved) {
+        setModal({
+          type: 'job',
+          event: { ...event, assignments: assignments.filter(a => String(a.event_id) === String(event.id)) },
+        });
+      }
+    }
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }
+
+  function handleCellMouseUp(e, ds) {
+    if (!dragRef.current?.moved) return;
+    const { event, origDs } = dragRef.current;
+    const offset = differenceInCalendarDays(parseISO(ds), parseISO(origDs));
+    if (offset === 0) return;
+    const newStart = format(addDays(parseISO(event.start_date), offset), 'yyyy-MM-dd');
+    const newEnd   = format(addDays(parseISO(event.end_date),   offset), 'yyyy-MM-dd');
+    const newAssignments = assignments
+      .filter(a => String(a.event_id) === String(event.id))
+      .map(a => ({ tech_name: a.tech_name, date: format(addDays(parseISO(a.date), offset), 'yyyy-MM-dd') }));
+    requireEditor(async token => {
+      await onSaveEvent({ ...event, start_date: newStart, end_date: newEnd, assignments: newAssignments }, token);
     });
   }
 
@@ -147,25 +185,9 @@ export default function ResourceGrid({
     fontSize: 12, padding: '5px 12px', cursor: 'pointer',
   });
 
-  // Group days by month for month labels
-  const months = useMemo(() => {
-    const m = [];
-    let cur = null;
-    days.forEach((d, i) => {
-      const mk = format(d, 'yyyy-MM');
-      if (mk !== cur) {
-        m.push({ label: format(d, 'MMMM yyyy'), startIdx: i });
-        if (m.length > 1) m[m.length-2].count = i - m[m.length-2].startIdx;
-        cur = mk;
-      }
-    });
-    if (m.length) m[m.length-1].count = days.length - m[m.length-1].startIdx;
-    return m;
-  }, [days]);
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 100px)' }}>
-      {/* Modal */}
+
       {modal?.type === 'job' && (
         <JobModal
           event={modal.event}
@@ -220,10 +242,7 @@ export default function ResourceGrid({
       </div>
 
       {/* Grid */}
-      <div style={{
-        flex: 1, overflow: 'auto',
-        border: '0.5px solid #2a2a35', borderRadius: 8,
-      }}>
+      <div style={{ flex: 1, overflow: 'auto', border: '0.5px solid #2a2a35', borderRadius: 8 }}>
         <table style={{
           borderCollapse: 'collapse', tableLayout: 'fixed',
           width: DATE_W + CONFIG.TECHNICIANS.length * COL_W,
@@ -235,25 +254,20 @@ export default function ResourceGrid({
           </colgroup>
 
           <thead style={{ position: 'sticky', top: 0, zIndex: 4 }}>
-            {/* Tech name row */}
             <tr style={{ background: '#111115' }}>
               <th style={{
-                padding: '6px 10px', fontSize: 11, fontWeight: 500,
-                color: '#555566', textAlign: 'left',
-                borderBottom: '0.5px solid #2a2a35',
+                padding: '8px 10px', fontSize: 11, fontWeight: 500, color: '#555566',
+                textAlign: 'left', borderBottom: '0.5px solid #2a2a35',
                 borderRight: '0.5px solid #2a2a35',
-                position: 'sticky', left: 0, zIndex: 5,
-                background: '#111115',
+                position: 'sticky', left: 0, zIndex: 5, background: '#111115',
               }}>Date</th>
               {CONFIG.TECHNICIANS.map((tech, i) => (
                 <th key={tech} style={{
                   padding: '8px 10px', fontSize: 13, fontWeight: 600,
                   color: '#e8e8f0', textAlign: 'center',
                   borderBottom: '0.5px solid #2a2a35',
-                  borderRight: i < CONFIG.TECHNICIANS.length - 1
-                    ? '0.5px solid #2a2a35' : 'none',
-                  background: '#111115',
-                  letterSpacing: '-0.01em',
+                  borderRight: i < CONFIG.TECHNICIANS.length - 1 ? '0.5px solid #2a2a35' : 'none',
+                  background: '#111115', letterSpacing: '-0.01em',
                 }}>{tech}</th>
               ))}
             </tr>
@@ -268,13 +282,12 @@ export default function ResourceGrid({
 
               return (
                 <>
-                  {/* Month separator row */}
                   {isFirst && (
-                    <tr key={`month-${ds}`} style={{ background: '#0a0a0c' }}>
+                    <tr key={`month-${ds}`}>
                       <td colSpan={CONFIG.TECHNICIANS.length + 1} style={{
-                        padding: '4px 10px', fontSize: 10, fontWeight: 700,
+                        padding: '5px 10px', fontSize: 10, fontWeight: 700,
                         color: '#555566', textTransform: 'uppercase',
-                        letterSpacing: '0.08em',
+                        letterSpacing: '0.08em', background: '#0a0a0c',
                         borderBottom: '0.5px solid #2a2a35',
                         borderTop: di > 0 ? '0.5px solid #2a2a35' : 'none',
                       }}>
@@ -287,109 +300,109 @@ export default function ResourceGrid({
                     height: ROW_H,
                     background: isToday ? 'rgba(90,158,47,0.06)'
                       : isWknd ? 'rgba(0,0,0,0.2)' : 'transparent',
-                    opacity: isWknd ? 0.6 : 1,
+                    opacity: isWknd ? 0.65 : 1,
                   }}>
-                    {/* Date label — sticky left */}
+                    {/* Date label */}
                     <td style={{
-                      padding: '0 10px', fontSize: 11,
+                      padding: '0 8px', fontSize: 11,
                       color: isToday ? '#7ec85a' : isWknd ? '#444455' : '#888899',
                       fontWeight: isToday ? 700 : 400,
                       borderBottom: '0.5px solid #1a1a1f',
                       borderRight: '0.5px solid #2a2a35',
                       position: 'sticky', left: 0, zIndex: 2,
-                      background: isToday ? '#0d1a0d'
-                        : isWknd ? '#0a0a0c' : '#0e0e10',
-                      whiteSpace: 'nowrap',
+                      background: isToday ? '#0d1a0d' : isWknd ? '#0a0a0c' : '#0e0e10',
+                      whiteSpace: 'nowrap', verticalAlign: 'middle',
                     }}>
-                      <div style={{ fontWeight: 600, fontSize: 12 }}>{format(d, 'EEE')}</div>
-                      <div style={{ fontSize: 10 }}>{format(d, 'M/d')}</div>
+                      <span style={{ fontWeight: 600 }}>{format(d, 'EEE')} </span>
+                      <span style={{ fontSize: 10 }}>{format(d, 'M/d')}</span>
                     </td>
 
                     {/* Tech cells */}
                     {CONFIG.TECHNICIANS.map((tech, ti) => {
-                      const techEv  = techEventMap[tech]?.[ds];
-                      const info    = cellInfo[`${tech}||${ds}`] || [];
-                      const isBusy  = techBusyDates[tech]?.has(ds);
                       const isLast  = ti === CONFIG.TECHNICIANS.length - 1;
+                      const techEv  = techEventMap[tech]?.[ds];
+                      const isBusy  = techBusyDates[tech]?.has(ds);
+
+                      // Skip cells that are covered by a rowSpan above
+                      if (consumed[tech]?.[ds]) return null;
+
+                      // Get blocks that start on this cell
+                      const blocks = getCellBlocks(tech, ds, spans, dayStrs);
+
+                      // Determine rowSpan for this cell:
+                      // if there's exactly one block spanning multiple rows, use that
+                      // otherwise rowSpan = 1
+                      const maxSpan = blocks.length === 1 ? blocks[0].rowSpan : 1;
 
                       return (
                         <td key={tech}
+                          rowSpan={maxSpan > 1 ? maxSpan : undefined}
+                          onMouseUp={e => handleCellMouseUp(e, ds)}
                           onClick={() => {
                             if (!isBusy && !techEv) handleCellClick(tech, d);
                           }}
                           style={{
                             position: 'relative',
-                            height: ROW_H,
+                            height: maxSpan > 1 ? ROW_H * maxSpan : ROW_H,
                             borderBottom: '0.5px solid #1a1a1f',
                             borderRight: !isLast ? '0.5px solid #1a1a1f' : 'none',
                             cursor: editorToken && !isBusy && !techEv ? 'pointer' : 'default',
-                            padding: '2px 2px',
+                            padding: '3px',
                             verticalAlign: 'top',
                           }}>
 
-                          {/* PTO / Holiday block */}
+                          {/* PTO / Holiday */}
                           {techEv && (
                             <div
                               onClick={e => { e.stopPropagation(); setModal({ type: 'tech', event: techEv }); }}
                               title={`${techEv.event_type}${techEv.notes ? ': ' + techEv.notes : ''}`}
                               style={{
-                                height: ROW_H - 4, borderRadius: 4, cursor: 'pointer',
+                                height: '100%', minHeight: ROW_H - 6,
+                                borderRadius: 4, cursor: 'pointer',
                                 background: getTechEventColor(techEv).bg,
                                 border: `0.5px solid ${getTechEventColor(techEv).border}`,
                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                                 fontSize: 10, color: getTechEventColor(techEv).fg,
-                                fontWeight: 600, textTransform: 'uppercase',
-                                letterSpacing: '0.04em',
+                                fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em',
                               }}>
                               {techEv.event_type.toUpperCase()}
                             </div>
                           )}
 
-                          {/* Job events */}
-                          {!techEv && info.map(({ event, isStart, span }, ei) => {
-                            const color = getEventColor(event);
-                            // If this is a continuation (not start), show a thin continuation bar
-                            // If this is the start, show the full labeled block
-                            return isStart ? (
-                              <div key={event.id}
-                                onClick={e => { e.stopPropagation(); handleEventClick(event); }}
-                                title={`${event.title}${event.ticket_id ? ' #' + event.ticket_id : ''}${event.notes ? '\n' + event.notes : ''}`}
+                          {/* Job event blocks */}
+                          {!techEv && blocks.map((b, bi) => {
+                            const color    = getEventColor(b.event);
+                            const cellH    = (b.rowSpan * ROW_H) - (b.rowSpan * 6);
+                            const blockH   = blocks.length > 1
+                              ? Math.floor(cellH / blocks.length) - 2
+                              : cellH;
+
+                            return (
+                              <div key={b.event.id}
+                                onMouseDown={e => handleEventMouseDown(e, b.event, ds)}
+                                title={`${b.event.title}${b.event.ticket_id ? ' #' + b.event.ticket_id : ''}${b.event.notes ? '\n' + b.event.notes : ''}`}
                                 style={{
-                                  marginBottom: ei < info.length - 1 ? 2 : 0,
-                                  height: info.length > 1 ? (ROW_H - 6) / info.length : ROW_H - 4,
+                                  height: blockH,
+                                  marginBottom: bi < blocks.length - 1 ? 2 : 0,
                                   borderRadius: 4,
                                   background: color.bg,
                                   border: `0.5px solid ${color.border}`,
-                                  borderLeft: `3px solid ${color.border}`,
+                                  borderLeft: `3px solid ${color.fg}`,
                                   display: 'flex', alignItems: 'center',
                                   paddingLeft: 6, paddingRight: 4,
                                   fontSize: 11, color: color.fg, fontWeight: 500,
                                   overflow: 'hidden', whiteSpace: 'nowrap',
                                   textOverflow: 'ellipsis',
-                                  cursor: 'pointer', userSelect: 'none',
+                                  cursor: editorToken ? 'grab' : 'pointer',
+                                  userSelect: 'none',
                                 }}>
-                                {event.title}
-                                {event.ticket_id && (
+                                {b.event.title}
+                                {b.event.ticket_id && (
                                   <span style={{ marginLeft: 4, opacity: 0.55, fontSize: 9 }}>
-                                    #{event.ticket_id}
+                                    #{b.event.ticket_id}
                                   </span>
                                 )}
                               </div>
-                            ) : (
-                              // Continuation — show a colored bar without text
-                              <div key={event.id}
-                                onClick={e => { e.stopPropagation(); handleEventClick(event); }}
-                                title={`${event.title} (continued)`}
-                                style={{
-                                  marginBottom: ei < info.length - 1 ? 2 : 0,
-                                  height: info.length > 1 ? (ROW_H - 6) / info.length : ROW_H - 4,
-                                  borderRadius: 4,
-                                  background: color.bg,
-                                  border: `0.5px solid ${color.border}`,
-                                  borderLeft: `3px solid ${color.border}`,
-                                  opacity: 0.7,
-                                  cursor: 'pointer',
-                                }}/>
                             );
                           })}
                         </td>
