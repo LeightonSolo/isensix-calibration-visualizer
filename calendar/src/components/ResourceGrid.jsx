@@ -21,51 +21,68 @@ function getTechEventColor(te) {
   return CONFIG.TYPE_COLORS[te.event_type] || CONFIG.TYPE_COLORS.other;
 }
 
-// Build: techName -> eventId -> sorted array of dateStrings (only within visible days)
+// Build per-tech spans: tech -> evId -> { event, dates(sorted), startDate, endDate }
 function buildSpans(events, assignments, dayStrs) {
-  const map = {}; // tech -> evId -> Set<date>
+  const raw = {};
   assignments.forEach(a => {
     if (!dayStrs.includes(a.date)) return;
-    if (!map[a.tech_name]) map[a.tech_name] = {};
-    const key = String(a.event_id);
-    if (!map[a.tech_name][key]) map[a.tech_name][key] = new Set();
-    map[a.tech_name][key].add(a.date);
+    const ev = events.find(e => String(e.id) === String(a.event_id));
+    if (!ev) return;
+    if (!raw[a.tech_name]) raw[a.tech_name] = {};
+    const key = String(ev.id);
+    if (!raw[a.tech_name][key]) raw[a.tech_name][key] = { event: ev, dates: new Set() };
+    raw[a.tech_name][key].dates.add(a.date);
   });
-
-  // tech -> evId -> { event, dates (sorted), startDate, endDate }
   const spans = {};
-  Object.entries(map).forEach(([tech, evMap]) => {
+  Object.entries(raw).forEach(([tech, evMap]) => {
     spans[tech] = {};
-    Object.entries(evMap).forEach(([evId, dates]) => {
-      const ev = events.find(e => String(e.id) === evId);
-      if (!ev) return;
+    Object.entries(evMap).forEach(([evId, { event, dates }]) => {
       const sorted = [...dates].sort();
-      spans[tech][evId] = { event: ev, dates: sorted, startDate: sorted[0], endDate: sorted[sorted.length - 1] };
+      spans[tech][evId] = { event, dates: sorted, startDate: sorted[0], endDate: sorted[sorted.length - 1] };
     });
   });
   return spans;
 }
 
-// For a given tech + date: which events start here, continue here, or are absent
-// Returns array of { event, rowSpan, isStart } sorted by startDate
-function getCellBlocks(tech, ds, spans, dayStrs) {
+// For a cell (tech, ds): return all events that START on this day
+// Each entry: { event, rowSpan (consecutive days from start), isOnlyEvent }
+function getCellStarts(tech, ds, spans, dayStrs) {
   if (!spans[tech]) return [];
-  const di = dayStrs.indexOf(ds);
-
   return Object.values(spans[tech])
-    .filter(s => s.dates.includes(ds))
+    .filter(s => s.startDate === ds)
     .map(s => {
-      const startI = dayStrs.indexOf(s.startDate);
-      // rowSpan = number of consecutive days from startDate within visible window
-      let span = 0;
+      const startI = dayStrs.indexOf(ds);
+      let rowSpan = 0;
       for (let i = startI; i < dayStrs.length; i++) {
-        if (s.dates.includes(dayStrs[i])) span++;
+        if (s.dates.includes(dayStrs[i])) rowSpan++;
         else break;
       }
-      return { event: s.event, rowSpan: span, isStart: s.startDate === ds, startI };
+      return { event: s.event, rowSpan, startDate: s.startDate };
     })
-    .filter(b => b.isStart) // only render at start — rowSpan handles the rest
-    .sort((a, b) => a.startI - b.startI);
+    .sort((a, b) => a.startDate.localeCompare(b.startDate));
+}
+
+// Build consumed map: cells covered by a rowSpan (only valid for single-event spans)
+function buildConsumed(spans, dayStrs) {
+  const c = {};
+  CONFIG.TECHNICIANS.forEach(tech => {
+    c[tech] = {};
+    if (!spans[tech]) return;
+    Object.values(spans[tech]).forEach(s => {
+      // Only consume if this tech has EXACTLY one event starting on startDate
+      const startingOnSameDay = Object.values(spans[tech])
+        .filter(x => x.startDate === s.startDate).length;
+      if (startingOnSameDay > 1) return; // multiple events: no rowSpan, don't consume
+
+      const startI = dayStrs.indexOf(s.startDate);
+      if (startI < 0) return;
+      for (let i = startI + 1; i < dayStrs.length; i++) {
+        if (!s.dates.includes(dayStrs[i])) break;
+        c[tech][dayStrs[i]] = true;
+      }
+    });
+  });
+  return c;
 }
 
 export default function ResourceGrid({
@@ -74,7 +91,8 @@ export default function ResourceGrid({
   onSaveEvent, onDeleteEvent,
   onSaveTechEvent, onDeleteTechEvent,
 }) {
-  const [modal, setModal] = useState(null);
+  const [modal,     setModal]     = useState(null);
+  const [dragOver,  setDragOver]  = useState(null); // { tech, ds }
   const dragRef = useRef(null);
 
   const rangeStart = startOfWeek(subWeeks(viewDate, 2), { weekStartsOn: 1 });
@@ -83,10 +101,8 @@ export default function ResourceGrid({
   const dayStrs    = useMemo(() => days.map(d => format(d, 'yyyy-MM-dd')), [days]);
   const today      = format(new Date(), 'yyyy-MM-dd');
 
-  const spans = useMemo(
-    () => buildSpans(events, assignments, dayStrs),
-    [events, assignments, dayStrs]
-  );
+  const spans   = useMemo(() => buildSpans(events, assignments, dayStrs),   [events, assignments, dayStrs]);
+  const consumed = useMemo(() => buildConsumed(spans, dayStrs),             [spans, dayStrs]);
 
   const techEventMap = useMemo(() => {
     const m = {};
@@ -97,7 +113,6 @@ export default function ResourceGrid({
     return m;
   }, [techEvents]);
 
-  // Set of dates that have any assignment, per tech (for click suppression)
   const techBusyDates = useMemo(() => {
     const m = {};
     CONFIG.TECHNICIANS.forEach(t => { m[t] = new Set(); });
@@ -105,32 +120,14 @@ export default function ResourceGrid({
     return m;
   }, [assignments]);
 
-  // Precompute which cells are "consumed" by a rowSpan above them
-  // consumed[tech][ds] = true means this cell is covered by a span above
-  const consumed = useMemo(() => {
-    const c = {};
-    CONFIG.TECHNICIANS.forEach(tech => {
-      c[tech] = {};
-      if (!spans[tech]) return;
-      Object.values(spans[tech]).forEach(s => {
-        const startI = dayStrs.indexOf(s.startDate);
-        if (startI < 0) return;
-        // mark days 1..span-1 as consumed (day 0 is the start cell itself)
-        for (let i = startI + 1; i < dayStrs.length; i++) {
-          if (!s.dates.includes(dayStrs[i])) break;
-          c[tech][dayStrs[i]] = true;
-        }
-      });
-    });
-    return c;
-  }, [spans, dayStrs]);
-
-  /* ── Drag to move ──────────────────────────────────────── */
-  function handleEventMouseDown(e, event, origDs) {
+  /* ── Drag ───────────────────────────────────────────────── */
+  function handleEventMouseDown(e, event, fromTech, fromDs) {
     if (!editorToken) return;
     e.stopPropagation();
-    dragRef.current = { event, origDs, startX: e.clientX, startY: e.clientY, moved: false };
-
+    dragRef.current = {
+      event, fromTech, fromDs,
+      startX: e.clientX, startY: e.clientY, moved: false,
+    };
     function onMove(me) {
       if (!dragRef.current) return;
       if (Math.abs(me.clientX - dragRef.current.startX) > 5 ||
@@ -140,8 +137,9 @@ export default function ResourceGrid({
     function onUp() {
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
+      setDragOver(null);
       if (!dragRef.current) return;
-      const { moved, event } = dragRef.current;
+      const { moved, event, fromTech } = dragRef.current;
       dragRef.current = null;
       if (!moved) {
         setModal({
@@ -154,16 +152,53 @@ export default function ResourceGrid({
     document.addEventListener('mouseup', onUp);
   }
 
-  function handleCellMouseUp(e, ds) {
+  function handleCellMouseEnter(tech, ds) {
+    if (dragRef.current?.moved) setDragOver({ tech, ds });
+  }
+
+  function handleCellMouseUp(e, toTech, toDs) {
+    setDragOver(null);
     if (!dragRef.current?.moved) return;
-    const { event, origDs } = dragRef.current;
-    const offset = differenceInCalendarDays(parseISO(ds), parseISO(origDs));
-    if (offset === 0) return;
-    const newStart = format(addDays(parseISO(event.start_date), offset), 'yyyy-MM-dd');
-    const newEnd   = format(addDays(parseISO(event.end_date),   offset), 'yyyy-MM-dd');
-    const newAssignments = assignments
-      .filter(a => String(a.event_id) === String(event.id))
-      .map(a => ({ tech_name: a.tech_name, date: format(addDays(parseISO(a.date), offset), 'yyyy-MM-dd') }));
+    const { event, fromTech, fromDs } = dragRef.current;
+
+    const dateOffset  = differenceInCalendarDays(parseISO(toDs), parseISO(fromDs));
+    const techChanged = toTech !== fromTech;
+
+    // Get current assignments for this event
+    const evAssignments = assignments.filter(a => String(a.event_id) === String(event.id));
+
+    let newAssignments;
+
+    if (!techChanged && dateOffset === 0) return; // nothing changed
+
+    if (techChanged) {
+      // Swap fromTech -> toTech, shift dates by offset, keep all other techs unchanged
+      newAssignments = evAssignments.map(a => {
+        if (a.tech_name === fromTech) {
+          return {
+            tech_name: toTech,
+            date: format(addDays(parseISO(a.date), dateOffset), 'yyyy-MM-dd'),
+          };
+        }
+        // Other techs: shift dates too if there's a date offset
+        return {
+          tech_name: a.tech_name,
+          date: dateOffset !== 0
+            ? format(addDays(parseISO(a.date), dateOffset), 'yyyy-MM-dd')
+            : a.date,
+        };
+      });
+    } else {
+      // Same tech, just shift all dates
+      newAssignments = evAssignments.map(a => ({
+        tech_name: a.tech_name,
+        date: format(addDays(parseISO(a.date), dateOffset), 'yyyy-MM-dd'),
+      }));
+    }
+
+    const newStart = format(addDays(parseISO(event.start_date), dateOffset), 'yyyy-MM-dd');
+    const newEnd   = format(addDays(parseISO(event.end_date),   dateOffset), 'yyyy-MM-dd');
+
     requireEditor(async token => {
       await onSaveEvent({ ...event, start_date: newStart, end_date: newEnd, assignments: newAssignments }, token);
     });
@@ -225,7 +260,8 @@ export default function ResourceGrid({
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           {Object.entries(CONFIG.STATUS_COLORS).map(([s, c]) => (
             <div key={s} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <span style={{ width: 10, height: 10, borderRadius: 2, background: c.bg, border: `1px solid ${c.border}`, display: 'inline-block' }}/>
+              <span style={{ width: 10, height: 10, borderRadius: 2, background: c.bg,
+                border: `1px solid ${c.border}`, display: 'inline-block' }}/>
               <span style={{ fontSize: 11, color: '#888899', textTransform: 'capitalize' }}>{s}</span>
             </div>
           ))}
@@ -233,7 +269,8 @@ export default function ResourceGrid({
             const c = CONFIG.TYPE_COLORS[t];
             return (
               <div key={t} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                <span style={{ width: 10, height: 10, borderRadius: 2, background: c.bg, border: `1px solid ${c.border}`, display: 'inline-block' }}/>
+                <span style={{ width: 10, height: 10, borderRadius: 2, background: c.bg,
+                  border: `1px solid ${c.border}`, display: 'inline-block' }}/>
                 <span style={{ fontSize: 11, color: '#888899', textTransform: 'capitalize' }}>{t}</span>
               </div>
             );
@@ -256,9 +293,9 @@ export default function ResourceGrid({
           <thead style={{ position: 'sticky', top: 0, zIndex: 4 }}>
             <tr style={{ background: '#111115' }}>
               <th style={{
-                padding: '8px 10px', fontSize: 11, fontWeight: 500, color: '#555566',
-                textAlign: 'left', borderBottom: '0.5px solid #2a2a35',
-                borderRight: '0.5px solid #2a2a35',
+                padding: '8px 10px', fontSize: 11, fontWeight: 500,
+                color: '#555566', textAlign: 'left',
+                borderBottom: '0.5px solid #2a2a35', borderRight: '0.5px solid #2a2a35',
                 position: 'sticky', left: 0, zIndex: 5, background: '#111115',
               }}>Date</th>
               {CONFIG.TECHNICIANS.map((tech, i) => (
@@ -290,9 +327,7 @@ export default function ResourceGrid({
                         letterSpacing: '0.08em', background: '#0a0a0c',
                         borderBottom: '0.5px solid #2a2a35',
                         borderTop: di > 0 ? '0.5px solid #2a2a35' : 'none',
-                      }}>
-                        {format(d, 'MMMM yyyy')}
-                      </td>
+                      }}>{format(d, 'MMMM yyyy')}</td>
                     </tr>
                   )}
 
@@ -322,33 +357,40 @@ export default function ResourceGrid({
                       const isLast  = ti === CONFIG.TECHNICIANS.length - 1;
                       const techEv  = techEventMap[tech]?.[ds];
                       const isBusy  = techBusyDates[tech]?.has(ds);
+                      const isDropTarget = dragOver?.tech === tech && dragOver?.ds === ds;
 
-                      // Skip cells that are covered by a rowSpan above
+                      // Skip if covered by rowSpan above
                       if (consumed[tech]?.[ds]) return null;
 
-                      // Get blocks that start on this cell
-                      const blocks = getCellBlocks(tech, ds, spans, dayStrs);
+                      const blocks = getCellStarts(tech, ds, spans, dayStrs);
+                      const multipleBlocks = blocks.length > 1;
 
-                      // Determine rowSpan for this cell:
-                      // if there's exactly one block spanning multiple rows, use that
-                      // otherwise rowSpan = 1
-                      const maxSpan = blocks.length === 1 ? blocks[0].rowSpan : 1;
+                      // Use rowSpan only for single-event cells
+                      const rowSpan = !multipleBlocks && blocks.length === 1 && !techEv
+                        ? blocks[0].rowSpan
+                        : 1;
+
+                      const cellH = rowSpan * ROW_H;
 
                       return (
                         <td key={tech}
-                          rowSpan={maxSpan > 1 ? maxSpan : undefined}
-                          onMouseUp={e => handleCellMouseUp(e, ds)}
+                          rowSpan={rowSpan > 1 ? rowSpan : undefined}
+                          onMouseEnter={() => handleCellMouseEnter(tech, ds)}
+                          onMouseUp={e => handleCellMouseUp(e, tech, ds)}
                           onClick={() => {
                             if (!isBusy && !techEv) handleCellClick(tech, d);
                           }}
                           style={{
                             position: 'relative',
-                            height: maxSpan > 1 ? ROW_H * maxSpan : ROW_H,
+                            height: cellH,
                             borderBottom: '0.5px solid #1a1a1f',
                             borderRight: !isLast ? '0.5px solid #1a1a1f' : 'none',
                             cursor: editorToken && !isBusy && !techEv ? 'pointer' : 'default',
                             padding: '3px',
                             verticalAlign: 'top',
+                            background: isDropTarget ? 'rgba(58,123,213,0.15)' : 'transparent',
+                            outline: isDropTarget ? '1.5px dashed #3a7bd5' : 'none',
+                            outlineOffset: -2,
                           }}>
 
                           {/* PTO / Holiday */}
@@ -357,8 +399,7 @@ export default function ResourceGrid({
                               onClick={e => { e.stopPropagation(); setModal({ type: 'tech', event: techEv }); }}
                               title={`${techEv.event_type}${techEv.notes ? ': ' + techEv.notes : ''}`}
                               style={{
-                                height: '100%', minHeight: ROW_H - 6,
-                                borderRadius: 4, cursor: 'pointer',
+                                height: cellH - 6, borderRadius: 4, cursor: 'pointer',
                                 background: getTechEventColor(techEv).bg,
                                 border: `0.5px solid ${getTechEventColor(techEv).border}`,
                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -369,17 +410,18 @@ export default function ResourceGrid({
                             </div>
                           )}
 
-                          {/* Job event blocks */}
+                          {/* Job blocks */}
                           {!techEv && blocks.map((b, bi) => {
-                            const color    = getEventColor(b.event);
-                            const cellH    = (b.rowSpan * ROW_H) - (b.rowSpan * 6);
-                            const blockH   = blocks.length > 1
-                              ? Math.floor(cellH / blocks.length) - 2
-                              : cellH;
+                            const color  = getEventColor(b.event);
+                            // For single block: fill the rowSpan height
+                            // For multiple blocks: split evenly
+                            const blockH = multipleBlocks
+                              ? Math.floor((cellH - 6 - (blocks.length - 1) * 2) / blocks.length)
+                              : cellH - 6;
 
                             return (
                               <div key={b.event.id}
-                                onMouseDown={e => handleEventMouseDown(e, b.event, ds)}
+                                onMouseDown={e => handleEventMouseDown(e, b.event, tech, ds)}
                                 title={`${b.event.title}${b.event.ticket_id ? ' #' + b.event.ticket_id : ''}${b.event.notes ? '\n' + b.event.notes : ''}`}
                                 style={{
                                   height: blockH,
