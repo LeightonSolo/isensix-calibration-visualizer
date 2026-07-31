@@ -197,7 +197,20 @@ export default function TechEventModal({
         )}
 
         {/* Tech selection */}
-        {!isEdit && (
+        {/* In edit mode: show tech name as read-only. In create mode: show selector */}
+        {isEdit ? (
+          <div>
+            <label style={S.label}>Technician</label>
+            <div style={{
+              ...S.input,
+              color: '#e8e8f0',
+              opacity: 0.7,
+              cursor: 'default',
+            }}>
+              {techEvent.tech_name}
+            </div>
+          </div>
+        ) : (
           <div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
               <label style={{ ...S.label, marginBottom: 0 }}>Technicians</label>
@@ -211,13 +224,14 @@ export default function TechEventModal({
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
               {CONFIG.TECHNICIANS.map(tech => {
-                const tc      = CONFIG.TECH_COLORS?.[tech];
+                const tc       = CONFIG.TECH_COLORS?.[tech];
                 const selected = selectedTechs.has(tech);
                 return (
                   <button key={tech} onClick={() => toggleTech(tech)} style={{
                     background: selected ? (tc?.bg || '#1a2e14') : '#1e1e24',
                     border: `0.5px solid ${selected ? (tc?.border || '#3a6e2a') : '#2a2a35'}`,
-                    borderRadius: 4, color: selected ? (tc?.fg || '#7ec85a') : '#888899',
+                    borderRadius: 4,
+                    color: selected ? (tc?.fg || '#7ec85a') : '#888899',
                     fontSize: 12, padding: '5px 8px', cursor: 'pointer',
                     fontFamily: 'Inter, system-ui, sans-serif',
                     textAlign: 'center',

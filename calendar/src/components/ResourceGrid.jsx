@@ -93,7 +93,8 @@ export default function ResourceGrid({
     const m = {};
     techEvents.forEach(te => {
       if (!m[te.tech_name]) m[te.tech_name] = {};
-      m[te.tech_name][te.date] = te;
+      if (!m[te.tech_name][te.date]) m[te.tech_name][te.date] = [];
+      m[te.tech_name][te.date].push(te);
     });
     return m;
   }, [techEvents]);
@@ -156,7 +157,27 @@ export default function ResourceGrid({
   function handleCellMouseUp(toTech, toDs) {
     setDragOver(null);
     if (!dragRef.current?.moved) return;
+
+    if (dragRef.current.isTechEvent) {
+      const { techEv, fromTech, fromDs } = dragRef.current;
+      dragRef.current = null;
+      if (toDs === fromDs && toTech === fromTech) return;
+      requireEditor(async token => {
+        // Delete old, create new at new location
+        await onDeleteTechEvent(techEv.id, token);
+        await onSaveTechEvent({
+          tech_name:  toTech,
+          event_type: techEv.event_type,
+          date:       toDs,
+          notes:      techEv.notes,
+        }, token);
+      });
+      return;
+    }
+
+    // Job event drag — existing logic
     const { event, fromTech, fromDs } = dragRef.current;
+    dragRef.current = null;
     const dateOffset  = differenceInCalendarDays(parseISO(toDs), parseISO(fromDs));
     const techChanged = toTech !== fromTech;
     if (!techChanged && dateOffset === 0) return;
@@ -175,9 +196,37 @@ export default function ResourceGrid({
   function handleCellClick(tech, d) {
     if (!editorToken) return;
     const ds = format(d, 'yyyy-MM-dd');
-    const te = techEventMap[tech]?.[ds];
+    const te = techEventMap[tech]?.[ds] || [];
     if (te) { setModal({ type: 'tech', event: te }); return; }
     setModal({ type: 'job', event: null, initialDate: d, initialTech: tech });
+  }
+
+  function handleTechEventMouseDown(e, techEv, fromTech, fromDs) {
+    if (!editorToken) return;
+    e.preventDefault();
+    e.stopPropagation();
+    dragRef.current = {
+      techEv, fromTech, fromDs,
+      isTechEvent: true,
+      startX: e.clientX, startY: e.clientY, moved: false,
+    };
+    function onMove(me) {
+      if (!dragRef.current) return;
+      if (Math.abs(me.clientX - dragRef.current.startX) > 5 ||
+          Math.abs(me.clientY - dragRef.current.startY) > 5)
+        dragRef.current.moved = true;
+    }
+    function onUp() {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      setDragOver(null);
+      if (!dragRef.current) return;
+      const { moved, techEv } = dragRef.current;
+      dragRef.current = null;
+      if (!moved) setModal({ type: 'tech', event: techEv });
+    }
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
   }
 
   const btnStyle = (primary) => ({
@@ -345,7 +394,7 @@ export default function ResourceGrid({
                     {/* Tech cells */}
                     {CONFIG.TECHNICIANS.map((tech, ti) => {
                       const isLast       = ti === CONFIG.TECHNICIANS.length - 1;
-                      const techEv       = techEventMap[tech]?.[ds];
+                      const techEvs = techEventMap[tech]?.[ds] || [];
                       const layout       = techLayouts[tech] || [];
                       const activeOnDay  = layout.filter(l => l.dates.includes(ds));
                       const startingHere = activeOnDay.filter(l => l.dates[0] === ds);
@@ -357,7 +406,7 @@ export default function ResourceGrid({
                           onMouseEnter={() => handleCellMouseEnter(tech, ds)}
                           onMouseUp={() => handleCellMouseUp(tech, ds)}
                           onClick={() => {
-                            if (!activeOnDay.length && !techEv) handleCellClick(tech, d);
+                            if (!activeOnDay.length && !techEvs.length) handleCellClick(tech, d);
                           }}
                           style={{
                             position: 'relative',
@@ -365,7 +414,7 @@ export default function ResourceGrid({
                             borderBottom: '0.5px solid #1a1a1f',
                             borderRight: !isLast ? '0.5px solid #1a1a1f' : 'none',
                             borderTop: isMon ? '1px solid #2a2a40' : undefined,
-                            cursor: editorToken && !activeOnDay.length && !techEv ? 'pointer' : 'default',
+                            cursor: editorToken && !activeOnDay.length && !techEvs.length ? 'pointer' : 'default',
                             padding: 0, verticalAlign: 'top',
                             background: isDropTarget
                               ? 'rgba(58,123,213,0.15)'
@@ -375,25 +424,29 @@ export default function ResourceGrid({
                           }}>
 
                           {/* PTO / Holiday */}
-                          {techEv && (
-                            <div
-                              onClick={e => { e.stopPropagation(); setModal({ type: 'tech', event: techEv }); }}
-                              style={{
-                                position: 'absolute', inset: '3px 2px',
-                                borderRadius: 4, cursor: 'pointer',
-                                background: getTechEventColor(techEv).bg,
-                                border: `0.5px solid ${getTechEventColor(techEv).border}`,
-                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                fontSize: 10, color: getTechEventColor(techEv).fg,
-                                fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em',
-                                zIndex: 2,
-                              }}>
-                              {techEv.event_type.toUpperCase()}
+                          {techEvs.length > 0 && (
+                            <div style={{ position: 'absolute', inset: '3px 2px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+                              {techEvs.map(te => (
+                                <div key={te.id}
+                                  onMouseDown={e => handleTechEventMouseDown(e, te, tech, ds)}
+                                  onClick={e => { e.stopPropagation(); setModal({ type: 'tech', event: te }); }}
+                                  style={{
+                                    flex: 1, borderRadius: 4, cursor: 'pointer',
+                                    background: getTechEventColor(te).bg,
+                                    border: `0.5px solid ${getTechEventColor(te).border}`,
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    fontSize: 10, color: getTechEventColor(te).fg,
+                                    fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em',
+                                    zIndex: 2,
+                                  }}>
+                                  {te.event_type.slice(0, 3).toUpperCase()}
+                                </div>
+                              ))}
                             </div>
                           )}
 
                           {/* Job event blocks starting on this day */}
-                          {!techEv && startingHere.map(l => {
+                          {!techEvs.length && startingHere.map(l => {
                             const color    = getEventColor(l.event);
                             const totalH   = l.dates.reduce((sum, sds) => sum + getRowHeight(sds), 0) - 6;
                             const laneH    = totalH / (l.totalLanes || 1);
@@ -423,12 +476,27 @@ export default function ResourceGrid({
                                   cursor: editorToken ? 'grab' : 'pointer',
                                   userSelect: 'none', zIndex: 3,
                                 }}>
-                                {l.event.title}
+                                <span style={{ flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0, maxWidth: '60%' }}>
+                                  {l.event.title}
+                                </span>
                                 {l.event.ticket_id && (
-                                  <span style={{ marginLeft: 4, opacity: 0.55, fontSize: 9 }}>
+                                  <span style={{ marginLeft: 4, opacity: 0.55, fontSize: 9, flexShrink: 0, whiteSpace: 'nowrap' }}>
                                     #{l.event.ticket_id}
                                   </span>
                                 )}
+                                <span style={{
+                                  marginLeft: 'auto',
+                                  paddingLeft: 4,
+                                  fontSize: 11,
+                                  opacity: 0.5,
+                                  flexShrink: 1,        // shrinks first
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap',
+                                  minWidth: 0,
+                                }}>
+                                  {l.event.event_type !== 'calibration' ? l.event.event_type : ''}{l.event.event_type !== 'calibration' && l.event.status ? ' · ' : ''}{l.event.status}
+                                </span>
                               </div>
                             );
                           })}
