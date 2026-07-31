@@ -97,6 +97,6 @@ export function useCalendarData() {
     events, assignments, techEvents,
     loading, error,
     load, saveEvent, deleteEvent,
-    saveTechEvent, deleteTechEvent,
+    saveTechEvent, deleteTechEvent, saveTechEventBatch,
   };
 }

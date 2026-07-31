@@ -122,6 +122,7 @@ export default function ResourceGrid({
   /* ── Drag ─────────────────────────────────────────────── */
   function handleEventMouseDown(e, event, fromTech, fromDs) {
     if (!editorToken) return;
+    e.preventDefault();
     e.stopPropagation();
     dragRef.current = { event, fromTech, fromDs, startX: e.clientX, startY: e.clientY, moved: false };
     function onMove(me) {

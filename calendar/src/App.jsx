@@ -60,7 +60,7 @@ export default function App() {
 
   const { events, assignments, techEvents, loading, error,
           load, saveEvent, deleteEvent,
-          saveTechEvent, deleteTechEvent } = useCalendarData();
+          saveTechEvent, deleteTechEvent, saveTechEventBatch } = useCalendarData();
 
   // Window: show 8 weeks centered on viewDate
   const windowStart = startOfWeek(subWeeks(viewDate, 2), { weekStartsOn: 1 });
@@ -100,6 +100,11 @@ export default function App() {
 
   async function handleSaveTechEvent(data, token) {
     await saveTechEvent(data, token);
+    load(windowStart, windowEnd);
+  }
+
+  async function handleSaveTechEventBatch(entries, token) {
+    await saveTechEventBatch(entries, token);
     load(windowStart, windowEnd);
   }
 
@@ -182,6 +187,7 @@ export default function App() {
             onSaveEvent={handleSaveEvent}
             onDeleteEvent={handleDeleteEvent}
             onSaveTechEvent={handleSaveTechEvent}
+            onSaveTechEventBatch={handleSaveTechEventBatch} 
             onDeleteTechEvent={handleDeleteTechEvent}
           />
         )}
