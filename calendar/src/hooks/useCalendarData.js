@@ -83,6 +83,16 @@ export function useCalendarData() {
     return res.json();
   }, []);
 
+  const saveTechEventBatch = useCallback(async (entries, editorToken) => {
+    const res = await fetch(`${CONFIG.WORKER_URL}/calendar/tech-events/batch`, {
+      method: 'POST',
+      headers: headers(editorToken),
+      body: JSON.stringify({ entries }),
+    });
+    if (!res.ok) throw new Error('Failed to save tech events');
+    return res.json();
+  }, []);
+
   return {
     events, assignments, techEvents,
     loading, error,

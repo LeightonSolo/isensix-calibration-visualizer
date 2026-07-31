@@ -2,7 +2,7 @@ import { useState, useMemo, useRef } from 'react';
 import {
   format, eachDayOfInterval, startOfWeek, endOfWeek,
   addWeeks, subWeeks, isWeekend, parseISO, addDays,
-  differenceInCalendarDays,
+  differenceInCalendarDays, getISOWeek,
 } from 'date-fns';
 import { CONFIG } from '../config';
 import JobModal from './JobModal';
@@ -21,7 +21,6 @@ function getTechEventColor(te) {
   return CONFIG.TYPE_COLORS[te.event_type] || CONFIG.TYPE_COLORS.other;
 }
 
-// Build per-tech spans: tech -> evId -> { event, dates(sorted), startDate, endDate }
 function buildSpans(events, assignments, dayStrs) {
   const raw = {};
   assignments.forEach(a => {
@@ -35,74 +34,60 @@ function buildSpans(events, assignments, dayStrs) {
   });
   const spans = {};
   Object.entries(raw).forEach(([tech, evMap]) => {
-    spans[tech] = {};
-    Object.entries(evMap).forEach(([evId, { event, dates }]) => {
+    spans[tech] = Object.entries(evMap).map(([, { event, dates }]) => {
       const sorted = [...dates].sort();
-      spans[tech][evId] = { event, dates: sorted, startDate: sorted[0], endDate: sorted[sorted.length - 1] };
+      return { event, dates: sorted };
     });
   });
   return spans;
 }
 
-// For a cell (tech, ds): return all events that START on this day
-// Each entry: { event, rowSpan (consecutive days from start), isOnlyEvent }
-function getCellStarts(tech, ds, spans, dayStrs) {
-  if (!spans[tech]) return [];
-  return Object.values(spans[tech])
-    .filter(s => s.startDate === ds)
-    .map(s => {
-      const startI = dayStrs.indexOf(ds);
-      let rowSpan = 0;
-      for (let i = startI; i < dayStrs.length; i++) {
-        if (s.dates.includes(dayStrs[i])) rowSpan++;
-        else break;
-      }
-      return { event: s.event, rowSpan, startDate: s.startDate };
-    })
-    .sort((a, b) => a.startDate.localeCompare(b.startDate));
-}
-
-// Build consumed map: cells covered by a rowSpan (only valid for single-event spans)
-function buildConsumed(spans, dayStrs) {
-  const c = {};
-  CONFIG.TECHNICIANS.forEach(tech => {
-    c[tech] = {};
-    if (!spans[tech]) return;
-    Object.values(spans[tech]).forEach(s => {
-      // Only consume if this tech has EXACTLY one event starting on startDate
-      const startingOnSameDay = Object.values(spans[tech])
-        .filter(x => x.startDate === s.startDate).length;
-      if (startingOnSameDay > 1) return; // multiple events: no rowSpan, don't consume
-
-      const startI = dayStrs.indexOf(s.startDate);
-      if (startI < 0) return;
-      for (let i = startI + 1; i < dayStrs.length; i++) {
-        if (!s.dates.includes(dayStrs[i])) break;
-        c[tech][dayStrs[i]] = true;
-      }
-    });
+function layoutTechEvents(spanList, dayStrs) {
+  if (!spanList?.length) return [];
+  const sorted = [...spanList].sort((a, b) => a.dates[0].localeCompare(b.dates[0]));
+  const lanes = [];
+  const result = sorted.map(s => {
+    const startI = dayStrs.indexOf(s.dates[0]);
+    const endI   = dayStrs.indexOf(s.dates[s.dates.length - 1]);
+    let lane = 0;
+    for (let l = 0; l < lanes.length; l++) {
+      if (lanes[l] < startI) { lane = l; break; }
+      lane = l + 1;
+    }
+    lanes[lane] = endI;
+    return { ...s, lane };
   });
-  return c;
+  const totalLanes = lanes.length;
+  return result.map(r => ({ ...r, totalLanes }));
 }
 
 export default function ResourceGrid({
   viewDate, events, assignments, techEvents,
   editorToken, requireEditor,
   onSaveEvent, onDeleteEvent,
-  onSaveTechEvent, onDeleteTechEvent,
+  onSaveTechEvent, onSaveTechEventBatch, onDeleteTechEvent,
 }) {
-  const [modal,     setModal]     = useState(null);
-  const [dragOver,  setDragOver]  = useState(null); // { tech, ds }
+  const [modal,    setModal]    = useState(null);
+  const [dragOver, setDragOver] = useState(null);
   const dragRef = useRef(null);
 
   const rangeStart = startOfWeek(subWeeks(viewDate, 2), { weekStartsOn: 1 });
   const rangeEnd   = endOfWeek(addWeeks(viewDate, 10),  { weekStartsOn: 1 });
-  const days       = eachDayOfInterval({ start: rangeStart, end: rangeEnd });
-  const dayStrs    = useMemo(() => days.map(d => format(d, 'yyyy-MM-dd')), [days]);
-  const today      = format(new Date(), 'yyyy-MM-dd');
 
-  const spans   = useMemo(() => buildSpans(events, assignments, dayStrs),   [events, assignments, dayStrs]);
-  const consumed = useMemo(() => buildConsumed(spans, dayStrs),             [spans, dayStrs]);
+  const days = useMemo(() =>
+    eachDayOfInterval({ start: rangeStart, end: rangeEnd })
+      .filter(d => !isWeekend(d)),
+    [rangeStart.toISOString(), rangeEnd.toISOString()]
+  );
+  const dayStrs = useMemo(() => days.map(d => format(d, 'yyyy-MM-dd')), [days]);
+  const today   = format(new Date(), 'yyyy-MM-dd');
+
+  const spans       = useMemo(() => buildSpans(events, assignments, dayStrs), [events, assignments, dayStrs]);
+  const techLayouts = useMemo(() => {
+    const m = {};
+    CONFIG.TECHNICIANS.forEach(tech => { m[tech] = layoutTechEvents(spans[tech], dayStrs); });
+    return m;
+  }, [spans, dayStrs]);
 
   const techEventMap = useMemo(() => {
     const m = {};
@@ -120,14 +105,25 @@ export default function ResourceGrid({
     return m;
   }, [assignments]);
 
-  /* ── Drag ───────────────────────────────────────────────── */
+  function getRowHeight(ds) {
+    let maxLanes = 1;
+    CONFIG.TECHNICIANS.forEach(tech => {
+      const layout = techLayouts[tech] || [];
+      const active = layout.filter(l => l.dates.includes(ds));
+      if (active.length > maxLanes) maxLanes = active.length;
+    });
+    return ROW_H * maxLanes;
+  }
+
+  // Week parity for alternating shading: odd/even ISO week number
+  function isOddWeek(d) { return getISOWeek(d) % 2 === 1; }
+  function isMonday(d)  { return d.getDay() === 1; }
+
+  /* ── Drag ─────────────────────────────────────────────── */
   function handleEventMouseDown(e, event, fromTech, fromDs) {
     if (!editorToken) return;
     e.stopPropagation();
-    dragRef.current = {
-      event, fromTech, fromDs,
-      startX: e.clientX, startY: e.clientY, moved: false,
-    };
+    dragRef.current = { event, fromTech, fromDs, startX: e.clientX, startY: e.clientY, moved: false };
     function onMove(me) {
       if (!dragRef.current) return;
       if (Math.abs(me.clientX - dragRef.current.startX) > 5 ||
@@ -139,7 +135,7 @@ export default function ResourceGrid({
       document.removeEventListener('mouseup', onUp);
       setDragOver(null);
       if (!dragRef.current) return;
-      const { moved, event, fromTech } = dragRef.current;
+      const { moved, event } = dragRef.current;
       dragRef.current = null;
       if (!moved) {
         setModal({
@@ -156,49 +152,20 @@ export default function ResourceGrid({
     if (dragRef.current?.moved) setDragOver({ tech, ds });
   }
 
-  function handleCellMouseUp(e, toTech, toDs) {
+  function handleCellMouseUp(toTech, toDs) {
     setDragOver(null);
     if (!dragRef.current?.moved) return;
     const { event, fromTech, fromDs } = dragRef.current;
-
     const dateOffset  = differenceInCalendarDays(parseISO(toDs), parseISO(fromDs));
     const techChanged = toTech !== fromTech;
-
-    // Get current assignments for this event
+    if (!techChanged && dateOffset === 0) return;
     const evAssignments = assignments.filter(a => String(a.event_id) === String(event.id));
-
-    let newAssignments;
-
-    if (!techChanged && dateOffset === 0) return; // nothing changed
-
-    if (techChanged) {
-      // Swap fromTech -> toTech, shift dates by offset, keep all other techs unchanged
-      newAssignments = evAssignments.map(a => {
-        if (a.tech_name === fromTech) {
-          return {
-            tech_name: toTech,
-            date: format(addDays(parseISO(a.date), dateOffset), 'yyyy-MM-dd'),
-          };
-        }
-        // Other techs: shift dates too if there's a date offset
-        return {
-          tech_name: a.tech_name,
-          date: dateOffset !== 0
-            ? format(addDays(parseISO(a.date), dateOffset), 'yyyy-MM-dd')
-            : a.date,
-        };
-      });
-    } else {
-      // Same tech, just shift all dates
-      newAssignments = evAssignments.map(a => ({
-        tech_name: a.tech_name,
-        date: format(addDays(parseISO(a.date), dateOffset), 'yyyy-MM-dd'),
-      }));
-    }
-
+    const newAssignments = evAssignments.map(a => ({
+      tech_name: (techChanged && a.tech_name === fromTech) ? toTech : a.tech_name,
+      date: format(addDays(parseISO(a.date), dateOffset), 'yyyy-MM-dd'),
+    }));
     const newStart = format(addDays(parseISO(event.start_date), dateOffset), 'yyyy-MM-dd');
     const newEnd   = format(addDays(parseISO(event.end_date),   dateOffset), 'yyyy-MM-dd');
-
     requireEditor(async token => {
       await onSaveEvent({ ...event, start_date: newStart, end_date: newEnd, assignments: newAssignments }, token);
     });
@@ -220,6 +187,14 @@ export default function ResourceGrid({
     fontSize: 12, padding: '5px 12px', cursor: 'pointer',
   });
 
+  const monthSeparators = useMemo(() => {
+    const s = new Set();
+    days.forEach((d, di) => {
+      if (di > 0 && format(days[di-1], 'MM') !== format(d, 'MM')) s.add(format(d, 'yyyy-MM-dd'));
+    });
+    return s;
+  }, [days]);
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 100px)' }}>
 
@@ -238,6 +213,7 @@ export default function ResourceGrid({
           initialDate={modal.initialDate}
           initialTech={modal.tech}
           onSave={(data) => requireEditor(token => onSaveTechEvent(data, token))}
+          onSaveBatch={(entries) => requireEditor(token => onSaveTechEventBatch(entries, token))}
           onDelete={(id) => requireEditor(token => onDeleteTechEvent(id, token))}
           onClose={() => setModal(null)}
         />
@@ -293,20 +269,24 @@ export default function ResourceGrid({
           <thead style={{ position: 'sticky', top: 0, zIndex: 4 }}>
             <tr style={{ background: '#111115' }}>
               <th style={{
-                padding: '8px 10px', fontSize: 11, fontWeight: 500,
-                color: '#555566', textAlign: 'left',
-                borderBottom: '0.5px solid #2a2a35', borderRight: '0.5px solid #2a2a35',
+                padding: '8px 10px', fontSize: 11, fontWeight: 500, color: '#555566',
+                textAlign: 'left', borderBottom: '0.5px solid #2a2a35',
+                borderRight: '0.5px solid #2a2a35',
                 position: 'sticky', left: 0, zIndex: 5, background: '#111115',
               }}>Date</th>
-              {CONFIG.TECHNICIANS.map((tech, i) => (
-                <th key={tech} style={{
-                  padding: '8px 10px', fontSize: 13, fontWeight: 600,
-                  color: '#e8e8f0', textAlign: 'center',
-                  borderBottom: '0.5px solid #2a2a35',
-                  borderRight: i < CONFIG.TECHNICIANS.length - 1 ? '0.5px solid #2a2a35' : 'none',
-                  background: '#111115', letterSpacing: '-0.01em',
-                }}>{tech}</th>
-              ))}
+              {CONFIG.TECHNICIANS.map((tech, i) => {
+                const tc = CONFIG.TECH_COLORS?.[tech] || { bg: '#1a1a22', fg: '#e8e8f0', border: '#2a2a35' };
+                return (
+                  <th key={tech} style={{
+                    padding: '8px 10px', fontSize: 13, fontWeight: 600,
+                    color: tc.fg, textAlign: 'center',
+                    borderBottom: `2px solid ${tc.border}`,
+                    borderRight: i < CONFIG.TECHNICIANS.length - 1 ? '0.5px solid #2a2a35' : 'none',
+                    background: tc.bg,
+                    letterSpacing: '-0.01em',
+                  }}>{tech}</th>
+                );
+              })}
             </tr>
           </thead>
 
@@ -314,39 +294,48 @@ export default function ResourceGrid({
             {days.map((d, di) => {
               const ds      = format(d, 'yyyy-MM-dd');
               const isToday = ds === today;
-              const isWknd  = isWeekend(d);
-              const isFirst = di === 0 || format(days[di-1], 'MM') !== format(d, 'MM');
+              const isMon   = isMonday(d);
+              const oddWeek = isOddWeek(d);
+              const rowH    = getRowHeight(ds);
+              const isSep   = monthSeparators.has(ds);
+
+              // Week background: alternate subtle shades
+              const weekBg = isToday
+                ? 'rgba(90,158,47,0.06)'
+                : oddWeek ? 'rgba(255,255,255,0.012)' : 'transparent';
 
               return (
                 <>
-                  {isFirst && (
+                  {isSep && (
                     <tr key={`month-${ds}`}>
                       <td colSpan={CONFIG.TECHNICIANS.length + 1} style={{
                         padding: '5px 10px', fontSize: 10, fontWeight: 700,
                         color: '#555566', textTransform: 'uppercase',
                         letterSpacing: '0.08em', background: '#0a0a0c',
+                        borderTop: '0.5px solid #2a2a35',
                         borderBottom: '0.5px solid #2a2a35',
-                        borderTop: di > 0 ? '0.5px solid #2a2a35' : 'none',
                       }}>{format(d, 'MMMM yyyy')}</td>
                     </tr>
                   )}
 
                   <tr key={ds} style={{
-                    height: ROW_H,
-                    background: isToday ? 'rgba(90,158,47,0.06)'
-                      : isWknd ? 'rgba(0,0,0,0.2)' : 'transparent',
-                    opacity: isWknd ? 0.65 : 1,
+                    height: rowH,
+                    background: weekBg,
+                    // Strong top border on Mondays to delineate weeks
+                    borderTop: isMon ? '1px solid #2a2a40' : undefined,
                   }}>
                     {/* Date label */}
                     <td style={{
                       padding: '0 8px', fontSize: 11,
-                      color: isToday ? '#7ec85a' : isWknd ? '#444455' : '#888899',
-                      fontWeight: isToday ? 700 : 400,
+                      color: isToday ? '#7ec85a' : isMon ? '#aaaacc' : '#888899',
+                      fontWeight: isToday || isMon ? 600 : 400,
                       borderBottom: '0.5px solid #1a1a1f',
                       borderRight: '0.5px solid #2a2a35',
+                      borderTop: isMon ? '1px solid #2a2a40' : undefined,
                       position: 'sticky', left: 0, zIndex: 2,
-                      background: isToday ? '#0d1a0d' : isWknd ? '#0a0a0c' : '#0e0e10',
+                      background: isToday ? '#0d1a0d' : oddWeek ? '#0f0f14' : '#0e0e10',
                       whiteSpace: 'nowrap', verticalAlign: 'middle',
+                      height: rowH,
                     }}>
                       <span style={{ fontWeight: 600 }}>{format(d, 'EEE')} </span>
                       <span style={{ fontSize: 10 }}>{format(d, 'M/d')}</span>
@@ -354,41 +343,32 @@ export default function ResourceGrid({
 
                     {/* Tech cells */}
                     {CONFIG.TECHNICIANS.map((tech, ti) => {
-                      const isLast  = ti === CONFIG.TECHNICIANS.length - 1;
-                      const techEv  = techEventMap[tech]?.[ds];
-                      const isBusy  = techBusyDates[tech]?.has(ds);
+                      const isLast       = ti === CONFIG.TECHNICIANS.length - 1;
+                      const techEv       = techEventMap[tech]?.[ds];
+                      const layout       = techLayouts[tech] || [];
+                      const activeOnDay  = layout.filter(l => l.dates.includes(ds));
+                      const startingHere = activeOnDay.filter(l => l.dates[0] === ds);
                       const isDropTarget = dragOver?.tech === tech && dragOver?.ds === ds;
-
-                      // Skip if covered by rowSpan above
-                      if (consumed[tech]?.[ds]) return null;
-
-                      const blocks = getCellStarts(tech, ds, spans, dayStrs);
-                      const multipleBlocks = blocks.length > 1;
-
-                      // Use rowSpan only for single-event cells
-                      const rowSpan = !multipleBlocks && blocks.length === 1 && !techEv
-                        ? blocks[0].rowSpan
-                        : 1;
-
-                      const cellH = rowSpan * ROW_H;
+                      const tc           = CONFIG.TECH_COLORS?.[tech];
 
                       return (
                         <td key={tech}
-                          rowSpan={rowSpan > 1 ? rowSpan : undefined}
                           onMouseEnter={() => handleCellMouseEnter(tech, ds)}
-                          onMouseUp={e => handleCellMouseUp(e, tech, ds)}
+                          onMouseUp={() => handleCellMouseUp(tech, ds)}
                           onClick={() => {
-                            if (!isBusy && !techEv) handleCellClick(tech, d);
+                            if (!activeOnDay.length && !techEv) handleCellClick(tech, d);
                           }}
                           style={{
                             position: 'relative',
-                            height: cellH,
+                            height: rowH,
                             borderBottom: '0.5px solid #1a1a1f',
                             borderRight: !isLast ? '0.5px solid #1a1a1f' : 'none',
-                            cursor: editorToken && !isBusy && !techEv ? 'pointer' : 'default',
-                            padding: '3px',
-                            verticalAlign: 'top',
-                            background: isDropTarget ? 'rgba(58,123,213,0.15)' : 'transparent',
+                            borderTop: isMon ? '1px solid #2a2a40' : undefined,
+                            cursor: editorToken && !activeOnDay.length && !techEv ? 'pointer' : 'default',
+                            padding: 0, verticalAlign: 'top',
+                            background: isDropTarget
+                              ? 'rgba(58,123,213,0.15)'
+                              : 'transparent',
                             outline: isDropTarget ? '1.5px dashed #3a7bd5' : 'none',
                             outlineOffset: -2,
                           }}>
@@ -397,51 +377,55 @@ export default function ResourceGrid({
                           {techEv && (
                             <div
                               onClick={e => { e.stopPropagation(); setModal({ type: 'tech', event: techEv }); }}
-                              title={`${techEv.event_type}${techEv.notes ? ': ' + techEv.notes : ''}`}
                               style={{
-                                height: cellH - 6, borderRadius: 4, cursor: 'pointer',
+                                position: 'absolute', inset: '3px 2px',
+                                borderRadius: 4, cursor: 'pointer',
                                 background: getTechEventColor(techEv).bg,
                                 border: `0.5px solid ${getTechEventColor(techEv).border}`,
                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                                 fontSize: 10, color: getTechEventColor(techEv).fg,
                                 fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em',
+                                zIndex: 2,
                               }}>
                               {techEv.event_type.toUpperCase()}
                             </div>
                           )}
 
-                          {/* Job blocks */}
-                          {!techEv && blocks.map((b, bi) => {
-                            const color  = getEventColor(b.event);
-                            // For single block: fill the rowSpan height
-                            // For multiple blocks: split evenly
-                            const blockH = multipleBlocks
-                              ? Math.floor((cellH - 6 - (blocks.length - 1) * 2) / blocks.length)
-                              : cellH - 6;
+                          {/* Job event blocks starting on this day */}
+                          {!techEv && startingHere.map(l => {
+                            const color    = getEventColor(l.event);
+                            const totalH   = l.dates.reduce((sum, sds) => sum + getRowHeight(sds), 0) - 6;
+                            const laneH    = totalH / (l.totalLanes || 1);
+                            const blockTop = l.lane * laneH + 3;
+                            const blockH   = laneH - 2;
+
+                            // Use tech color for left border accent if available
+                            const accentColor = tc ? tc.fg : color.fg;
 
                             return (
-                              <div key={b.event.id}
-                                onMouseDown={e => handleEventMouseDown(e, b.event, tech, ds)}
-                                title={`${b.event.title}${b.event.ticket_id ? ' #' + b.event.ticket_id : ''}${b.event.notes ? '\n' + b.event.notes : ''}`}
+                              <div key={l.event.id}
+                                onMouseDown={e => handleEventMouseDown(e, l.event, tech, ds)}
+                                title={`${l.event.title}${l.event.ticket_id ? ' #' + l.event.ticket_id : ''}${l.event.notes ? '\n' + l.event.notes : ''}`}
                                 style={{
+                                  position: 'absolute',
+                                  top: blockTop, left: 2, right: 2,
                                   height: blockH,
-                                  marginBottom: bi < blocks.length - 1 ? 2 : 0,
                                   borderRadius: 4,
                                   background: color.bg,
                                   border: `0.5px solid ${color.border}`,
-                                  borderLeft: `3px solid ${color.fg}`,
+                                  borderLeft: `3px solid ${accentColor}`,
                                   display: 'flex', alignItems: 'center',
                                   paddingLeft: 6, paddingRight: 4,
                                   fontSize: 11, color: color.fg, fontWeight: 500,
                                   overflow: 'hidden', whiteSpace: 'nowrap',
                                   textOverflow: 'ellipsis',
                                   cursor: editorToken ? 'grab' : 'pointer',
-                                  userSelect: 'none',
+                                  userSelect: 'none', zIndex: 3,
                                 }}>
-                                {b.event.title}
-                                {b.event.ticket_id && (
+                                {l.event.title}
+                                {l.event.ticket_id && (
                                   <span style={{ marginLeft: 4, opacity: 0.55, fontSize: 9 }}>
-                                    #{b.event.ticket_id}
+                                    #{l.event.ticket_id}
                                   </span>
                                 )}
                               </div>

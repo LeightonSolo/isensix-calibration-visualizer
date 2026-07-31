@@ -484,6 +484,30 @@ export default {
       return json({ ok: true });
     }
 
+    // POST /calendar/tech-events/batch
+    if (request.method === 'POST' && pathname === '/calendar/tech-events/batch') {
+      const editorKey = request.headers.get('X-Editor-Token');
+      if (editorKey !== env.EDITOR_TOKEN) return new Response('Forbidden', { status: 403 });
+      const body = await request.json() as { entries: Record<string, any>[] };
+      const { entries } = body;
+      if (!Array.isArray(entries) || !entries.length) {
+        return new Response('No entries', { status: 400 });
+      }
+      const stmt = env.DB.prepare(`
+        INSERT INTO tech_events (tech_name, event_type, date, notes)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT(tech_name, date) DO UPDATE SET
+          event_type = excluded.event_type,
+          notes      = excluded.notes
+      `);
+      await env.DB.batch(
+        entries.map((entry: any) =>
+          stmt.bind(entry.tech_name, entry.event_type, entry.date, entry.notes ?? null)
+        )
+      );
+      return json({ ok: true, count: entries.length });
+    }
+
     // DELETE /calendar/tech-events/:id
     if (request.method === 'DELETE' && pathname.startsWith('/calendar/tech-events/')) {
       const editorKey = request.headers.get('X-Editor-Token');

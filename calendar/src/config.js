@@ -30,4 +30,14 @@ export const CONFIG = {
     jury_duty:   { bg: '#2a2a0a', fg: '#c0c040', border: '#5a5a1a' },
     office:      { bg: '#0a2a2a', fg: '#40c0c0', border: '#1a5a5a' },
   },
+  TECH_COLORS: {
+  'Daniel':   { bg: '#1a2040', fg: '#6080e0', border: '#3050b0' },
+  'Leighton': { bg: '#1a3020', fg: '#50c070', border: '#308050' },
+  'Joey':     { bg: '#301820', fg: '#e06080', border: '#a03050' },
+  'Fernando': { bg: '#302010', fg: '#e0a040', border: '#a07020' },
+  'Matt':     { bg: '#201030', fg: '#c070e0', border: '#803090' },
+  'Bissen':   { bg: '#102030', fg: '#40b0d0', border: '#207090' },
+  'Kyle':     { bg: '#301010', fg: '#e05050', border: '#a02020' },
+  'Dejan':    { bg: '#203020', fg: '#80d080', border: '#409040' },
+  },
 };
