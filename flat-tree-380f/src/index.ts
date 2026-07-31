@@ -252,23 +252,23 @@ export default {
     }
 
 
-    // GET /jobinfo/:customer
+    // GET /jobinfo/:job_name
     if (request.method === 'GET' && pathname.startsWith('/jobinfo/')) {
-      const customer = decodeURIComponent(pathname.split('/').pop() || '');
-      if (!customer) return new Response('Missing customer', { status: 400 });
+      const job_name = decodeURIComponent(pathname.split('/').pop() || '');
+      if (!job_name) return new Response('Missing job name', { status: 400 });
       const result = await env.DB.prepare(
-        `SELECT * FROM job_info WHERE customer = ?`
-      ).bind(customer).first();
+        `SELECT * FROM job_info WHERE job_name = ?`
+      ).bind(job_name).first();
       return json(result || {});
     }
 
     // POST /jobinfo — upsert job info for a customer
     if (request.method === 'POST' && pathname === '/jobinfo') {
       const body = await request.json() as Record<string, any>;
-      const { customer } = body;
+      const { job_name } = body;
 
-      if (!customer) {
-        return new Response('Missing customer', { status: 400 });
+      if (!job_name) {
+        return new Response('Missing job name', { status: 400 });
       }
 
       await env.DB.prepare(`
@@ -304,7 +304,8 @@ export default {
         )
         VALUES (
           ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(customer) DO UPDATE SET
+        ON CONFLICT(job_name) DO UPDATE SET
+          customer         = excluded.customer,
           job_name         = excluded.job_name,
           servers          = excluded.servers,
           sensors          = excluded.sensors,
@@ -334,7 +335,7 @@ export default {
           scheduled_with   = excluded.scheduled_with,
           updated_at       = datetime('now')
       `).bind(
-        customer,
+        body.customer ?? null,
         body.job_name ?? null,
         body.servers ?? null,
         body.sensors ?? null,
