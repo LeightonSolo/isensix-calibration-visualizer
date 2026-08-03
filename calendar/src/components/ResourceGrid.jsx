@@ -486,7 +486,7 @@ export default function ResourceGrid({
                                 )}
                                 <span style={{
                                   marginLeft: 'auto',
-                                  paddingLeft: 4,
+                                  paddingLeft: 2,
                                   fontSize: 11,
                                   opacity: 0.5,
                                   flexShrink: 1,        // shrinks first
