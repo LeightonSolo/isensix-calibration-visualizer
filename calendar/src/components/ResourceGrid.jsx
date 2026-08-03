@@ -273,7 +273,7 @@ export default function ResourceGrid({
         <div style={{ fontWeight: 600, marginBottom: 3 }}>{hoverCard.data.tech_name}</div>
         <div style={{
           color: getTechEventColor(hoverCard.data).fg,
-          textTransform: 'uppercase', fontSize: 10,
+          textTransform: 'uppercase', fontSize: 12,
           fontWeight: 600, letterSpacing: '0.04em', marginBottom: 4,
         }}>
           {hoverCard.data.event_type}
@@ -296,14 +296,14 @@ export default function ResourceGrid({
             <span style={{ color: '#888899', fontSize: 11 }}>#{hoverCard.data.ticket_id}</span>
           )}
           <span style={{
-            fontSize: 10, fontWeight: 600, textTransform: 'uppercase',
+            fontSize: 12, fontWeight: 600, textTransform: 'uppercase',
             letterSpacing: '0.04em',
             color: (CONFIG.STATUS_COLORS[hoverCard.data.status] || CONFIG.STATUS_COLORS.ticketed).fg,
           }}>
             {hoverCard.data.status}
           </span>
           {hoverCard.data.event_type !== 'calibration' && (
-            <span style={{ fontSize: 10, color: '#888899', textTransform: 'capitalize' }}>
+            <span style={{ fontSize: 12, color: '#888899', textTransform: 'capitalize' }}>
               {hoverCard.data.event_type}
             </span>
           )}
@@ -313,7 +313,7 @@ export default function ResourceGrid({
             {hoverCard.data.customer}
           </div>
         )}
-        <div style={{ color: '#555566', fontSize: 10 }}>
+        <div style={{ color: '#555566', fontSize: 12 }}>
           {hoverCard.data.start_date}
           {hoverCard.data.end_date !== hoverCard.data.start_date && ` → ${hoverCard.data.end_date}`}
         </div>
@@ -444,7 +444,7 @@ export default function ResourceGrid({
                   {isSep && (
                     <tr key={`month-${ds}`}>
                       <td colSpan={CONFIG.TECHNICIANS.length + 1} style={{
-                        padding: '5px 10px', fontSize: 10, fontWeight: 700,
+                        padding: '5px 10px', fontSize: 12, fontWeight: 700,
                         color: '#555566', textTransform: 'uppercase',
                         letterSpacing: '0.08em', background: '#0a0a0c',
                         borderTop: '0.5px solid #2a2a35',
@@ -473,7 +473,7 @@ export default function ResourceGrid({
                       height: rowH,
                     }}>
                       <span style={{ fontWeight: 600 }}>{format(d, 'EEE')} </span>
-                      <span style={{ fontSize: 10 }}>{format(d, 'M/d')}</span>
+                      <span style={{ fontSize: 12 }}>{format(d, 'M/d')}</span>
                     </td>
 
                     {/* Tech cells */}
@@ -529,7 +529,7 @@ export default function ResourceGrid({
                                     background: getTechEventColor(te).bg,
                                     border: `0.5px solid ${getTechEventColor(te).border}`,
                                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    fontSize: 10, color: getTechEventColor(te).fg,
+                                    fontSize: 12, color: getTechEventColor(te).fg,
                                     fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em',
                                     zIndex: 2,
                                   }}>
@@ -595,7 +595,7 @@ export default function ResourceGrid({
                                   </span>
                                   {l.event.ticket_id && (
                                     <span style={{
-                                      marginLeft: 4, opacity: 0.55, fontSize: 9,
+                                      marginLeft: 4, opacity: 0.55, fontSize: 10,
                                       flexShrink: 0, whiteSpace: 'nowrap', color: color.fg,
                                     }}>
                                       #{l.event.ticket_id}
@@ -603,7 +603,7 @@ export default function ResourceGrid({
                                   )}
                                   <span style={{
                                     marginLeft: 'auto', paddingLeft: 6,
-                                    fontSize: 9, opacity: 0.45,
+                                    fontSize: 10, opacity: 0.45,
                                     flexShrink: 2,
                                     overflow: 'hidden', textOverflow: 'ellipsis',
                                     whiteSpace: 'nowrap', minWidth: 0,
@@ -618,7 +618,7 @@ export default function ResourceGrid({
                                 {/* Notes row — only shown when block is tall enough */}
                                 {showNotes && (
                                   <div style={{
-                                    fontSize: 9, opacity: 0.45,
+                                    fontSize: 10, opacity: 0.45,
                                     overflow: 'hidden', textOverflow: 'ellipsis',
                                     whiteSpace: 'nowrap', minWidth: 0,
                                     marginTop: 2, color: color.fg,
@@ -641,7 +641,7 @@ export default function ResourceGrid({
       </div>
 
       {!editorToken && (
-        <div style={{ marginTop: 8, fontSize: 11, color: '#555566', textAlign: 'center', flexShrink: 0 }}>
+        <div style={{ marginTop: 8, fontSize: 13, color: '#969393', textAlign: 'center', flexShrink: 0 }}>
           View only — click Editor login to make changes
         </div>
       )}
