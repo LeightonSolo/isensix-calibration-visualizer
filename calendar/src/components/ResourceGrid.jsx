@@ -533,7 +533,7 @@ export default function ResourceGrid({
                                     fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em',
                                     zIndex: 2,
                                   }}>
-                                  {te.event_type.slice(0, 3).toUpperCase()}
+                                  {te.event_type.slice(0, 10).toUpperCase()}
                                 </div>
                               ))}
                             </div>

@@ -15,7 +15,7 @@ export const CONFIG = {
   ],
   EVENT_TYPES: ['calibration', 'install', 'upgrade', 'mapping', 'other'],
   EVENT_STATUSES: ['ticketed', 'confirmed', 'booked'],
-  TECH_EVENT_TYPES: ['pto', 'holiday', 'jury_duty', 'office', 'other'],
+  TECH_EVENT_TYPES: ['pto', 'holiday', 'office', 'jury_duty', 'Software', 'other'],
   STATUS_COLORS: {
     ticketed:  { bg: '#1a2e14', fg: '#7ec85a', border: '#3a6e2a' },
     confirmed: { bg: '#0e2340', fg: '#5a9ed5', border: '#2a5e90' },
