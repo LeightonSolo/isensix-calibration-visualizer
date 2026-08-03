@@ -33,6 +33,7 @@ export default function JobList({
   const [modal,       setModal]       = useState(null);
   const [filter,      setFilter]      = useState('upcoming');
   const [typeFilter,  setTypeFilter]  = useState('');
+  const [techFilter, setTechFilter] = useState('');
   const [search,      setSearch]      = useState('');
   const [sortCol,     setSortCol]     = useState('start_date');
   const [sortDir,     setSortDir]     = useState(1);
@@ -63,40 +64,44 @@ export default function JobList({
     else { setSortCol(col); setSortDir(1); }
   }
 
-  const filtered = useMemo(() => {
-    let rows = [...events];
+ const filtered = useMemo(() => {
+  let rows = [...events];
 
-    // Time filter
-    if (filter === 'upcoming') {
-      rows = rows.filter(e => !isPast(parseISO(e.end_date)) || isToday(parseISO(e.end_date)));
-    } else if (filter === 'past') {
-      rows = rows.filter(e => isPast(parseISO(e.end_date)));
-    }
+  if (filter === 'upcoming') {
+    rows = rows.filter(e => !isPast(parseISO(e.end_date)) || isToday(parseISO(e.end_date)));
+  } else if (filter === 'past') {
+    rows = rows.filter(e => isPast(parseISO(e.end_date)));
+  }
 
-    // Type filter
-    if (typeFilter) rows = rows.filter(e => e.event_type === typeFilter);
+  if (typeFilter) rows = rows.filter(e => e.event_type === typeFilter);
 
-    // Search
-    if (search) {
-      const q = search.toLowerCase();
-      rows = rows.filter(e =>
-        (e.title || '').toLowerCase().includes(q) ||
-        (e.customer || '').toLowerCase().includes(q) ||
-        (e.ticket_id || '').toLowerCase().includes(q) ||
-        (e.notes || '').toLowerCase().includes(q)
-      );
-    }
-
-    // Sort
-    rows.sort((a, b) => {
-      let av = a[sortCol] ?? '', bv = b[sortCol] ?? '';
-      if (av < bv) return -sortDir;
-      if (av > bv) return  sortDir;
-      return 0;
+  // Tech filter — include job if selected tech has any assignment on it
+  if (techFilter) {
+    rows = rows.filter(e => {
+      const techs = eventTechs[e.id];
+      return techs && techs.has(techFilter);
     });
+  }
 
-    return rows;
-  }, [events, filter, typeFilter, search, sortCol, sortDir]);
+  if (search) {
+    const q = search.toLowerCase();
+    rows = rows.filter(e =>
+      (e.title || '').toLowerCase().includes(q) ||
+      (e.customer || '').toLowerCase().includes(q) ||
+      (e.ticket_id || '').toLowerCase().includes(q) ||
+      (e.notes || '').toLowerCase().includes(q)
+    );
+  }
+
+  rows.sort((a, b) => {
+    let av = a[sortCol] ?? '', bv = b[sortCol] ?? '';
+    if (av < bv) return -sortDir;
+    if (av > bv) return  sortDir;
+    return 0;
+  });
+
+  return rows;
+}, [events, filter, typeFilter, techFilter, search, sortCol, sortDir]);
 
   function openEdit(event) {
     setModal({
@@ -174,6 +179,13 @@ export default function JobList({
           <option value="">All types</option>
           {CONFIG.EVENT_TYPES.map(t => (
             <option key={t} value={t}>{t.charAt(0).toUpperCase()+t.slice(1)}</option>
+          ))}
+        </select>
+        <select style={inputStyle}
+          value={techFilter} onChange={e => setTechFilter(e.target.value)}>
+          <option value="">All techs</option>
+          {CONFIG.TECHNICIANS.map(t => (
+            <option key={t} value={t}>{t}</option>
           ))}
         </select>
         <input style={{ ...inputStyle, width: 200 }}
