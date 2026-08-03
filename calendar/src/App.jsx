@@ -195,10 +195,14 @@ export default function App() {
           <JobList
             events={events}
             assignments={assignments}
+            techEvents={techEvents}
             editorToken={editorToken}
             requireEditor={requireEditor}
             onSaveEvent={handleSaveEvent}
             onDeleteEvent={handleDeleteEvent}
+            onSaveTechEvent={handleSaveTechEvent}          
+            onSaveTechEventBatch={handleSaveTechEventBatch} 
+            onDeleteTechEvent={handleDeleteTechEvent} 
           />
         )}
       </div>

@@ -12,6 +12,7 @@ const COL_W  = 130;
 const ROW_H  = 36;
 const DATE_W = 72;
 
+
 function getEventColor(ev) {
   if (ev.event_type !== 'calibration')
     return CONFIG.TYPE_COLORS[ev.event_type] || CONFIG.TYPE_COLORS.other;
@@ -69,8 +70,8 @@ export default function ResourceGrid({
 }) {
   const [modal,    setModal]    = useState(null);
   const [dragOver, setDragOver] = useState(null);
+  const [hoverCard, setHoverCard] = useState(null); // { type: 'job'|'tech', data, x, y }
   const dragRef = useRef(null);
-
   const rangeStart = startOfWeek(subWeeks(viewDate, 2), { weekStartsOn: 1 });
   const rangeEnd   = endOfWeek(addWeeks(viewDate, 10),  { weekStartsOn: 1 });
 
@@ -125,6 +126,7 @@ export default function ResourceGrid({
     if (!editorToken) return;
     e.preventDefault();
     e.stopPropagation();
+    setHoverCard(null);
     dragRef.current = { event, fromTech, fromDs, startX: e.clientX, startY: e.clientY, moved: false };
     function onMove(me) {
       if (!dragRef.current) return;
@@ -205,6 +207,7 @@ export default function ResourceGrid({
     if (!editorToken) return;
     e.preventDefault();
     e.stopPropagation();
+    setHoverCard(null);
     dragRef.current = {
       techEv, fromTech, fromDs,
       isTechEvent: true,
@@ -245,8 +248,87 @@ export default function ResourceGrid({
     return s;
   }, [days]);
 
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 100px)' }}>
+
+      {hoverCard && (
+  <div style={{
+    position: 'fixed',
+    left: hoverCard.x + 12,
+    top: hoverCard.y + 12,
+    background: '#1e1e28',
+    border: '0.5px solid #3a3a50',
+    borderRadius: 6,
+    padding: '8px 12px',
+    fontSize: 12,
+    color: '#e8e8f0',
+    zIndex: 9999,
+    pointerEvents: 'none',
+    maxWidth: 260,
+    boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
+  }}>
+    {hoverCard.type === 'tech' ? (
+      <>
+        <div style={{ fontWeight: 600, marginBottom: 3 }}>{hoverCard.data.tech_name}</div>
+        <div style={{
+          color: getTechEventColor(hoverCard.data).fg,
+          textTransform: 'uppercase', fontSize: 10,
+          fontWeight: 600, letterSpacing: '0.04em', marginBottom: 4,
+        }}>
+          {hoverCard.data.event_type}
+        </div>
+        <div style={{ color: '#888899', fontSize: 11 }}>{hoverCard.data.date}</div>
+        {hoverCard.data.notes && (
+          <div style={{
+            color: '#aaaabc', fontSize: 11, marginTop: 4,
+            borderTop: '0.5px solid #2a2a35', paddingTop: 4,
+          }}>
+            {hoverCard.data.notes}
+          </div>
+        )}
+      </>
+    ) : (
+      <>
+        <div style={{ fontWeight: 600, marginBottom: 3 }}>{hoverCard.data.title}</div>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
+          {hoverCard.data.ticket_id && (
+            <span style={{ color: '#888899', fontSize: 11 }}>#{hoverCard.data.ticket_id}</span>
+          )}
+          <span style={{
+            fontSize: 10, fontWeight: 600, textTransform: 'uppercase',
+            letterSpacing: '0.04em',
+            color: (CONFIG.STATUS_COLORS[hoverCard.data.status] || CONFIG.STATUS_COLORS.ticketed).fg,
+          }}>
+            {hoverCard.data.status}
+          </span>
+          {hoverCard.data.event_type !== 'calibration' && (
+            <span style={{ fontSize: 10, color: '#888899', textTransform: 'capitalize' }}>
+              {hoverCard.data.event_type}
+            </span>
+          )}
+        </div>
+        {hoverCard.data.customer && (
+          <div style={{ color: '#888899', fontSize: 11, marginBottom: 2 }}>
+            {hoverCard.data.customer}
+          </div>
+        )}
+        <div style={{ color: '#555566', fontSize: 10 }}>
+          {hoverCard.data.start_date}
+          {hoverCard.data.end_date !== hoverCard.data.start_date && ` → ${hoverCard.data.end_date}`}
+        </div>
+        {hoverCard.data.notes && (
+          <div style={{
+            color: '#aaaabc', fontSize: 11, marginTop: 4,
+            borderTop: '0.5px solid #2a2a35', paddingTop: 4,
+          }}>
+            {hoverCard.data.notes}
+          </div>
+        )}
+      </>
+    )}
+  </div>
+)}
 
       {modal?.type === 'job' && (
         <JobModal
@@ -303,9 +385,12 @@ export default function ResourceGrid({
           })}
         </div>
       </div>
+      
 
       {/* Grid */}
       <div style={{ flex: 1, overflow: 'auto', border: '0.5px solid #2a2a35', borderRadius: 8 }}>
+        
+      
         <table style={{
           borderCollapse: 'collapse', tableLayout: 'fixed',
           width: DATE_W + CONFIG.TECHNICIANS.length * COL_W,
@@ -430,6 +515,15 @@ export default function ResourceGrid({
                                 <div key={te.id}
                                   onMouseDown={e => handleTechEventMouseDown(e, te, tech, ds)}
                                   onClick={e => { e.stopPropagation(); setModal({ type: 'tech', event: te }); }}
+                                  onMouseEnter={e => {
+                                    if (dragRef.current) return;
+                                    setHoverCard({ type: 'tech', data: te, x: e.clientX, y: e.clientY });
+                                  }}
+                                  onMouseMove={e => {
+                                    if (dragRef.current) return;
+                                    setHoverCard(prev => prev ? { ...prev, x: e.clientX, y: e.clientY } : null);
+                                  }}
+                                  onMouseLeave={() => setHoverCard(null)}
                                   style={{
                                     flex: 1, borderRadius: 4, cursor: 'pointer',
                                     background: getTechEventColor(te).bg,
@@ -447,19 +541,27 @@ export default function ResourceGrid({
 
                           {/* Job event blocks starting on this day */}
                           {!techEvs.length && startingHere.map(l => {
-                            const color    = getEventColor(l.event);
-                            const totalH   = l.dates.reduce((sum, sds) => sum + getRowHeight(sds), 0) - 6;
-                            const laneH    = totalH / (l.totalLanes || 1);
-                            const blockTop = l.lane * laneH + 3;
-                            const blockH   = laneH - 2;
-
-                            // Use tech color for left border accent if available
+                            const color       = getEventColor(l.event);
+                            const totalH      = l.dates.reduce((sum, sds) => sum + getRowHeight(sds), 0) - 6;
+                            const laneH       = totalH / (l.totalLanes || 1);
+                            const blockTop    = l.lane * laneH + 3;
+                            const blockH      = laneH - 2;
                             const accentColor = tc ? tc.fg : color.fg;
+                            const showNotes   = l.event.notes && blockH > 30;
 
                             return (
                               <div key={l.event.id}
                                 onMouseDown={e => handleEventMouseDown(e, l.event, tech, ds)}
-                                title={`${l.event.title}${l.event.ticket_id ? ' #' + l.event.ticket_id : ''}${l.event.notes ? '\n' + l.event.notes : ''}`}
+                                onMouseEnter={e => {
+                                  if (dragRef.current) return;
+                                  setHoverCard({ type: 'job', data: l.event, x: e.clientX, y: e.clientY });
+                                }}
+                                onMouseMove={e => {
+                                  if (dragRef.current) return;
+                                  setHoverCard(prev => prev ? { ...prev, x: e.clientX, y: e.clientY } : null);
+                                }}
+                                onMouseLeave={() => setHoverCard(null)}
+                                //title={`${l.event.title}${l.event.ticket_id ? ' #' + l.event.ticket_id : ''}${l.event.notes ? '\n' + l.event.notes : ''}`}
                                 style={{
                                   position: 'absolute',
                                   top: blockTop, left: 2, right: 2,
@@ -468,35 +570,62 @@ export default function ResourceGrid({
                                   background: color.bg,
                                   border: `0.5px solid ${color.border}`,
                                   borderLeft: `3px solid ${accentColor}`,
-                                  display: 'flex', alignItems: 'center',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  justifyContent: 'center',
                                   paddingLeft: 6, paddingRight: 4,
-                                  fontSize: 11, color: color.fg, fontWeight: 500,
-                                  overflow: 'hidden', whiteSpace: 'nowrap',
-                                  textOverflow: 'ellipsis',
+                                  overflow: 'hidden',
                                   cursor: editorToken ? 'grab' : 'pointer',
                                   userSelect: 'none', zIndex: 3,
-                                }}>
-                                <span style={{ flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0, maxWidth: '60%' }}>
-                                  {l.event.title}
-                                </span>
-                                {l.event.ticket_id && (
-                                  <span style={{ marginLeft: 4, opacity: 0.55, fontSize: 9, flexShrink: 0, whiteSpace: 'nowrap' }}>
-                                    #{l.event.ticket_id}
-                                  </span>
-                                )}
-                                <span style={{
-                                  marginLeft: 'auto',
-                                  paddingLeft: 2,
-                                  fontSize: 11,
-                                  opacity: 0.5,
-                                  flexShrink: 1,        // shrinks first
-                                  overflow: 'hidden',
-                                  textOverflow: 'ellipsis',
-                                  whiteSpace: 'nowrap',
                                   minWidth: 0,
                                 }}>
-                                  {l.event.event_type !== 'calibration' ? l.event.event_type : ''}{l.event.event_type !== 'calibration' && l.event.status ? ' · ' : ''}{l.event.status}
-                                </span>
+
+                                {/* Primary row: title, ticket, status/type */}
+                                <div style={{
+                                  display: 'flex', alignItems: 'center',
+                                  overflow: 'hidden', minWidth: 0,
+                                  whiteSpace: 'nowrap',
+                                }}>
+                                  <span style={{
+                                    flexShrink: 1, overflow: 'hidden',
+                                    textOverflow: 'ellipsis', minWidth: 0,
+                                    fontSize: 11, color: color.fg, fontWeight: 500,
+                                  }}>
+                                    {l.event.title}
+                                  </span>
+                                  {l.event.ticket_id && (
+                                    <span style={{
+                                      marginLeft: 4, opacity: 0.55, fontSize: 9,
+                                      flexShrink: 0, whiteSpace: 'nowrap', color: color.fg,
+                                    }}>
+                                      #{l.event.ticket_id}
+                                    </span>
+                                  )}
+                                  <span style={{
+                                    marginLeft: 'auto', paddingLeft: 6,
+                                    fontSize: 9, opacity: 0.45,
+                                    flexShrink: 2,
+                                    overflow: 'hidden', textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap', minWidth: 0,
+                                    color: color.fg,
+                                  }}>
+                                    {l.event.event_type !== 'calibration'
+                                      ? l.event.event_type + (l.event.status ? ' · ' + l.event.status : '')
+                                      : l.event.status || ''}
+                                  </span>
+                                </div>
+
+                                {/* Notes row — only shown when block is tall enough */}
+                                {showNotes && (
+                                  <div style={{
+                                    fontSize: 9, opacity: 0.45,
+                                    overflow: 'hidden', textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap', minWidth: 0,
+                                    marginTop: 2, color: color.fg,
+                                  }}>
+                                    {l.event.notes}
+                                  </div>
+                                )}
                               </div>
                             );
                           })}

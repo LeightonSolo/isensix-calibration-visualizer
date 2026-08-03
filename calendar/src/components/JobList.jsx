@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { format, parseISO, isPast, isFuture, isToday } from 'date-fns';
 import { CONFIG } from '../config';
 import JobModal from './JobModal';
+import TechEventModal from './TechEventModal';
 
 function getEventColor(event) {
   if (event.event_type !== 'calibration') {
@@ -24,8 +25,10 @@ const S = {
 };
 
 export default function JobList({
-  events, assignments, editorToken, requireEditor,
+  events, assignments, techEvents,
+  editorToken, requireEditor,
   onSaveEvent, onDeleteEvent,
+  onSaveTechEvent, onSaveTechEventBatch, onDeleteTechEvent,
 }) {
   const [modal,       setModal]       = useState(null);
   const [filter,      setFilter]      = useState('upcoming');
@@ -33,6 +36,7 @@ export default function JobList({
   const [search,      setSearch]      = useState('');
   const [sortCol,     setSortCol]     = useState('start_date');
   const [sortDir,     setSortDir]     = useState(1);
+  const [view, setView] = useState('jobs'); // 'jobs' | 'techevents'
 
   // Build tech list per event
   const eventTechs = useMemo(() => {
@@ -141,6 +145,19 @@ export default function JobList({
         />
       )}
 
+      <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
+        <button style={tabStyle(view === 'jobs')} onClick={() => setView('jobs')}>
+          Jobs
+        </button>
+        <button style={tabStyle(view === 'techevents')} onClick={() => setView('techevents')}>
+          PTO / Holidays / Other
+        </button>
+      </div>
+
+      
+
+      {/* Table */}
+      {view === 'jobs' && (<>
       {/* Filters */}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
         <button style={tabStyle(filter==='upcoming')} onClick={() => setFilter('upcoming')}>
@@ -177,9 +194,7 @@ export default function JobList({
             + Add job
           </button>
         )}
-      </div>
-
-      {/* Table */}
+      </div> 
       <div style={{ border: '0.5px solid #2a2a35', borderRadius: 8, overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto', maxHeight: 'calc(100vh - 220px)', overflowY: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 800 }}>
@@ -271,6 +286,213 @@ export default function JobList({
                     </td>
                     <td style={{ padding: '7px 10px', textAlign: 'center' }}>
                       <button onClick={() => openEdit(event)}
+                        style={{
+                          background: 'none', border: '0.5px solid #2a2a35',
+                          borderRadius: 4, color: '#888899', fontSize: 11,
+                          padding: '3px 8px', cursor: 'pointer',
+                          fontFamily: 'Inter, system-ui, sans-serif',
+                        }}>Edit</button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div></>
+      )}
+      {view === 'techevents' && (
+        <TechEventList
+          techEvents={techEvents}
+          editorToken={editorToken}
+          requireEditor={requireEditor}
+          onSaveTechEvent={onSaveTechEvent}
+          onSaveTechEventBatch={onSaveTechEventBatch}
+          onDeleteTechEvent={onDeleteTechEvent}
+        />
+      )}
+    </div>
+  );
+}
+
+function TechEventList({ techEvents, editorToken, requireEditor,
+  onSaveTechEvent, onSaveTechEventBatch, onDeleteTechEvent }) {
+
+  const [modal,      setModal]      = useState(null);
+  const [filter,     setFilter]     = useState('upcoming');
+  const [typeFilter, setTypeFilter] = useState('');
+  const [techFilter, setTechFilter] = useState('');
+  const [sortCol,    setSortCol]    = useState('date');
+  const [sortDir,    setSortDir]    = useState(1);
+
+  const TYPE_LABELS = {
+    pto: 'PTO', holiday: 'Holiday', jury_duty: 'Jury Duty',
+    office: 'Office', other: 'Other',
+  };
+
+  function sortBy(col) {
+    if (sortCol === col) setSortDir(d => d * -1);
+    else { setSortCol(col); setSortDir(1); }
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+
+  const filtered = useMemo(() => {
+    let rows = [...techEvents];
+    if (filter === 'upcoming') rows = rows.filter(e => e.date >= today);
+    else if (filter === 'past') rows = rows.filter(e => e.date < today);
+    if (typeFilter) rows = rows.filter(e => e.event_type === typeFilter);
+    if (techFilter) rows = rows.filter(e => e.tech_name === techFilter);
+    rows.sort((a, b) => {
+      let av = a[sortCol] ?? '', bv = b[sortCol] ?? '';
+      if (av < bv) return -sortDir;
+      if (av > bv) return  sortDir;
+      return 0;
+    });
+    return rows;
+  }, [techEvents, filter, typeFilter, techFilter, sortCol, sortDir, today]);
+
+  const inputStyle = {
+    background: '#1e1e24', border: '0.5px solid #2a2a35',
+    borderRadius: 4, color: '#e8e8f0',
+    fontFamily: 'Inter, system-ui, sans-serif',
+    fontSize: 12, padding: '5px 9px', outline: 'none',
+  };
+
+  const tabStyle = (active) => ({
+    background: active ? '#1a1a22' : 'none',
+    border: `0.5px solid ${active ? '#3a3a50' : '#2a2a35'}`,
+    borderRadius: 6, color: active ? '#e8e8f0' : '#888899',
+    fontFamily: 'Inter, system-ui, sans-serif',
+    fontSize: 12, padding: '5px 13px', cursor: 'pointer',
+  });
+
+  function thStyle(col) {
+    return {
+      padding: '7px 10px', fontSize: 11, fontWeight: 500,
+      color: sortCol === col ? '#e8e8f0' : '#888899',
+      textAlign: 'left', cursor: 'pointer', userSelect: 'none',
+      borderBottom: '0.5px solid #2a2a35',
+      background: '#111115', whiteSpace: 'nowrap',
+    };
+  }
+
+  function thLabel(col, label) {
+    return label + (sortCol === col ? (sortDir === 1 ? ' ↑' : ' ↓') : '');
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {modal && (
+        <TechEventModal
+          techEvent={modal.event}
+          onSave={(data) => requireEditor(token => onSaveTechEvent(data, token))}
+          onSaveBatch={(entries) => requireEditor(token => onSaveTechEventBatch(entries, token))}
+          onDelete={(id) => requireEditor(token => onDeleteTechEvent(id, token))}
+          onClose={() => setModal(null)}
+        />
+      )}
+
+      {/* Filters */}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+        <button style={tabStyle(filter==='upcoming')} onClick={() => setFilter('upcoming')}>Upcoming</button>
+        <button style={tabStyle(filter==='all')}      onClick={() => setFilter('all')}>All</button>
+        <button style={tabStyle(filter==='past')}     onClick={() => setFilter('past')}>Past</button>
+
+        <select style={{ ...inputStyle, marginLeft: 8 }}
+          value={typeFilter} onChange={e => setTypeFilter(e.target.value)}>
+          <option value="">All types</option>
+          {CONFIG.TECH_EVENT_TYPES.map(t => (
+            <option key={t} value={t}>{TYPE_LABELS[t] || t}</option>
+          ))}
+        </select>
+
+        <select style={inputStyle}
+          value={techFilter} onChange={e => setTechFilter(e.target.value)}>
+          <option value="">All techs</option>
+          {CONFIG.TECHNICIANS.map(t => (
+            <option key={t} value={t}>{t}</option>
+          ))}
+        </select>
+
+        <span style={{ fontSize: 11, color: '#555566', marginLeft: 'auto' }}>
+          {filtered.length} event{filtered.length !== 1 ? 's' : ''}
+        </span>
+
+        {editorToken && (
+          <button onClick={() => setModal({ event: null })} style={{
+            background: '#3a7bd5', border: '0.5px solid #3a7bd5',
+            borderRadius: 4, color: '#fff', fontSize: 12,
+            padding: '5px 12px', cursor: 'pointer',
+            fontFamily: 'Inter, system-ui, sans-serif',
+          }}>+ Add event</button>
+        )}
+      </div>
+
+      {/* Table */}
+      <div style={{ border: '0.5px solid #2a2a35', borderRadius: 8, overflow: 'hidden' }}>
+        <div style={{ overflowX: 'auto', maxHeight: 'calc(100vh - 220px)', overflowY: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 500 }}>
+            <thead style={{ position: 'sticky', top: 0, zIndex: 2 }}>
+              <tr>
+                <th style={thStyle('tech_name')}   onClick={() => sortBy('tech_name')}>
+                  {thLabel('tech_name', 'Tech')}
+                </th>
+                <th style={thStyle('event_type')}  onClick={() => sortBy('event_type')}>
+                  {thLabel('event_type', 'Type')}
+                </th>
+                <th style={thStyle('date')}         onClick={() => sortBy('date')}>
+                  {thLabel('date', 'Date')}
+                </th>
+                <th style={thStyle('notes')}        onClick={() => sortBy('notes')}>
+                  {thLabel('notes', 'Notes')}
+                </th>
+                <th style={{ ...thStyle('_actions'), width: 60 }}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.length === 0 && (
+                <tr>
+                  <td colSpan={5} style={{ padding: '2rem', textAlign: 'center',
+                    color: '#555566', fontSize: 13 }}>
+                    No events found
+                  </td>
+                </tr>
+              )}
+              {filtered.map((te, i) => {
+                const color = CONFIG.TYPE_COLORS[te.event_type] || CONFIG.TYPE_COLORS.other;
+                const tc    = CONFIG.TECH_COLORS?.[te.tech_name];
+                return (
+                  <tr key={te.id}
+                    style={{ background: i % 2 === 0 ? '#16161a' : '#1a1a1f' }}
+                    onDoubleClick={() => setModal({ event: te })}>
+                    <td style={{ padding: '7px 10px', fontSize: 12, fontWeight: 500,
+                      color: tc?.fg || '#e8e8f0' }}>
+                      {te.tech_name}
+                    </td>
+                    <td style={{ padding: '7px 10px' }}>
+                      <span style={{
+                        display: 'inline-block', padding: '2px 7px',
+                        borderRadius: 4, fontSize: 11, fontWeight: 500,
+                        background: color.bg, color: color.fg,
+                        border: `0.5px solid ${color.border}`,
+                        textTransform: 'capitalize',
+                      }}>
+                        {TYPE_LABELS[te.event_type] || te.event_type}
+                      </span>
+                    </td>
+                    <td style={{ padding: '7px 10px', fontSize: 12,
+                      color: te.date < today ? '#555566' : '#e8e8f0',
+                      fontFamily: 'JetBrains Mono, monospace' }}>
+                      {te.date}
+                    </td>
+                    <td style={{ padding: '7px 10px', fontSize: 11,
+                      color: '#555566', maxWidth: 300,
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {te.notes || '—'}
+                    </td>
+                    <td style={{ padding: '7px 10px', textAlign: 'center' }}>
+                      <button onClick={() => setModal({ event: te })}
                         style={{
                           background: 'none', border: '0.5px solid #2a2a35',
                           borderRadius: 4, color: '#888899', fontSize: 11,
