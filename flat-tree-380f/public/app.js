@@ -1238,34 +1238,37 @@ function detectMeters() {
     .filter(s => s.status?.toUpperCase() === 'ENABLED')
     .map(s => (s.sensor_type || '').toUpperCase())
   );
-  const meters = ['RE']; // always needed
+  const meters = ['RE'];
   if ([...types].some(t => t.includes('HUMID') || t === 'HU')) meters.push('HU');
   if ([...types].some(t => t.includes('CO2'))) meters.push('CO2');
   if ([...types].some(t => t.includes('DIFF') || t.includes('DP'))) meters.push('DP');
   return meters;
 }
 
+function detectO2Count() {
+  return allSensors.filter(s =>
+    s.status?.toUpperCase() === 'ENABLED' &&
+    (s.sensor_type || '').toUpperCase().includes('O2')
+  ).length;
+}
+
 function getCustomerWarning() {
-  const customers = [...new Set(
-    servers.map(s => serverMeta[s]?.customer).filter(Boolean)
-  )];
-  if (customers.length <= 1) return null;
-  // Find the majority customer
   const counts = {};
   servers.forEach(s => {
     const c = serverMeta[s]?.customer;
     if (c) counts[c] = (counts[c] || 0) + 1;
   });
-  const majority = Object.entries(counts).sort((a,b) => b[1]-a[1])[0]?.[0];
+  const entries = Object.entries(counts).sort((a,b) => b[1]-a[1]);
+  if (entries.length <= 1) return null;
+  const majority = entries[0][0];
   const mismatched = servers.filter(s =>
     serverMeta[s]?.customer && serverMeta[s].customer !== majority
   );
   if (!mismatched.length) return null;
-  return `⚠ Server${mismatched.length > 1 ? 's' : ''} ${mismatched.map(s => `${s}`).join(', ')} appear to belong to a different customer (${[...new Set(mismatched.map(s => serverMeta[s]?.customer))].join(', ')})`;
+  return `⚠ Servers ${mismatched.join(', ')} appear to belong to a different customer (${[...new Set(mismatched.map(s => serverMeta[s]?.customer))].join(', ')})`;
 }
 
 async function loadJobInfo() {
-  // Determine current customer from majority of configured servers
   const counts = {};
   servers.forEach(s => {
     const c = serverMeta[s]?.customer;
@@ -1290,38 +1293,57 @@ async function saveJobInfo() {
     alert('No customer assigned to these servers. Set a customer in the Servers panel first.');
     return;
   }
-  const get = id => document.getElementById(id)?.value?.trim() || null;
+  const get     = id => document.getElementById(id)?.value?.trim() || null;
+  const getNum  = id => parseInt(document.getElementById(id)?.value) || null;
+  const active  = allSensors.filter(s => s.status?.toUpperCase() === 'ENABLED');
+  const meters  = detectMeters();
+  const hardware = detectHardware();
+  const versions = [...new Set(servers.map(s => serverMeta[s]?.version).filter(Boolean))];
+
   const body = {
-    customer:       currentCustomer,
-    job_name:       get('ji-job-name'),
-    num_tech:       parseInt(get('ji-num-tech')) || null,
-    site_address:   get('ji-site-address'),
-    offsites:       get('ji-offsites'),
-    comments:       get('ji-comments'),
-    vpn_works:      get('ji-vpn'),
-    airport_info:   get('ji-airport'),
-    emerald_aisle:  get('ji-emerald'),
-    prev_hotel:     get('ji-hotel'),
-    hotel_comments: get('ji-hotel-comments'),
-    main_contact:   get('ji-main-contact'),
-    other_contacts: get('ji-other-contacts'),
-    contact_notes:  get('ji-contact-notes'),
-    credentials:    get('ji-credentials'),
-    primary_tech:   get('ji-primary-tech'),
-    restaurants:    get('ji-restaurants'),
-    other_notes:    get('ji-other'),
+    customer:        currentCustomer,
+    job_name:        get('ji-job-name'),
+    servers:         servers.join(', '),
+    sensors:         active.length || null,
+    meters:          meters.join(', '),
+    o2:              detectO2Count() || null,
+    server_version:  versions.join(', ') || null,
+    hardware:        hardware !== '—' ? hardware : null,
+    num_tech:        getNum('ji-num-tech'),
+    active:          1,
+    status:          get('ji-status'),
+    estimated_days:  getNum('ji-estimated-days'),
+    scheduled_date:  get('ji-scheduled-date'),
+    scheduled_with:  get('ji-scheduled-with'),
+    site_address:    get('ji-site-address'),
+    offsites:        get('ji-offsites'),
+    main_contact:    get('ji-main-contact'),
+    other_contacts:  get('ji-other-contacts'),
+    contact_notes:   get('ji-contact-notes'),
+    vpn_works:       get('ji-vpn'),
+    airport_info:    get('ji-airport'),
+    emerald_aisle:   get('ji-emerald'),
+    prev_hotel:      get('ji-hotel'),
+    hotel_comments:  get('ji-hotel-comments'),
+    restaurants:     get('ji-restaurants'),
+    report:          get('ji-report'),
+    credentials:     get('ji-credentials'),
+    comments:        get('ji-comments'),
+    other_notes:     get('ji-other'),
+    primary_tech:    get('ji-primary-tech'),
   };
+
   try {
     await fetch(`${CONFIG.WORKER_URL}/jobinfo`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Api-Key': CONFIG.API_KEY },
-      body: JSON.stringify(body)
+      body: JSON.stringify(body),
     });
-    document.getElementById('ji-save-status').textContent = `Saved ${new Date().toLocaleTimeString()}`;
-    setTimeout(() => {
-      const el = document.getElementById('ji-save-status');
-      if (el) el.textContent = '';
-    }, 3000);
+    const el = document.getElementById('ji-save-status');
+    if (el) {
+      el.textContent = `Saved ${new Date().toLocaleTimeString()}`;
+      setTimeout(() => { if (el) el.textContent = ''; }, 3000);
+    }
   } catch(e) {
     alert('Failed to save job info');
     console.error(e);
@@ -1329,27 +1351,12 @@ async function saveJobInfo() {
 }
 
 function buildJobInfoTab() {
-  const active = allSensors.filter(s => s.status?.toUpperCase() === 'ENABLED');
-  const lastCal = active
-    .filter(s => s.calibrated_at)
-    .sort((a,b) => b.calibrated_at.localeCompare(a.calibrated_at))[0]?.calibrated_at || '—';
-  const meters  = detectMeters();
+  const active   = allSensors.filter(s => s.status?.toUpperCase() === 'ENABLED');
+  const meters   = detectMeters();
   const hardware = detectHardware();
-  const warning = getCustomerWarning();
+  const warning  = getCustomerWarning();
   const versions = [...new Set(servers.map(s => serverMeta[s]?.version).filter(Boolean))];
-
-  // Populate auto fields
-  document.getElementById('ji-auto-customer').textContent   = currentCustomer || '—';
-  document.getElementById('ji-auto-servers').textContent    = servers.map(s=>`${s}`).join(', ') || '—';
-  document.getElementById('ji-auto-sensor-count').textContent = active.length;
-  document.getElementById('ji-auto-last-cal').textContent   = fmtDate(lastCal);
-  document.getElementById('ji-auto-hardware').textContent   = hardware;
-  document.getElementById('ji-auto-version').textContent    = versions.join(', ') || '—';
-  document.getElementById('ji-auto-meters').textContent     = meters.join(', ');
-  document.getElementById('ji-auto-re').textContent         = 'TRUE';
-  document.getElementById('ji-auto-hu').textContent         = meters.includes('HU') ? 'TRUE' : 'FALSE';
-  document.getElementById('ji-auto-co2').textContent        = meters.includes('CO2') ? 'TRUE' : 'FALSE';
-  document.getElementById('ji-auto-dp').textContent         = meters.includes('DP') ? 'TRUE' : 'FALSE';
+  const o2count  = detectO2Count();
 
   // Warning banner
   const warnEl = document.getElementById('ji-warning');
@@ -1358,131 +1365,168 @@ function buildJobInfoTab() {
     warnEl.style.display = warning ? 'block' : 'none';
   }
 
-  // Populate manual fields from loaded jobInfo
-  const set = (id, val) => {
-    const el = document.getElementById(id);
-    if (el && val) el.value = val;
-  };
-  set('ji-job-name',       jobInfo.job_name);
-  set('ji-num-tech',       jobInfo.num_tech);
-  set('ji-site-address',   jobInfo.site_address);
-  set('ji-offsites',       jobInfo.offsites);
-  set('ji-comments',       jobInfo.comments);
-  set('ji-vpn',            jobInfo.vpn_works);
-  set('ji-airport',        jobInfo.airport_info);
-  set('ji-emerald',        jobInfo.emerald_aisle);
-  set('ji-hotel',          jobInfo.prev_hotel);
-  set('ji-hotel-comments', jobInfo.hotel_comments);
-  set('ji-main-contact',   jobInfo.main_contact);
-  set('ji-other-contacts', jobInfo.other_contacts);
-  set('ji-contact-notes',  jobInfo.contact_notes);
-  set('ji-credentials',    jobInfo.credentials);
-  set('ji-primary-tech',   jobInfo.primary_tech);
-  set('ji-restaurants',    jobInfo.restaurants);
-  set('ji-other',          jobInfo.other_notes);
+  // Helper: set input value only if element exists and value is non-null
+  const setVal = (id, val) => {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (val === null || val === undefined || val === '') return;
+  if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') {
+    el.value = val;
+  } else {
+    el.textContent = val;
+  }
+};
+
+  // Auto-detected fields — always overwrite with fresh values
+  setVal('ji-servers',        servers.join(', ') || '—');
+  setVal('ji-sensor-count',   active.length);
+  setVal('ji-hardware',       hardware !== '—' ? hardware : '');
+  setVal('ji-server-version', versions.join(', '));
+  setVal('ji-meters',         meters.join(', '));
+  setVal('ji-o2',             o2count || 0);
+  setVal('ji-customer-display', currentCustomer || '—');
+
+  // Meter flags
+  setVal('ji-re',  'TRUE');
+  setVal('ji-hu',  meters.includes('HU')  ? 'TRUE' : 'FALSE');
+  setVal('ji-co2', meters.includes('CO2') ? 'TRUE' : 'FALSE');
+  setVal('ji-dp',  meters.includes('DP')  ? 'TRUE' : 'FALSE');
+
+  // Manual / stored fields — populate from jobInfo
+  setVal('ji-job-name',       jobInfo.job_name);
+  setVal('ji-num-tech',       jobInfo.num_tech);
+  setVal('ji-status',         jobInfo.status);
+  setVal('ji-estimated-days', jobInfo.estimated_days);
+  setVal('ji-scheduled-date', jobInfo.scheduled_date);
+  setVal('ji-scheduled-with', jobInfo.scheduled_with);
+  setVal('ji-site-address',   jobInfo.site_address);
+  setVal('ji-offsites',       jobInfo.offsites);
+  setVal('ji-main-contact',   jobInfo.main_contact);
+  setVal('ji-other-contacts', jobInfo.other_contacts);
+  setVal('ji-contact-notes',  jobInfo.contact_notes);
+  setVal('ji-vpn',            jobInfo.vpn_works);
+  setVal('ji-airport',        jobInfo.airport_info);
+  setVal('ji-emerald',        jobInfo.emerald_aisle);
+  setVal('ji-hotel',          jobInfo.prev_hotel);
+  setVal('ji-hotel-comments', jobInfo.hotel_comments);
+  setVal('ji-restaurants',    jobInfo.restaurants);
+  setVal('ji-report',         jobInfo.report);
+  setVal('ji-credentials',    jobInfo.credentials);
+  setVal('ji-comments',       jobInfo.comments);
+  setVal('ji-other',          jobInfo.other_notes);
+  setVal('ji-primary-tech',   jobInfo.primary_tech);
 }
 
 function buildJobInfoHTML() {
-
   const techOptions = CONFIG.TECHNICIANS
     .map(t => `<option value="${t}">${t}</option>`)
     .join('');
 
-  const row = (label, autoId, inputId, type='text', wide=false) => `
-    <tr>
+  const inp  = (id, placeholder='') =>
+    `<input type="text" id="${id}" placeholder="${placeholder}" style="width:100%;"/>`;
+  const num  = (id, placeholder='') =>
+    `<input type="number" id="${id}" placeholder="${placeholder}" style="width:120px;" min="0"/>`;
+  const ta   = (id, rows=2) =>
+    `<textarea id="${id}" rows="${rows}" style="width:100%;"></textarea>`;
+  const sel  = (id, options) =>
+    `<select id="${id}" style="width:100%;">${options}</select>`;
+  const dl   = (id, listId, options, placeholder='') =>
+    `<input type="text" id="${id}" list="${listId}" placeholder="${placeholder}" style="width:100%;">
+     <datalist id="${listId}">${options.map(o=>`<option value="${o}"></option>`).join('')}</datalist>`;
+
+  // Section header helper
+  const section = label =>
+    `<tr><td colspan="2" style="padding:14px 12px 4px;font-size:12px;font-weight:600;
+      color:var(--text-primary);text-transform:uppercase;letter-spacing:0.06em;
+      border-bottom:0.5px solid var(--border);">${label}</td></tr>`;
+
+  // Row helper: label + single input cell
+  const row = (label, inputHtml, note='') =>
+    `<tr>
       <td class="ji-label">${label}</td>
-      <td class="ji-auto" id="${autoId}">—</td>
       <td class="ji-input">
-        ${wide
-          ? `<textarea id="${inputId}" rows="3" style="width:100%;"></textarea>`
-          : type === 'select-yn'
-            ? `<select id="${inputId}"><option value="">—</option><option>Yes</option><option>No</option></select>`
-            : `<input type="${type}" id="${inputId}" style="width:100%;"/>`
-        }
+        ${inputHtml}
+        ${note ? `<div style="font-size:10px;color:var(--text-muted);margin-top:2px;">${note}</div>` : ''}
+      </td>
+    </tr>`;
+
+  // Read-only display row (for auto fields that shouldn't be edited)
+  const roRow = (label, id, note='') =>
+    `<tr>
+      <td class="ji-label">${label}</td>
+      <td class="ji-input">
+        <span id="${id}" style="font-size:12px;color:var(--text-primary);">—</span>
+        ${note ? `<span style="font-size:10px;color:var(--text-muted);margin-left:6px;">${note}</span>` : ''}
       </td>
     </tr>`;
 
   return `
     <div id="ji-warning" style="display:none;background:rgba(196,122,26,0.15);
       border:0.5px solid var(--accent-orange);border-radius:var(--radius-md);
-      padding:10px 14px;margin:12px 0;font-size:12px;color:var(--accent-orange);"></div>
+      padding:10px 14px;margin-bottom:12px;font-size:12px;color:var(--accent-orange);"></div>
 
     <table class="ji-table">
       <thead><tr>
-        <th style="width:160px;">Field</th>
-        <th style="width:240px;">From database (auto)</th>
-        <th>Edit / update</th>
+        <th style="width:180px;">Field</th>
+        <th>Value</th>
       </tr></thead>
       <tbody>
-        <tr><td class="ji-label">Customer</td><td class="ji-auto" id="ji-auto-customer">—</td><td class="ji-input muted" style="font-size:11px;">Set in Servers panel</td></tr>
-        <tr><td class="ji-label">Job Name</td><td class="ji-auto">—</td><td class="ji-input"><input type="text" id="ji-job-name" style="width:100%;"/></td></tr>
-        <tr><td class="ji-label">Servers</td><td class="ji-auto" id="ji-auto-servers">—</td><td class="ji-input muted" style="font-size:11px;">Determined by added servers</td></tr>
-        <tr><td class="ji-label">Last Calibrated</td><td class="ji-auto" id="ji-auto-last-cal">—</td><td class="ji-input muted" style="font-size:11px;">Auto from calibration data</td></tr>
-        <tr><td class="ji-label">Sensor Count</td><td class="ji-auto" id="ji-auto-sensor-count">—</td><td class="ji-input muted" style="font-size:11px;">Auto from calibration data</td></tr>
-        <tr><td class="ji-label"># Techs</td><td class="ji-auto">—</td><td class="ji-input"><input type="number" id="ji-num-tech" style="width:80px;" min="1"/></td></tr>
-        <tr><td class="ji-label">Main Site Address</td><td class="ji-auto">—</td><td class="ji-input"><input type="text" id="ji-site-address" style="width:100%;"/></td></tr>
-        <tr><td class="ji-label">Offsites</td><td class="ji-auto">—</td><td class="ji-input"><input type="text" id="ji-offsites" style="width:100%;"/></td></tr>
-        <tr><td class="ji-label">Comments</td><td class="ji-auto">—</td><td class="ji-input"><textarea id="ji-comments" rows="3" style="width:100%;"></textarea></td></tr>
-        <tr>
-          <td class="ji-label">VPN Works?</td>
-          <td class="ji-auto">—</td>
-          <td class="ji-input">
-            <input type="text" id="ji-vpn" list="vpn-options" style="width:100%;" placeholder="">
-            <datalist id="vpn-options">
-              <option value="Yes"></option>
-              <option value="No"></option>
-            </datalist>
-          </td>
-        </tr>        
-        <tr><td class="ji-label">Airport Info</td><td class="ji-auto">—</td><td class="ji-input"><input type="text" id="ji-airport" style="width:100%;"/></td></tr>
-        <tr>
-          <td class="ji-label">Emerald Aisle</td>
-          <td class="ji-auto">—</td>
-          <td class="ji-input">
-            <input type="text" id="ji-emerald" list="emerald-options" style="width:100%;" placeholder="">
-            <datalist id="emerald-options">
-              <option value="Yes"></option>
-              <option value="No"></option>
-            </datalist>
-          </td>
-        </tr>
-        <tr><td class="ji-label">Previous Hotel</td><td class="ji-auto">—</td><td class="ji-input"><input type="text" id="ji-hotel" style="width:100%;"/></td></tr>
-        <tr><td class="ji-label">Hotel Comments</td><td class="ji-auto">—</td><td class="ji-input"><textarea id="ji-hotel-comments" rows="2" style="width:100%;"></textarea></td></tr>
-        <tr><td class="ji-label">Main Contact</td><td class="ji-auto">—</td><td class="ji-input"><input type="text" id="ji-main-contact" style="width:100%;"/></td></tr>
-        <tr><td class="ji-label">Other Contacts</td><td class="ji-auto">—</td><td class="ji-input"><textarea id="ji-other-contacts" rows="2" style="width:100%;"></textarea></td></tr>
-        <tr><td class="ji-label">Contact Notes</td><td class="ji-auto">—</td><td class="ji-input"><textarea id="ji-contact-notes" rows="2" style="width:100%;"></textarea></td></tr>
-        <tr>
-          <td class="ji-label">Credentials</td>
-          <td class="ji-auto">—</td>
-          <td class="ji-input">
-            <input type="text" id="ji-credentials" list="credentials-options" style="width:100%;" placeholder="">
-            <datalist id="credentials-options">
-              <option value="None"></option>
-              <option value="Vendormate"></option>
-              <option value="Symplr"></option>
-              <option value="Green Security"></option>
-              <option value="IntelliCentrics"></option>
-            </datalist>
-          </td>
-        </tr>
-        <tr><td class="ji-label">Primary Tech</td><td class="ji-auto">—</td><td class="ji-input"><select id="ji-primary-tech" style="width:100%;"/><option value="">Select technician...</option>
-          ${techOptions}
-        </select></td></tr>
-        <tr><td class="ji-label">Hardware</td><td class="ji-auto" id="ji-auto-hardware">—</td><td class="ji-input muted" style="font-size:11px;">Auto from CP addresses</td></tr>
-        <tr><td class="ji-label">Server Version</td><td class="ji-auto" id="ji-auto-version">—</td><td class="ji-input muted" style="font-size:11px;">Auto from server config</td></tr>
-        <tr><td class="ji-label">Meters Needed</td><td class="ji-auto" id="ji-auto-meters">—</td><td class="ji-input muted" style="font-size:11px;">Auto from sensor types</td></tr>
-        <tr><td class="ji-label">RE</td><td class="ji-auto" id="ji-auto-re">TRUE</td><td class="ji-input muted" style="font-size:11px;">Always TRUE</td></tr>
-        <tr><td class="ji-label">HU</td><td class="ji-auto" id="ji-auto-hu">—</td><td class="ji-input muted" style="font-size:11px;">Auto from sensor types</td></tr>
-        <tr><td class="ji-label">CO2</td><td class="ji-auto" id="ji-auto-co2">—</td><td class="ji-input muted" style="font-size:11px;">Auto from sensor types</td></tr>
-        <tr><td class="ji-label">DP</td><td class="ji-auto" id="ji-auto-dp">—</td><td class="ji-input muted" style="font-size:11px;">Auto from sensor types</td></tr>
-        <tr><td class="ji-label">Active?</td><td class="ji-auto">TRUE</td><td class="ji-input muted" style="font-size:11px;">Always TRUE for active jobs</td></tr>
-        <tr><td class="ji-label">Restaurants</td><td class="ji-auto">—</td><td class="ji-input"><textarea id="ji-restaurants" rows="2" style="width:100%;"></textarea></td></tr>
-        <tr><td class="ji-label">Other</td><td class="ji-auto">—</td><td class="ji-input"><textarea id="ji-other" rows="2" style="width:100%;"></textarea></td></tr>
+
+        ${section('Identity')}
+        ${roRow('Customer',      'ji-customer-display', 'Set in Servers panel')}
+        ${row('Job name',        inp('ji-job-name'))}
+        ${row('Primary tech',    sel('ji-primary-tech',
+          `<option value="">Select...</option>${techOptions}`))}
+       <!-- ${row('Status',          dl('ji-status', 'ji-status-dl', 
+          ['Unscheduled','Scheduled','In Progress','Complete','On Hold']))} -->
+
+        ${section('Scheduling')}
+        ${row('# Technicians',   num('ji-num-tech'))}
+        ${row('Estimated days',  num('ji-estimated-days'))}
+        <!-- ${row('Scheduled date',  `<input type="date" id="ji-scheduled-date" style="width:180px;"/>`)} -->
+        ${row('Scheduled with',  inp('ji-scheduled-with', 'Contact name'))}
+
+        ${section('Equipment — auto-detected from sensor data')}
+        ${roRow('Servers',       'ji-servers')}
+        ${roRow('Sensor count',  'ji-sensor-count')}
+        ${roRow('Hardware',      'ji-hardware')}
+        ${roRow('Server version','ji-server-version')}
+        ${roRow('Meters needed', 'ji-meters')}
+       <!-- ${roRow('RE',            'ji-re')} -->
+      <!--${roRow('HU',            'ji-hu')} -->
+       <!-- ${roRow('CO2',           'ji-co2')} -->
+       <!-- ${roRow('DP',            'ji-dp')} -->
+        ${row('O2 sensors',      num('ji-o2'), 'Auto-detected; override if needed')}
+
+        ${section('Location')}
+        ${row('Main site address', inp('ji-site-address'))}
+        ${row('Offsites',          inp('ji-offsites'))}
+
+        ${section('Travel')}
+        ${row('VPN works?',      dl('ji-vpn',     'ji-vpn-dl',     ['Yes','No']))}
+        ${row('Airport info',    inp('ji-airport'))}
+        ${row('Emerald Aisle?',  dl('ji-emerald', 'ji-emerald-dl', ['Yes','No']))}
+        ${row('Previous hotel',  inp('ji-hotel'))}
+        ${row('Hotel comments',  ta('ji-hotel-comments'))}
+        ${row('Restaurants & Attractions',     ta('ji-restaurants'))}
+
+        ${section('Contacts')}
+        ${row('Main contact',    inp('ji-main-contact',   'Name, phone, email'))}
+        ${row('Other contacts',  ta('ji-other-contacts'))}
+        ${row('Contact notes',   ta('ji-contact-notes'))}
+        ${row('Credentials',     dl('ji-credentials', 'ji-cred-dl',
+          ['None','Vendormate','Symplr','Green Security','IntelliCentrics']))}
+
+        ${section('Documentation')}
+        ${row('Comments',        ta('ji-comments', 3))}
+        ${row('Report',          ta('ji-report',   3))}
+        ${row('Other notes',     ta('ji-other',    2))}
+
       </tbody>
     </table>
 
-    <div style="display:flex;gap:10px;align-items:center;padding:14px 0;">
-      <button class="primary" onclick="saveJobInfo()" style="margin:10px;">Save job info</button>
+    <div style="display:flex;gap:10px;align-items:center;padding:14px 9px 9px;">
+      <button class="primary" onclick="saveJobInfo()">Save job info</button>
       <span id="ji-save-status" style="font-size:12px;color:var(--accent-green);"></span>
     </div>`;
 }
