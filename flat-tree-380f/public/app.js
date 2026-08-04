@@ -513,6 +513,7 @@ function renderMetrics() {
 
     if((left == 0) && (!hasCelebratedCompletion) && (cal > 0)) {
       fireConfettiFromElement('#donut-card');
+      saveJobInfo();
       hasCelebratedCompletion = true;
     }
 }
