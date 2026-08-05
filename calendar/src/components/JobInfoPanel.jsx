@@ -8,7 +8,7 @@ const API_KEY    = CONFIG.API_KEY;
 function Label({ children }) {
   return (
     <div style={{
-      fontSize: 10, fontWeight: 600, color: '#555566',
+      fontSize: 11, fontWeight: 600, color: '#555566',
       textTransform: 'uppercase', letterSpacing: '0.06em',
       marginBottom: 3, marginTop: 10,
     }}>{children}</div>
@@ -29,7 +29,29 @@ function Divider() {
   return <div style={{ borderTop: '0.5px solid #1a1a28', margin: '10px 0' }}/>;
 }
 
-export default function JobInfoPanel({ selectedEvent, assignments, locked }) {
+function serverLink(sid, serverMeta) {
+  // Use stored hostname if available, fallback to ics1.ca.isensix.com
+  const meta = serverMeta?.[sid];
+  const host = meta?.hostname || 'ics1.ca.isensix.com';
+  //const host = 'ics1.ca.isensix.com';
+  return `https://${host}:7${sid}`;
+}
+
+function linkifyText(text) {
+  if (!text) return null;
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const parts = text.split(urlRegex);
+  return parts.map((part, i) =>
+    urlRegex.test(part) ? (
+      <a key={i} href={part} target="_blank" rel="noreferrer"
+        style={{ color: '#3a7bd5', wordBreak: 'break-all' }}>
+        {part}
+      </a>
+    ) : part
+  );
+}
+
+export default function JobInfoPanel({ selectedEvent, assignments, locked, serverMeta }) {
   const [jobInfo,  setJobInfo]  = useState(null);
   const [loading,  setLoading]  = useState(false);
   const [tab,      setTab]      = useState('summary');
@@ -85,7 +107,7 @@ export default function JobInfoPanel({ selectedEvent, assignments, locked }) {
 
   return (
     <div style={{
-      width: 280, flexShrink: 0,
+      width: 320, flexShrink: 0,
       background: '#12121a',
       borderLeft: '0.5px solid #2a2a35',
       display: 'flex', flexDirection: 'column',
@@ -98,23 +120,23 @@ export default function JobInfoPanel({ selectedEvent, assignments, locked }) {
         background: '#0e0e15',
         flexShrink: 0,
       }}>
-        <div style={{ fontSize: 10, fontWeight: 600, color: '#555566',
+        <div style={{ fontSize: 14, fontWeight: 600, color: '#6d6d7e',
           textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
           {locked ? '📌 Job info' : '👁 Job info'}
         </div>
         {!selectedEvent ? (
-          <div style={{ fontSize: 11, color: '#333344' }}>
+          <div style={{ fontSize: 13, color: '#333344' }}>
             Hover or click a job to see details
           </div>
         ) : (
           <>
-            <div style={{ fontSize: 13, fontWeight: 600, color: '#e8e8f0',
+            <div style={{ fontSize: 14, fontWeight: 600, color: '#e8e8f0',
               lineHeight: 1.3, marginBottom: 4 }}>
               {selectedEvent.title}
             </div>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               {selectedEvent.ticket_id && (
-                <span style={{ fontSize: 10, color: '#888899',
+                <span style={{ fontSize: 12, color: '#888899',
                   fontFamily: 'JetBrains Mono, monospace' }}>
                   #{selectedEvent.ticket_id}
                 </span>
@@ -149,9 +171,9 @@ export default function JobInfoPanel({ selectedEvent, assignments, locked }) {
       {/* Content */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '8px 14px 20px' }}>
         {!selectedEvent && (
-          <div style={{ marginTop: 20, fontSize: 11, color: '#2a2a38',
+          <div style={{ marginTop: 20, fontSize: 11, color: '#434353',
             textAlign: 'center', lineHeight: 1.8 }}>
-            Click a job to lock the panel.<br/>
+            Click the top right of a job to lock the panel.<br/>
             Hover to preview.
           </div>
         )}
@@ -177,7 +199,7 @@ export default function JobInfoPanel({ selectedEvent, assignments, locked }) {
   );
 }
 
-function SummaryTab({ event, jobInfo, techs, assignments }) {
+function SummaryTab({ event, jobInfo, techs, assignments, serverMeta }) {
   const statusColor = CONFIG.STATUS_COLORS[event.status] || CONFIG.STATUS_COLORS.ticketed;
 
   return (
@@ -219,10 +241,34 @@ function SummaryTab({ event, jobInfo, techs, assignments }) {
         <>
           <Divider/>
 
+          {jobInfo.servers && (
+            <>
+              <Label>Servers</Label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                {jobInfo.servers.split(',').map(s => s.trim()).filter(Boolean).map(sid => (
+                  <a key={sid} href={serverLink(sid, serverMeta)}
+                    target="_blank" rel="noreferrer"
+                    style={{ color: '#3a7bd5', fontSize: 12, textDecoration: 'none',
+                      padding: '1px 6px', borderRadius: 3,
+                      border: '0.5px solid #2a5a90', background: '#0e1a2e' }}>
+                    {sid}
+                  </a>
+                ))}
+              </div>
+            </>
+          )}
+
           {jobInfo.num_tech && (
             <>
               <Label>Techs needed</Label>
               <Value>{jobInfo.num_tech}</Value>
+            </>
+          )}
+
+          {jobInfo.primary_tech && (
+            <>
+              <Label>Primary tech</Label>
+              <Value>{jobInfo.primary_tech}</Value>
             </>
           )}
 
@@ -236,7 +282,15 @@ function SummaryTab({ event, jobInfo, techs, assignments }) {
           {jobInfo.meters && (
             <>
               <Label>Meters needed</Label>
-              <Value>{jobInfo.meters}{jobInfo.o2 ? ` · O2 ×${jobInfo.o2}` : ''}</Value>
+              <Value>
+                {jobInfo.meters}
+                {jobInfo.o2 > 0 && (
+                  <>
+                    {' · '}
+                    <span style={{ color: 'red' }}>O2 ×{jobInfo.o2}</span>
+                  </>
+                )}
+              </Value>
             </>
           )}
 
@@ -244,7 +298,9 @@ function SummaryTab({ event, jobInfo, techs, assignments }) {
             <>
               <Label>Location</Label>
               <Value>{jobInfo.site_address}</Value>
-              {jobInfo.offsites && <Value muted>{jobInfo.offsites}</Value>}
+              {jobInfo.offsites && <div style={{ fontSize: 12, color: '#e8e8f0', lineHeight: 1.6 }}>
+                {linkifyText(jobInfo.offsites)}
+              </div>}
             </>
           )}
 
@@ -252,6 +308,13 @@ function SummaryTab({ event, jobInfo, techs, assignments }) {
             <>
               <Label>Main contact</Label>
               <Value>{jobInfo.main_contact}</Value>
+            </>
+          )}
+
+          {jobInfo.other_contacts && (
+            <>
+              <Label>Other contacts</Label>
+              <Value>{jobInfo.other_contacts}</Value>
             </>
           )}
 
@@ -269,12 +332,20 @@ function SummaryTab({ event, jobInfo, techs, assignments }) {
             </>
           )}
 
-          {jobInfo.vpn_works && (
+          {jobInfo.server_version && (
             <>
-              <Label>VPN</Label>
-              <Value>{jobInfo.vpn_works}</Value>
+              <Label>Server version(s)</Label>
+              <Value>{jobInfo.server_version}</Value>
             </>
           )}
+
+          {jobInfo.hardware && (
+            <>
+              <Label>Hardware</Label>
+              <Value>{jobInfo.hardware}</Value>
+            </>
+          )}
+
         </>
       )}
 
@@ -298,7 +369,7 @@ function SummaryTab({ event, jobInfo, techs, assignments }) {
   );
 }
 
-function DetailsTab({ jobInfo, event }) {
+function DetailsTab({ jobInfo, event, serverMeta }) {
   if (!jobInfo) return (
     <div style={{ fontSize: 11, color: '#333344', fontStyle: 'italic', marginTop: 16 }}>
       No job info found for "{event.title}".<br/><br/>
@@ -321,7 +392,21 @@ function DetailsTab({ jobInfo, event }) {
       {row('Est. days',       jobInfo.estimated_days)}
 
       <Divider/>
-      {row('Servers',         jobInfo.servers)}
+      {row('Servers',         jobInfo.servers && (
+            <>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                {jobInfo.servers.split(',').map(s => s.trim()).filter(Boolean).map(sid => (
+                  <a key={sid} href={serverLink(sid, serverMeta)}
+                    target="_blank" rel="noreferrer"
+                    style={{ color: '#3a7bd5', fontSize: 12, textDecoration: 'none',
+                      padding: '1px 6px', borderRadius: 3,
+                      border: '0.5px solid #2a5a90', background: '#0e1a2e' }}>
+                    {sid}
+                  </a>
+                ))}
+              </div>
+            </>
+          ))}
       {row('Sensor count',    jobInfo.sensors)}
       {row('Hardware',        jobInfo.hardware)}
       {row('Server version',  jobInfo.server_version)}
@@ -330,7 +415,9 @@ function DetailsTab({ jobInfo, event }) {
 
       <Divider/>
       {row('Site address',    jobInfo.site_address)}
-      {row('Offsites',        jobInfo.offsites)}
+      {row('Offsites',        <div style={{ fontSize: 12, color: '#e8e8f0', lineHeight: 1.6 }}>
+        {linkifyText(jobInfo.offsites)}
+      </div>)}
 
       <Divider/>
       {row('Main contact',    jobInfo.main_contact)}
