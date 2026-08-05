@@ -251,6 +251,13 @@ export default {
       return json(results);
     }
 
+    // GET /jobinfo/all
+    if (request.method === 'GET' && pathname === '/jobinfo/all') {
+      const { results } = await env.DB.prepare(
+        `SELECT * FROM job_info ORDER BY job_name`
+      ).all();
+      return json(results);
+    }
 
     // GET /jobinfo/:job_name
     if (request.method === 'GET' && pathname.startsWith('/jobinfo/')) {

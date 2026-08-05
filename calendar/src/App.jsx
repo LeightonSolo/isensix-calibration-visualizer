@@ -50,77 +50,7 @@ const STYLES = {
   }),
 };
 
-// Generate ghost events for confirmed/booked jobs from last year
-// Ghost = tentative placement for same ISO week this year
-function generateGhostEvents(events, assignments) {
-  const now        = new Date();
-  const twoMonthsOut = addMonths(now, 2);
-  const oneYearAgo   = addMonths(now, -12);
 
-  // Only look at booked/confirmed events from roughly last year
-  const pastJobs = events.filter(e =>
-    (e.status === 'booked' || e.status === 'confirmed') &&
-    parseISO(e.start_date) >= oneYearAgo &&
-    parseISO(e.start_date) < now
-  );
-
-  const ghosts = [];
-
-  pastJobs.forEach(e => {
-    // Find the Monday of the same ISO week, one year forward
-    const origStart  = parseISO(e.start_date);
-    const origEnd    = parseISO(e.end_date);
-    const duration   = differenceInCalendarDays(origEnd, origStart);
-    const origWeek   = getISOWeek(origStart);
-    const origYear   = origStart.getFullYear();
-    const targetYear = origYear + 1;
-
-    // Find first Monday of target year's same ISO week
-    // ISO week 1 of a year = week containing first Thursday
-    // Simple approach: add 364 days (52 weeks) and find the Monday
-    let targetStart = addDays(origStart, 364); // exactly 52 weeks
-    // Adjust to Monday of that week
-    while (!isMonday(targetStart)) targetStart = addDays(targetStart, 1);
-    const targetEnd = addDays(targetStart, duration);
-
-    // Only generate if within the next 2 months
-    if (targetStart > twoMonthsOut) return;
-    if (targetStart < now) return;
-
-    // Check no real event already exists within 3 weeks for same title
-    const conflict = events.some(ev =>
-      ev.title === e.title &&
-      Math.abs(differenceInCalendarDays(parseISO(ev.start_date), targetStart)) < 21
-    );
-    if (conflict) return;
-
-    // Copy tech assignments from original, shifted by the date delta
-    const delta = differenceInCalendarDays(targetStart, origStart);
-    const origAssignments = assignments.filter(a => String(a.event_id) === String(e.id));
-    const ghostAssignments = origAssignments.map(a => ({
-      tech_name: a.tech_name,
-      date: format(addDays(parseISO(a.date), delta), 'yyyy-MM-dd'),
-      event_id: `ghost-${e.id}`,
-    }));
-
-    ghosts.push({
-      id:          `ghost-${e.id}`,
-      title:       e.title,
-      event_type:  e.event_type,
-      status:      'tentative',
-      customer:    e.customer,
-      start_date:  format(targetStart, 'yyyy-MM-dd'),
-      end_date:    format(targetEnd,   'yyyy-MM-dd'),
-      ticket_id:   null,
-      notes:       `Auto-generated from ${format(origStart, 'MMM yyyy')} job`,
-      isGhost:     true,
-      sourceEvent: e,
-      ghostAssignments,
-    });
-  });
-
-  return ghosts;
-}
 
 export default function App() {
   const [tab,           setTab]           = useState('grid');
@@ -155,10 +85,24 @@ export default function App() {
       .catch(console.error);
   }, []);
 
+  const [jobInfoMap, setJobInfoMap] = useState({});
+
+  // Load all job info on mount
+  useEffect(() => {
+    fetch(`${CONFIG.WORKER_URL}/jobinfo/all`, { headers: { 'X-Api-Key': CONFIG.API_KEY } })
+      .then(r => r.json())
+      .then(rows => {
+        const m = {};
+        rows.forEach(ji => { if (ji.job_name) m[ji.job_name] = ji; });
+        setJobInfoMap(m);
+      })
+      .catch(console.error);
+  }, []);
+
   // Generate ghost events and merge with real events
   const ghostEvents = useMemo(
-    () => generateGhostEvents(events, assignments),
-    [events, assignments]
+    () => generateGhostEvents(events, assignments, jobInfoMap),
+    [events, assignments, jobInfoMap]
   );
   const ghostAssignments = useMemo(
     () => ghostEvents.flatMap(g => g.ghostAssignments || []),
@@ -238,6 +182,102 @@ export default function App() {
   } else {
     setLockedEvent(event);
   }
+}
+
+function generateGhostEvents(events, assignments, jobInfoMap) {
+  const now          = new Date();
+  const currentYear  = now.getFullYear();
+  const fourMonthsOut = addMonths(now, 4); // wider window
+
+  const ghosts = [];
+
+  // Look at all booked/confirmed events, not just from last year
+  const pastJobs = events.filter(e =>
+    (e.status === 'booked' || e.status === 'confirmed') &&
+    parseISO(e.start_date) < now
+  );
+
+  pastJobs.forEach(e => {
+    // Get last_calibrated from job_info if available, fallback to event start_date
+    const ji = jobInfoMap?.[e.title];
+    const lastCalStr = ji?.last_calibrated || e.start_date;
+
+    //console.log(e.title, ji?.last_calibrated);
+
+    let lastCal;
+    try { lastCal = parseISO(lastCalStr); }
+    catch { return; }
+
+    // Find the first Monday on or before lastCal's month/day in current year
+    // Step 1: same month and day in current year
+    const sameDay = new Date(currentYear, lastCal.getMonth(), lastCal.getDate());
+
+    // Step 2: walk back to the nearest Monday
+    let targetStart = new Date(sameDay);
+    while (targetStart.getDay() !== 1) {
+      targetStart = addDays(targetStart, -1);
+    }
+
+    // Step 3: if that date is in the past, try next year
+    if (targetStart < now) {
+      const sameDayNextYear = new Date(currentYear + 1, lastCal.getMonth(), lastCal.getDate());
+      targetStart = new Date(sameDayNextYear);
+      while (targetStart.getDay() !== 1) {
+        targetStart = addDays(targetStart, -1);
+      }
+    }
+
+            //console.log(`Generating ghost event for ${e.title} on ${format(targetStart, 'yyyy-MM-dd')}, based on last calibration ${format(lastCal, 'yyyy-MM-dd')}`);
+
+
+    // Only show if within 4 months from now
+    //if (targetStart > fourMonthsOut) return;
+
+
+
+    // Duration from original event
+    const origStart = parseISO(e.start_date);
+    const origEnd   = parseISO(e.end_date);
+    const duration  = Math.max(0, differenceInCalendarDays(origEnd, origStart));
+    const targetEnd = addDays(targetStart, duration);
+
+    // Check no real event already exists within 3 weeks for same title
+    const conflict = events.some(ev =>
+      ev.title === e.title &&
+      !ev.isGhost &&
+      Math.abs(differenceInCalendarDays(parseISO(ev.start_date), targetStart)) < 21
+    );
+    //if (conflict) return;
+
+
+    // Copy assignments shifted to new dates
+    const delta = differenceInCalendarDays(targetStart, origStart);
+    const origAssignments = assignments.filter(a => String(a.event_id) === String(e.id));
+    const ghostAssignments = origAssignments.map(a => ({
+      tech_name: a.tech_name,
+      date:      format(addDays(parseISO(a.date), delta), 'yyyy-MM-dd'),
+      event_id:  `ghost-${e.id}`,
+    }));
+
+
+    ghosts.push({
+      id:               `ghost-${e.id}`,
+      title:            e.title,
+      event_type:       e.event_type,
+      status:           'tentative',
+      customer:         e.customer,
+      start_date:       format(targetStart, 'yyyy-MM-dd'),
+      end_date:         format(targetEnd,   'yyyy-MM-dd'),
+      ticket_id:        null,
+      notes:            `Tentative — based on ${format(lastCal, 'MMM yyyy')} calibration`,
+      isGhost:          true,
+      sourceEvent:      e,
+      ghostAssignments,
+    });
+    console.log(`Generated ghost event for ${e.title} on ${format(targetStart, 'yyyy-MM-dd')}`);
+  });
+
+  return ghosts;
 }
 
   return (
