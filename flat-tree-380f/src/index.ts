@@ -37,7 +37,7 @@ export default {
 
     const authKey = request.headers.get('X-Api-Key');
     if (authKey !== env.API_KEY) {
-      return new Response('Unauthorized', { status: 401 });
+      return json({ error: 'Unauthorized' }, 401);
     }
 
     // GET /servers
@@ -275,7 +275,7 @@ export default {
       const { job_name } = body;
 
       if (!job_name) {
-        return new Response('Missing job name', { status: 400 });
+        return json({ error: 'Missing job name' }, 400);
       }
 
       await env.DB.prepare(`

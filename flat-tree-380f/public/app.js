@@ -369,8 +369,9 @@ async function loadData() {
       )),
       loadExceptions(),
       loadServerMeta(),
-      loadJobInfo(),
     ]);
+    // Job info needs server metadata in order to determine the customer.
+    await loadJobInfo();
     allSensors = sensorResults.flat();
 
     lastUpdated = Date.now();
@@ -513,9 +514,9 @@ function renderMetrics() {
     </div>`;
 
     if((left == 0) && (!hasCelebratedCompletion) && (cal > 0)) {
-      fireConfettiFromElement('#donut-card');
-      saveJobInfo();
       hasCelebratedCompletion = true;
+      fireConfettiFromElement('#donut-card');
+      saveJobInfo({ silent: true });
     }
 }
 
@@ -1313,13 +1314,23 @@ async function loadJobInfo() {
   
 }
 
-async function saveJobInfo() {
+async function saveJobInfo({ silent = false } = {}) {
   if (!currentCustomer) {
-    alert('No customer assigned to these servers. Set a customer in the Servers panel first.');
+    if (!silent) {
+      alert('No customer assigned to these servers. Set a customer in the Servers panel first.');
+    }
     return;
   }
-  const get     = id => document.getElementById(id)?.value?.trim() || null;
-  const getNum  = id => parseInt(document.getElementById(id)?.value) || null;
+  const get = (id, key) => {
+    const el = document.getElementById(id);
+    return el ? (el.value.trim() || null) : (jobInfo[key] ?? null);
+  };
+  const getNum = (id, key) => {
+    const el = document.getElementById(id);
+    if (!el) return jobInfo[key] ?? null;
+    const value = parseInt(el.value, 10);
+    return Number.isNaN(value) ? null : value;
+  };
   const active  = allSensors.filter(s => s.status?.toUpperCase() === 'ENABLED');
   const meters  = detectMeters();
   const hardware = detectHardware();
@@ -1327,43 +1338,45 @@ async function saveJobInfo() {
 
   const body = {
     customer:        currentCustomer,
-    job_name:        get('ji-job-name'),
+    job_name:        get('ji-job-name', 'job_name') || currentCustomer,
     servers:         servers.join(', '),
     sensors:         active.length || null,
     meters:          meters.join(', '),
     o2:              detectO2Count() || null,
     server_version:  versions.join(', ') || null,
     hardware:        hardware !== '—' ? hardware : null,
-    num_tech:        getNum('ji-num-tech'),
+    num_tech:        getNum('ji-num-tech', 'num_tech'),
     active:          1,
-    status:          get('ji-status'),
-    estimated_days:  getNum('ji-estimated-days'),
-    scheduled_date:  get('ji-scheduled-date'),
-    scheduled_with:  get('ji-scheduled-with'),
-    site_address:    get('ji-site-address'),
-    offsites:        get('ji-offsites'),
-    main_contact:    get('ji-main-contact'),
-    other_contacts:  get('ji-other-contacts'),
-    contact_notes:   get('ji-contact-notes'),
-    vpn_works:       get('ji-vpn'),
-    airport_info:    get('ji-airport'),
-    emerald_aisle:   get('ji-emerald'),
-    prev_hotel:      get('ji-hotel'),
-    hotel_comments:  get('ji-hotel-comments'),
-    restaurants:     get('ji-restaurants'),
-    report:          get('ji-report'),
-    credentials:     get('ji-credentials'),
-    comments:        get('ji-comments'),
-    other_notes:     get('ji-other'),
-    primary_tech:    get('ji-primary-tech'),
+    status:          get('ji-status', 'status'),
+    estimated_days:  getNum('ji-estimated-days', 'estimated_days'),
+    scheduled_date:  get('ji-scheduled-date', 'scheduled_date'),
+    scheduled_with:  get('ji-scheduled-with', 'scheduled_with'),
+    site_address:    get('ji-site-address', 'site_address'),
+    offsites:        get('ji-offsites', 'offsites'),
+    main_contact:    get('ji-main-contact', 'main_contact'),
+    other_contacts:  get('ji-other-contacts', 'other_contacts'),
+    contact_notes:   get('ji-contact-notes', 'contact_notes'),
+    vpn_works:       get('ji-vpn', 'vpn_works'),
+    airport_info:    get('ji-airport', 'airport_info'),
+    emerald_aisle:   get('ji-emerald', 'emerald_aisle'),
+    prev_hotel:      get('ji-hotel', 'prev_hotel'),
+    hotel_comments:  get('ji-hotel-comments', 'hotel_comments'),
+    restaurants:     get('ji-restaurants', 'restaurants'),
+    report:          get('ji-report', 'report'),
+    credentials:     get('ji-credentials', 'credentials'),
+    comments:        get('ji-comments', 'comments'),
+    other_notes:     get('ji-other', 'other_notes'),
+    primary_tech:    get('ji-primary-tech', 'primary_tech'),
   };
 
   try {
-    await fetch(`${CONFIG.WORKER_URL}/jobinfo`, {
+    const res = await fetch(`${CONFIG.WORKER_URL}/jobinfo`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Api-Key': CONFIG.API_KEY },
       body: JSON.stringify(body),
     });
+    console.log('Saved job info');
+    if (!res.ok) throw new Error(await res.text());
     const el = document.getElementById('ji-save-status');
     if (el) {
       el.textContent = `Saved ${new Date().toLocaleTimeString()}`;
