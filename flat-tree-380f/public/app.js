@@ -4,7 +4,8 @@ let thresholds = JSON.parse(localStorage.getItem('cal_thresholds') || 'null')
                  || { ...CONFIG.DEFAULT_THRESHOLDS };
 let typeColors = JSON.parse(localStorage.getItem('cal_type_colors') || 'null')
                  || { ...CONFIG.DEFAULT_TYPE_COLORS };
-
+loadServerMeta(); // Load server metadata on startup
+                 
 let allSensors = [];
 let currentTab = 'left';
 let sortCol    = null;
@@ -894,6 +895,7 @@ async function loadServerMeta() {
     });
     const rows = await res.json();
     serverMeta = Object.fromEntries(rows.map(r => [r.server, r]));
+    console.log('Loaded server metadata', serverMeta);
   } catch (e) {
     console.error('Failed to load server metadata', e);
   }
