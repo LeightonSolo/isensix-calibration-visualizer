@@ -212,8 +212,8 @@ function renderServerTags() {
 }
 
 function addServer() {
-  const inp = document.getElementById('server-input');
-  const val = inp.value.trim().replace(/\D/g, '');
+  const inp = document.getElementById('server-input').value;
+  const val = inp.split('-')[0].trim(); // This handles both "150 - University..." AND someone just typing "150"
   if (!val || servers.includes(val)) { inp.value = ''; return; }
   servers.push(val);
   saveServers();
@@ -895,7 +895,23 @@ async function loadServerMeta() {
     });
     const rows = await res.json();
     serverMeta = Object.fromEntries(rows.map(r => [r.server, r]));
-    console.log('Loaded server metadata', serverMeta);
+
+    // --- NEW DATALIST LOGIC ---
+    const datalist = document.getElementById('server-suggestions');
+    if (datalist) {
+      datalist.innerHTML = ''; // Clear just in case it runs twice
+      
+      Object.values(serverMeta).forEach(s => {
+        // Fallback to notes if customer is null/empty
+        const displayName = s.customer || s.notes || 'Unknown Location';
+        
+        const option = document.createElement('option');
+        // Setting the value to "ID - Name" allows searching by both!
+        option.value = `${s.server} - ${displayName}`;
+        datalist.appendChild(option);
+      });
+    }
+    // --------------------------
   } catch (e) {
     console.error('Failed to load server metadata', e);
   }
@@ -1289,6 +1305,12 @@ async function loadJobInfo() {
     console.error('Failed to load job info', e);
     jobInfo = {};
   }
+
+  const el = document.getElementById('customer-display');
+  if (!el) return;
+  if (currentCustomer === null || currentCustomer === undefined || currentCustomer === '') return;
+  if (   el.textContent = currentCustomer || '—');
+  
 }
 
 async function saveJobInfo() {
@@ -1353,6 +1375,18 @@ async function saveJobInfo() {
   }
 }
 
+ // Helper: set input value only if element exists and value is non-null
+  const setVal = (id, val) => {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (val === null || val === undefined || val === '') return;
+  if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') {
+    el.value = val;
+  } else {
+    el.textContent = val;
+  }
+};
+
 function buildJobInfoTab() {
   const active   = allSensors.filter(s => s.status?.toUpperCase() === 'ENABLED');
   const meters   = detectMeters();
@@ -1368,17 +1402,7 @@ function buildJobInfoTab() {
     warnEl.style.display = warning ? 'block' : 'none';
   }
 
-  // Helper: set input value only if element exists and value is non-null
-  const setVal = (id, val) => {
-  const el = document.getElementById(id);
-  if (!el) return;
-  if (val === null || val === undefined || val === '') return;
-  if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') {
-    el.value = val;
-  } else {
-    el.textContent = val;
-  }
-};
+ 
 
   // Auto-detected fields — always overwrite with fresh values
   setVal('ji-servers',        servers.join(', ') || '—');
@@ -1619,8 +1643,18 @@ document.addEventListener('DOMContentLoaded', setupImageLightboxes);
 
 
 /* ─── Init ──────────────────────────────────────────────── */
-document.getElementById('server-input')
-  .addEventListener('keydown', e => { if (e.key === 'Enter') addServer(); });
+const serverInput = document.getElementById('server-input');
+
+serverInput.addEventListener('keydown', e => { if (e.key === 'Enter') addServer(); });
+
+// Listen for clicks on the datalist suggestions
+serverInput.addEventListener('input', function() {
+    // If the input contains " - ", it means they clicked a generated suggestion
+    if (this.value.includes(' - ')) {
+        addServer();
+        this.value = ''; 
+    }
+});
 
 document.querySelectorAll('.tab-btn').forEach(btn =>
   btn.addEventListener('click', () => switchTab(btn.dataset.tab)));
