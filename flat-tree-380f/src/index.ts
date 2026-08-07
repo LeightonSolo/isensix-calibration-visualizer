@@ -278,6 +278,34 @@ export default {
         return json({ error: 'Missing job name' }, 400);
       }
 
+      const hasScheduledStart = Object.prototype.hasOwnProperty.call(body, 'scheduled_start_date');
+      const hasScheduledEnd = Object.prototype.hasOwnProperty.call(body, 'scheduled_end_date');
+      const scheduledStartDate = body.scheduled_start_date ?? null;
+      const scheduledEndDate = body.scheduled_end_date ?? null;
+
+      const isIsoDate = (value: unknown): value is string => {
+        if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+        const parsed = new Date(`${value}T00:00:00Z`);
+        return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+      };
+
+      if (hasScheduledStart !== hasScheduledEnd) {
+        return json({ error: 'Scheduled start and end dates must be provided together' }, 400);
+      }
+      if (hasScheduledStart && hasScheduledEnd) {
+        const hasStartValue = scheduledStartDate !== null && scheduledStartDate !== '';
+        const hasEndValue = scheduledEndDate !== null && scheduledEndDate !== '';
+        if (hasStartValue !== hasEndValue) {
+          return json({ error: 'Scheduled start and end dates must both be set or both be empty' }, 400);
+        }
+        if (hasStartValue && (!isIsoDate(scheduledStartDate) || !isIsoDate(scheduledEndDate))) {
+          return json({ error: 'Scheduled dates must use YYYY-MM-DD format' }, 400);
+        }
+        if (hasStartValue && scheduledStartDate > scheduledEndDate) {
+          return json({ error: 'Scheduled end date cannot be before the start date' }, 400);
+        }
+      }
+
       await env.DB.prepare(`
         INSERT INTO job_info (
           customer,
@@ -290,6 +318,11 @@ export default {
           hardware,
           report,
           num_tech,
+          status,
+          estimated_days,
+          scheduled_start_date,
+          scheduled_end_date,
+          scheduled_with,
           site_address,
           offsites,
           comments,
@@ -305,12 +338,10 @@ export default {
           primary_tech,
           restaurants,
           other_notes,
-          active,
-          scheduled_date,
-          scheduled_with
+          active
         )
         VALUES (
-          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(job_name) DO UPDATE SET
           customer         = excluded.customer,
           job_name         = excluded.job_name,
@@ -322,6 +353,17 @@ export default {
           hardware         = excluded.hardware,
           report           = excluded.report,
           num_tech         = excluded.num_tech,
+          status           = excluded.status,
+          estimated_days   = excluded.estimated_days,
+          scheduled_start_date = CASE
+            WHEN ? THEN excluded.scheduled_start_date
+            ELSE job_info.scheduled_start_date
+          END,
+          scheduled_end_date = CASE
+            WHEN ? THEN excluded.scheduled_end_date
+            ELSE job_info.scheduled_end_date
+          END,
+          scheduled_with   = excluded.scheduled_with,
           site_address     = excluded.site_address,
           offsites         = excluded.offsites,
           comments         = excluded.comments,
@@ -338,8 +380,6 @@ export default {
           restaurants      = excluded.restaurants,
           other_notes      = excluded.other_notes,
           active           = excluded.active,
-          scheduled_date   = excluded.scheduled_date,
-          scheduled_with   = excluded.scheduled_with,
           updated_at       = datetime('now')
       `).bind(
         body.customer ?? null,
@@ -352,6 +392,11 @@ export default {
         body.hardware ?? null,
         body.report ?? null,
         body.num_tech ?? null,
+        body.status ?? 'Unscheduled',
+        body.estimated_days ?? null,
+        scheduledStartDate || null,
+        scheduledEndDate || null,
+        body.scheduled_with ?? null,
         body.site_address ?? null,
         body.offsites ?? null,
         body.comments ?? null,
@@ -368,8 +413,8 @@ export default {
         body.restaurants ?? null,
         body.other_notes ?? null,
         body.active ?? 1,
-        body.scheduled_date ?? null,
-        body.scheduled_with ?? null
+        hasScheduledStart ? 1 : 0,
+        hasScheduledEnd ? 1 : 0
       ).run();
 
       return json({ ok: true });

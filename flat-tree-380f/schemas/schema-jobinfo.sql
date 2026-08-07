@@ -26,7 +26,8 @@ CREATE TABLE IF NOT EXISTS job_info (
   restaurants   TEXT,
   other_notes   TEXT,
   active        INTEGER DEFAULT 1,
-  scheduled_date  DATE,
+  scheduled_start_date TEXT,
+  scheduled_end_date TEXT,
   scheduled_with  TEXT,
   updated_at    TEXT DEFAULT (datetime('now'))
 );

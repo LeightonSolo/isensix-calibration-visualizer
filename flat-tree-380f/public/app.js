@@ -1335,6 +1335,17 @@ async function saveJobInfo({ silent = false } = {}) {
   const meters  = detectMeters();
   const hardware = detectHardware();
   const versions = [...new Set(servers.map(s => serverMeta[s]?.version).filter(Boolean))];
+  const scheduledStartDate = get('ji-scheduled-start-date', 'scheduled_start_date');
+  const scheduledEndDate = get('ji-scheduled-end-date', 'scheduled_end_date');
+
+  if (Boolean(scheduledStartDate) !== Boolean(scheduledEndDate)) {
+    if (!silent) alert('Enter both a scheduled start date and end date, or leave both empty.');
+    return;
+  }
+  if (scheduledStartDate && scheduledEndDate && scheduledStartDate > scheduledEndDate) {
+    if (!silent) alert('The scheduled end date cannot be before the start date.');
+    return;
+  }
 
   const body = {
     customer:        currentCustomer,
@@ -1349,7 +1360,8 @@ async function saveJobInfo({ silent = false } = {}) {
     active:          1,
     status:          get('ji-status', 'status'),
     estimated_days:  getNum('ji-estimated-days', 'estimated_days'),
-    scheduled_date:  get('ji-scheduled-date', 'scheduled_date'),
+    scheduled_start_date: scheduledStartDate,
+    scheduled_end_date:   scheduledEndDate,
     scheduled_with:  get('ji-scheduled-with', 'scheduled_with'),
     site_address:    get('ji-site-address', 'site_address'),
     offsites:        get('ji-offsites', 'offsites'),
@@ -1437,8 +1449,21 @@ function buildJobInfoTab() {
   setVal('ji-num-tech',       jobInfo.num_tech);
   setVal('ji-status',         jobInfo.status);
   setVal('ji-estimated-days', jobInfo.estimated_days);
-  setVal('ji-scheduled-date', jobInfo.scheduled_date);
+  setVal('ji-scheduled-start-date', jobInfo.scheduled_start_date);
+  setVal('ji-scheduled-end-date',   jobInfo.scheduled_end_date);
   setVal('ji-scheduled-with', jobInfo.scheduled_with);
+
+  const scheduledStartEl = document.getElementById('ji-scheduled-start-date');
+  const scheduledEndEl = document.getElementById('ji-scheduled-end-date');
+  if (scheduledStartEl && scheduledEndEl) {
+    scheduledEndEl.min = scheduledStartEl.value;
+    scheduledStartEl.onchange = () => {
+      scheduledEndEl.min = scheduledStartEl.value;
+      if (scheduledEndEl.value && scheduledEndEl.value < scheduledStartEl.value) {
+        scheduledEndEl.value = scheduledStartEl.value;
+      }
+    };
+  }
   setVal('ji-site-address',   jobInfo.site_address);
   setVal('ji-offsites',       jobInfo.offsites);
   setVal('ji-main-contact',   jobInfo.main_contact);
@@ -1523,8 +1548,15 @@ function buildJobInfoHTML() {
         ${section('Scheduling')}
         ${row('# Technicians',   num('ji-num-tech'))}
         ${row('Estimated days',  num('ji-estimated-days'))}
-        <!-- ${row('Scheduled date',  `<input type="date" id="ji-scheduled-date" style="width:180px;"/>`)} -->
-        ${row('Scheduled with',  inp('ji-scheduled-with', 'Contact name'))}
+        ${row('Scheduled dates', `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <label style="font-size:10px;color:var(--text-muted);">Start
+            <input type="date" id="ji-scheduled-start-date" style="display:block;width:160px;margin-top:2px;"/>
+          </label>
+          <label style="font-size:10px;color:var(--text-muted);">End
+            <input type="date" id="ji-scheduled-end-date" style="display:block;width:160px;margin-top:2px;"/>
+          </label>
+        </div>`)}
+        ${row('Scheduled with',  inp('ji-scheduled-with', 'Comma-separated technician names'))}
 
         ${section('Equipment — auto-detected from sensor data')}
         ${roRow('Servers',       'ji-servers')}

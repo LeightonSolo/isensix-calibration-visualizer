@@ -19,7 +19,8 @@ CREATE TABLE job_info (
   active           INTEGER DEFAULT 1,
   status           TEXT DEFAULT 'Unscheduled',
   estimated_days   INTEGER,
-  scheduled_date   DATE,
+  scheduled_start_date TEXT,
+  scheduled_end_date TEXT,
   scheduled_with   TEXT,
 
   -- Location
