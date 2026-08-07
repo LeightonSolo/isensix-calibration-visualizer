@@ -26,6 +26,7 @@ const S = {
 
 export default function JobList({
   events, assignments, techEvents,
+  jobInfoMap, serverMeta,
   editorToken, requireEditor,
   onSaveEvent, onDeleteEvent,
   onSaveTechEvent, onSaveTechEventBatch, onDeleteTechEvent,
@@ -144,6 +145,8 @@ export default function JobList({
       {modal && (
         <JobModal
           event={modal.event}
+          jobInfoMap={jobInfoMap}
+          serverMeta={serverMeta}
           onSave={(data) => requireEditor(token => onSaveEvent(data, token))}
           onDelete={(id) => requireEditor(token => onDeleteEvent(id, token))}
           onClose={() => setModal(null)}

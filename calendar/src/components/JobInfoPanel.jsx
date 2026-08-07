@@ -29,6 +29,16 @@ function Divider() {
   return <div style={{ borderTop: '0.5px solid #1a1a28', margin: '10px 0' }}/>;
 }
 
+function formatDateRange(startDate, endDate) {
+  if (!startDate) return null;
+  try {
+    if (!endDate || startDate === endDate) return format(parseISO(startDate), 'MMM d, yyyy');
+    return `${format(parseISO(startDate), 'MMM d')} – ${format(parseISO(endDate), 'MMM d, yyyy')}`;
+  } catch {
+    return endDate && endDate !== startDate ? `${startDate} – ${endDate}` : startDate;
+  }
+}
+
 function serverLink(sid, serverMeta) {
   // Use stored hostname if available, fallback to ics1.ca.isensix.com
   const meta = serverMeta?.[sid];
@@ -51,15 +61,30 @@ function linkifyText(text) {
   );
 }
 
-export default function JobInfoPanel({ selectedEvent, assignments, locked, serverMeta }) {
-  const [jobInfo,  setJobInfo]  = useState(null);
+export default function JobInfoPanel({
+  selectedEvent,
+  assignments,
+  locked,
+  serverMeta,
+  jobInfoOverride,
+  embedded = false,
+  heading,
+  emptyMessage,
+}) {
+  const [fetchedJobInfo, setFetchedJobInfo] = useState(null);
   const [loading,  setLoading]  = useState(false);
   const [tab,      setTab]      = useState('summary');
   const [lastTitle, setLastTitle] = useState(null);
   const abortRef = useRef(null);
+  const hasJobInfoOverride = jobInfoOverride !== undefined;
+  const jobInfo = hasJobInfoOverride ? jobInfoOverride : fetchedJobInfo;
 
   useEffect(() => {
-    if (!selectedEvent) { setJobInfo(null); setLastTitle(null); return; }
+    if (hasJobInfoOverride) {
+      setLoading(false);
+      return;
+    }
+    if (!selectedEvent) { setFetchedJobInfo(null); setLastTitle(null); return; }
     const title = selectedEvent.title;
     if (title === lastTitle) return;
 
@@ -76,11 +101,11 @@ export default function JobInfoPanel({ selectedEvent, assignments, locked, serve
       signal: controller.signal,
     })
       .then(r => r.json())
-      .then(data => { setJobInfo(Object.keys(data).length ? data : null); setLoading(false); })
-      .catch(e => { if (e.name !== 'AbortError') { setJobInfo(null); setLoading(false); } });
+      .then(data => { setFetchedJobInfo(Object.keys(data).length ? data : null); setLoading(false); })
+      .catch(e => { if (e.name !== 'AbortError') { setFetchedJobInfo(null); setLoading(false); } });
 
     return () => controller.abort();
-  }, [selectedEvent?.title]);
+  }, [selectedEvent?.title, hasJobInfoOverride]);
 
   // Tech assignments for this event
   const eventTechs = selectedEvent
@@ -107,11 +132,12 @@ export default function JobInfoPanel({ selectedEvent, assignments, locked, serve
 
   return (
     <div style={{
-      width: 320, flexShrink: 0,
+      width: embedded ? 340 : 320, flexShrink: 0,
       background: '#12121a',
       borderLeft: '0.5px solid #2a2a35',
       display: 'flex', flexDirection: 'column',
-      height: '100%', overflow: 'hidden',
+      height: embedded ? 'auto' : '100%', overflow: 'hidden',
+      minHeight: 0,
     }}>
       {/* Header */}
       <div style={{
@@ -122,11 +148,11 @@ export default function JobInfoPanel({ selectedEvent, assignments, locked, serve
       }}>
         <div style={{ fontSize: 14, fontWeight: 600, color: '#6d6d7e',
           textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
-          {locked ? '📌 Job info' : '👁 Job info'}
+          {heading || (locked ? '📌 Job info' : '👁 Job info')}
         </div>
         {!selectedEvent ? (
           <div style={{ fontSize: 13, color: '#333344' }}>
-            Hover or click a job to see details
+            {emptyMessage || 'Hover or click a job to see details'}
           </div>
         ) : (
           <>
@@ -173,8 +199,10 @@ export default function JobInfoPanel({ selectedEvent, assignments, locked, serve
         {!selectedEvent && (
           <div style={{ marginTop: 20, fontSize: 11, color: '#434353',
             textAlign: 'center', lineHeight: 1.8 }}>
-            Click the top right of a job to lock the panel.<br/>
-            Hover to preview.
+            {emptyMessage ? emptyMessage : <>
+              Click the top right of a job to lock the panel.<br/>
+              Hover to preview.
+            </>}
           </div>
         )}
 
@@ -188,11 +216,12 @@ export default function JobInfoPanel({ selectedEvent, assignments, locked, serve
             jobInfo={jobInfo}
             techs={eventTechs}
             assignments={assignments}
+            serverMeta={serverMeta}
           />
         )}
 
         {selectedEvent && !loading && tab === 'details' && (
-          <DetailsTab jobInfo={jobInfo} event={selectedEvent} />
+          <DetailsTab jobInfo={jobInfo} event={selectedEvent} serverMeta={serverMeta} />
         )}
       </div>
     </div>
@@ -240,6 +269,20 @@ function SummaryTab({ event, jobInfo, techs, assignments, serverMeta }) {
       {jobInfo && (
         <>
           <Divider/>
+
+          {jobInfo.scheduled_start_date && (
+            <>
+              <Label>Job Info schedule</Label>
+              <Value>{formatDateRange(jobInfo.scheduled_start_date, jobInfo.scheduled_end_date)}</Value>
+            </>
+          )}
+
+          {jobInfo.scheduled_with && (
+            <>
+              <Label>Scheduled with</Label>
+              <Value>{jobInfo.scheduled_with}</Value>
+            </>
+          )}
 
           {jobInfo.servers && (
             <>
@@ -388,7 +431,7 @@ function DetailsTab({ jobInfo, event, serverMeta }) {
       {row('Status',          jobInfo.status)}
       {row('Primary tech',    jobInfo.primary_tech)}
       {row('Scheduled with',  jobInfo.scheduled_with)}
-      {row('Scheduled date',  jobInfo.scheduled_date)}
+      {row('Scheduled dates', formatDateRange(jobInfo.scheduled_start_date, jobInfo.scheduled_end_date))}
       {row('Est. days',       jobInfo.estimated_days)}
 
       <Divider/>

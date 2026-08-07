@@ -339,6 +339,8 @@ function generateGhostEvents(events, assignments, jobInfoMap) {
               events={allEvents}
               assignments={allAssignments}
               techEvents={techEvents}
+              jobInfoMap={jobInfoMap}
+              serverMeta={serverMeta}
               editorToken={editorToken}
               requireEditor={requireEditor}
               onSaveEvent={handleSaveEvent}
@@ -357,6 +359,8 @@ function generateGhostEvents(events, assignments, jobInfoMap) {
               events={allEvents}
               assignments={allAssignments}
               techEvents={techEvents}
+              jobInfoMap={jobInfoMap}
+              serverMeta={serverMeta}
               editorToken={editorToken}
               requireEditor={requireEditor}
               onSaveEvent={handleSaveEvent}

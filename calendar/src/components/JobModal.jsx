@@ -1,6 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { format, eachDayOfInterval, parseISO } from 'date-fns';
 import { CONFIG } from '../config';
+import {
+  findJobInfoMatch,
+  filterJobInfoNames,
+  getJobInfoNames,
+  shouldUpdateAutofilledCustomer,
+} from '../utils/jobInfoMatch';
+import JobInfoPanel from './JobInfoPanel';
 
 const S = {
   overlay: {
@@ -13,10 +20,17 @@ const S = {
     background: '#16161a',
     border: '0.5px solid #2a2a35',
     borderRadius: 10,
+    width: 'min(980px, 96vw)',
+    height: 'min(860px, 94vh)',
+    maxHeight: '94vh',
+    overflow: 'hidden',
+    display: 'flex',
+  },
+  formPane: {
+    flex: 1,
+    minWidth: 0,
+    minHeight: 0,
     padding: 24,
-    width: 560,
-    maxWidth: '95vw',
-    maxHeight: '90vh',
     overflowY: 'auto',
     display: 'flex',
     flexDirection: 'column',
@@ -30,6 +44,26 @@ const S = {
     borderRadius: 4, color: '#e8e8f0',
     fontFamily: 'Inter, system-ui, sans-serif',
     fontSize: 12, padding: '6px 10px', outline: 'none', width: '100%',
+    boxSizing: 'border-box',
+  },
+  jobPicker: { position: 'relative' },
+  jobPickerArrow: {
+    position: 'absolute', top: 0, right: 0, bottom: 0, width: 32,
+    background: '#24242b', border: 0, borderLeft: '0.5px solid #343440',
+    borderRadius: '0 4px 4px 0', color: '#888899', cursor: 'pointer',
+    fontSize: 11,
+  },
+  jobOptions: {
+    position: 'absolute', left: 0, right: 0, top: 'calc(100% + 4px)',
+    maxHeight: 230, overflowY: 'auto', zIndex: 20,
+    background: '#1a1a20', border: '0.5px solid #3a3a46', borderRadius: 5,
+    boxShadow: '0 8px 24px rgba(0,0,0,0.55)', padding: 4,
+  },
+  jobOption: {
+    display: 'block', width: '100%', padding: '7px 9px', textAlign: 'left',
+    background: 'transparent', border: 0, borderRadius: 3,
+    color: '#d8d8e2', fontFamily: 'Inter, system-ui, sans-serif',
+    fontSize: 12, cursor: 'pointer',
   },
   row: { display: 'flex', gap: 12 },
   col: { flex: 1, display: 'flex', flexDirection: 'column' },
@@ -70,7 +104,10 @@ const S = {
   divider: { borderTop: '0.5px solid #2a2a35', margin: '4px 0' },
 };
 
-export default function JobModal({ event, initialDate, onSave, onDelete, onClose }) {
+export default function JobModal({
+  event, initialDate, onSave, onDelete, onClose,
+  jobInfoMap = {}, serverMeta = {},
+}) {
   const isNew = !event?.id;
 
   const [title,      setTitle]      = useState(event?.title      || '');
@@ -85,6 +122,9 @@ export default function JobModal({ event, initialDate, onSave, onDelete, onClose
   );
   const [ticketId,   setTicketId]   = useState(event?.ticket_id  || '');
   const [notes,      setNotes]      = useState(event?.notes      || '');
+  const autofilledCustomerRef = useRef(null);
+  const jobPickerRef = useRef(null);
+  const [jobOptionsMode, setJobOptionsMode] = useState(null);
 
   // Tech assignments: { techName: Set of date strings }
   const [techDates, setTechDates] = useState(() => {
@@ -98,6 +138,17 @@ export default function JobModal({ event, initialDate, onSave, onDelete, onClose
   });
 
   const [saving, setSaving] = useState(false);
+  const jobNames = getJobInfoNames(jobInfoMap);
+  const visibleJobNames = filterJobInfoNames(jobNames, title, jobOptionsMode === 'all');
+  const matchedJobInfo = findJobInfoMatch(jobInfoMap, title);
+
+  useEffect(() => {
+    function closeJobOptions(event) {
+      if (!jobPickerRef.current?.contains(event.target)) setJobOptionsMode(null);
+    }
+    document.addEventListener('mousedown', closeJobOptions);
+    return () => document.removeEventListener('mousedown', closeJobOptions);
+  }, []);
 
   // Days in the selected range
   const days = (() => {
@@ -169,18 +220,99 @@ export default function JobModal({ event, initialDate, onSave, onDelete, onClose
   }
 
   const statusColor = CONFIG.STATUS_COLORS[status] || CONFIG.STATUS_COLORS.ticketed;
+  const previewEventId = event?.id ?? '__job-modal-preview__';
+  const previewAssignments = Object.entries(techDates).flatMap(([tech, dates]) =>
+    [...dates].map(date => ({ event_id: previewEventId, tech_name: tech, date }))
+  );
+  const previewEvent = matchedJobInfo ? {
+    id: previewEventId,
+    title: matchedJobInfo.job_name,
+    event_type: eventType,
+    status,
+    customer: customer || matchedJobInfo.customer || null,
+    start_date: startDate,
+    end_date: endDate,
+    ticket_id: ticketId || null,
+    notes: notes || null,
+  } : null;
+
+  function handleTitleChange(value, forceCustomerUpdate = false) {
+    setTitle(value);
+    const match = findJobInfoMatch(jobInfoMap, value);
+    if (match?.customer && shouldUpdateAutofilledCustomer(
+      customer,
+      autofilledCustomerRef.current,
+      forceCustomerUpdate,
+    )) {
+      setCustomer(match.customer);
+      autofilledCustomerRef.current = match.customer;
+    }
+  }
+
+  function selectJobName(jobName) {
+    handleTitleChange(jobName, true);
+    setJobOptionsMode(null);
+  }
 
   return (
     <div style={S.overlay} onClick={e => e.target === e.currentTarget && onClose()}>
       <div style={S.modal}>
-        <div style={S.title}>{isNew ? 'New event' : 'Edit event'}</div>
+        <div style={S.formPane}>
+          <div style={S.title}>{isNew ? 'New event' : 'Edit event'}</div>
 
         {/* Title */}
         <div>
           <label style={S.label}>Job / Event name *</label>
-          <input style={S.input} value={title}
-            onChange={e => setTitle(e.target.value)}
-            placeholder="e.g. Memorial Jacksonville, PTO" autoFocus/>
+          <div ref={jobPickerRef} style={S.jobPicker}>
+            <input style={{ ...S.input, paddingRight: 40 }} value={title}
+              onChange={e => {
+                handleTitleChange(e.target.value);
+                setJobOptionsMode('filtered');
+              }}
+              onFocus={() => title && setJobOptionsMode('filtered')}
+              onKeyDown={e => {
+                if (e.key === 'Escape') setJobOptionsMode(null);
+                if (e.key === 'ArrowDown') setJobOptionsMode('filtered');
+              }}
+              role="combobox"
+              aria-autocomplete="list"
+              aria-expanded={Boolean(jobOptionsMode)}
+              aria-controls="job-info-name-options"
+              placeholder="e.g. Memorial Jacksonville, PTO" autoFocus/>
+            <button type="button" style={S.jobPickerArrow}
+              aria-label={jobOptionsMode === 'all' ? 'Close job list' : 'Show all jobs'}
+              onClick={() => setJobOptionsMode(mode => mode === 'all' ? null : 'all')}>
+              {jobOptionsMode === 'all' ? '▲' : '▼'}
+            </button>
+            {jobOptionsMode && (
+              <div id="job-info-name-options" role="listbox" style={S.jobOptions}>
+                {visibleJobNames.map(jobName => (
+                  <button key={jobName} type="button" role="option"
+                    aria-selected={jobName === matchedJobInfo?.job_name}
+                    style={{
+                      ...S.jobOption,
+                      background: jobName === matchedJobInfo?.job_name ? '#24243a' : 'transparent',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.background = '#292933'; }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.background =
+                        jobName === matchedJobInfo?.job_name ? '#24243a' : 'transparent';
+                    }}
+                    onClick={() => selectJobName(jobName)}>
+                    {jobName}
+                  </button>
+                ))}
+                {visibleJobNames.length === 0 && (
+                  <div style={{ padding: '8px 9px', color: '#666677', fontSize: 11 }}>
+                    No matching jobs — this can still be used as a custom event name.
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          <div style={{ fontSize: 10, color: '#555566', marginTop: 4 }}>
+            Choose a suggested job to preview Job Info, or enter any event name.
+          </div>
         </div>
 
         {/* Type + Status */}
@@ -214,7 +346,10 @@ export default function JobModal({ event, initialDate, onSave, onDelete, onClose
           <div style={S.col}>
             <label style={S.label}>Customer</label>
             <input style={S.input} value={customer}
-              onChange={e => setCustomer(e.target.value)}
+              onChange={e => {
+                setCustomer(e.target.value);
+                autofilledCustomerRef.current = null;
+              }}
               placeholder="Customer name"/>
           </div>
           <div style={S.col}>
@@ -349,6 +484,20 @@ export default function JobModal({ event, initialDate, onSave, onDelete, onClose
             {saving ? 'Saving…' : isNew ? 'Create event' : 'Save changes'}
           </button>
         </div>
+        </div>
+
+        <JobInfoPanel
+          selectedEvent={previewEvent}
+          assignments={previewAssignments}
+          locked={false}
+          serverMeta={serverMeta}
+          jobInfoOverride={matchedJobInfo}
+          embedded
+          heading="Scheduling info"
+          emptyMessage={title.trim()
+            ? 'No matching Job Info record. Choose a suggestion or continue with this custom event name.'
+            : 'Start typing a job name to preview scheduling details.'}
+        />
       </div>
     </div>
   );

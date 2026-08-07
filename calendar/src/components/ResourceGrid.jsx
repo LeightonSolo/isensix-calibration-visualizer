@@ -47,6 +47,7 @@ function buildSpans(events, assignments, dayStrs) {
 
 export default function ResourceGrid({
   viewDate, events, assignments, techEvents,
+  jobInfoMap, serverMeta,
   editorToken, requireEditor,
   onSaveEvent, onDeleteEvent,
   onSaveTechEvent, onSaveTechEventBatch, onDeleteTechEvent,
@@ -303,6 +304,8 @@ export default function ResourceGrid({
         <JobModal
           event={modal.event}
           initialDate={modal.initialDate}
+          jobInfoMap={jobInfoMap}
+          serverMeta={serverMeta}
           onSave={(data) => requireEditor(token => onSaveEvent(data, token))}
           onDelete={(id) => requireEditor(token => onDeleteEvent(id, token))}
           onClose={() => setModal(null)}
