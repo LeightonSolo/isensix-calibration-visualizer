@@ -5,6 +5,7 @@ import {
   differenceInCalendarDays, getISOWeek,
 } from 'date-fns';
 import { CONFIG } from '../config';
+import { layoutTechEvents } from '../utils/layoutTechEvents';
 import JobModal from './JobModal';
 import TechEventModal from './TechEventModal';
 
@@ -42,25 +43,6 @@ function buildSpans(events, assignments, dayStrs) {
     });
   });
   return spans;
-}
-
-function layoutTechEvents(spanList, dayStrs) {
-  if (!spanList?.length) return [];
-  const sorted = [...spanList].sort((a, b) => a.dates[0].localeCompare(b.dates[0]));
-  const lanes = [];
-  const result = sorted.map(s => {
-    const startI = dayStrs.indexOf(s.dates[0]);
-    const endI   = dayStrs.indexOf(s.dates[s.dates.length - 1]);
-    let lane = 0;
-    for (let l = 0; l < lanes.length; l++) {
-      if (lanes[l] < startI) { lane = l; break; }
-      lane = l + 1;
-    }
-    lanes[lane] = endI;
-    return { ...s, lane };
-  });
-  const totalLanes = lanes.length;
-  return result.map(r => ({ ...r, totalLanes }));
 }
 
 export default function ResourceGrid({

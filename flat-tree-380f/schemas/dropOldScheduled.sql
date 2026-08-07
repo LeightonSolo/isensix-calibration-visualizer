@@ -1,0 +1,1 @@
+ALTER TABLE job_info DROP COLUMN scheduled_date;
