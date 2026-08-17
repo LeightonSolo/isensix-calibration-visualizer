@@ -10,17 +10,17 @@ const S = {
     zIndex: 1000,
   },
   modal: {
-    background: '#16161a', border: '0.5px solid #2a2a35',
+    background: 'var(--cal-panel)', border: '0.5px solid var(--cal-border)',
     borderRadius: 10, padding: 24, width: 500, maxWidth: '95vw',
     maxHeight: '90vh', overflowY: 'auto',
     display: 'flex', flexDirection: 'column', gap: 14,
   },
-  title:  { fontSize: 15, fontWeight: 600, color: '#e8e8f0' },
-  label:  { fontSize: 11, color: '#888899', textTransform: 'uppercase',
+  title:  { fontSize: 15, fontWeight: 600, color: 'var(--cal-text)' },
+  label:  { fontSize: 11, color: 'var(--cal-text-secondary)', textTransform: 'uppercase',
             letterSpacing: '0.04em', marginBottom: 4, display: 'block' },
   input:  {
-    background: '#1e1e24', border: '0.5px solid #2a2a35',
-    borderRadius: 4, color: '#e8e8f0',
+    background: 'var(--cal-input)', border: '0.5px solid var(--cal-border)',
+    borderRadius: 4, color: 'var(--cal-text)',
     fontFamily: 'Inter, system-ui, sans-serif',
     fontSize: 12, padding: '6px 10px', outline: 'none', width: '100%',
   },
@@ -28,25 +28,25 @@ const S = {
   col:    { flex: 1, display: 'flex', flexDirection: 'column' },
   footer: { display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 },
   btn: {
-    background: '#1e1e24', border: '0.5px solid #2a2a35',
-    borderRadius: 4, color: '#e8e8f0',
+    background: 'var(--cal-input)', border: '0.5px solid var(--cal-border)',
+    borderRadius: 4, color: 'var(--cal-text)',
     fontFamily: 'Inter, system-ui, sans-serif',
     fontSize: 12, padding: '6px 14px', cursor: 'pointer',
   },
   btnPrimary: {
-    background: '#3a7bd5', border: '0.5px solid #3a7bd5',
+    background: 'var(--cal-accent)', border: '0.5px solid var(--cal-accent)',
     borderRadius: 4, color: '#fff',
     fontFamily: 'Inter, system-ui, sans-serif',
     fontSize: 12, padding: '6px 14px', cursor: 'pointer',
   },
   btnDanger: {
-    background: '#2e1010', border: '0.5px solid #6e2020',
-    borderRadius: 4, color: '#d46060',
+    background: 'var(--cal-danger-bg)', border: '0.5px solid var(--cal-danger-border)',
+    borderRadius: 4, color: 'var(--cal-danger-text)',
     fontFamily: 'Inter, system-ui, sans-serif',
     fontSize: 12, padding: '6px 14px', cursor: 'pointer',
     marginRight: 'auto',
   },
-  divider: { borderTop: '0.5px solid #2a2a35', margin: '4px 0' },
+  divider: { borderTop: '0.5px solid var(--cal-border)', margin: '4px 0' },
 };
 
 const TYPE_LABELS = {
@@ -161,7 +161,7 @@ export default function TechEventModal({
             background: typeColor.bg,
           }} value={eventType} onChange={e => setEventType(e.target.value)}>
             {CONFIG.TECH_EVENT_TYPES.map(t => (
-              <option key={t} value={t} style={{ background: '#1e1e24', color: '#e8e8f0' }}>
+              <option key={t} value={t} style={{ background: 'var(--cal-input)', color: 'var(--cal-text)' }}>
                 {TYPE_LABELS[t] || t}
               </option>
             ))}
@@ -190,7 +190,7 @@ export default function TechEventModal({
 
         {/* Days preview */}
         {!isEdit && days.length > 0 && (
-          <div style={{ fontSize: 11, color: '#888899' }}>
+          <div style={{ fontSize: 11, color: 'var(--cal-text-secondary)' }}>
             {days.length} weekday{days.length !== 1 ? 's' : ''}:&nbsp;
             {days.map(d => format(d, 'EEE M/d')).join(', ')}
           </div>
@@ -203,7 +203,7 @@ export default function TechEventModal({
             <label style={S.label}>Technician</label>
             <div style={{
               ...S.input,
-              color: '#e8e8f0',
+              color: 'var(--cal-text)',
               opacity: 0.7,
               cursor: 'default',
             }}>
@@ -216,7 +216,7 @@ export default function TechEventModal({
               <label style={{ ...S.label, marginBottom: 0 }}>Technicians</label>
               <button onClick={toggleAllTechs} style={{
                 background: 'none', border: 'none', cursor: 'pointer',
-                fontSize: 11, color: '#3a7bd5', padding: 0,
+                fontSize: 11, color: 'var(--cal-accent)', padding: 0,
                 fontFamily: 'Inter, system-ui, sans-serif',
               }}>
                 {allSelected ? 'Deselect all' : 'Select all'}
@@ -228,10 +228,10 @@ export default function TechEventModal({
                 const selected = selectedTechs.has(tech);
                 return (
                   <button key={tech} onClick={() => toggleTech(tech)} style={{
-                    background: selected ? (tc?.bg || '#1a2e14') : '#1e1e24',
-                    border: `0.5px solid ${selected ? (tc?.border || '#3a6e2a') : '#2a2a35'}`,
+                    background: selected ? (tc?.bg || 'var(--cal-success-bg)') : 'var(--cal-input)',
+                    border: `0.5px solid ${selected ? (tc?.border || 'var(--cal-success-border)') : 'var(--cal-border)'}`,
                     borderRadius: 4,
-                    color: selected ? (tc?.fg || '#7ec85a') : '#888899',
+                    color: selected ? (tc?.fg || 'var(--cal-success-text)') : 'var(--cal-text-secondary)',
                     fontSize: 12, padding: '5px 8px', cursor: 'pointer',
                     fontFamily: 'Inter, system-ui, sans-serif',
                     textAlign: 'center',

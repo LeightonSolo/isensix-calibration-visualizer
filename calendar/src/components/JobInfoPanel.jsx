@@ -8,7 +8,7 @@ const API_KEY    = CONFIG.API_KEY;
 function Label({ children }) {
   return (
     <div style={{
-      fontSize: 11, fontWeight: 600, color: '#555566',
+      fontSize: 11, fontWeight: 600, color: 'var(--cal-text-muted)',
       textTransform: 'uppercase', letterSpacing: '0.06em',
       marginBottom: 3, marginTop: 10,
     }}>{children}</div>
@@ -19,14 +19,14 @@ function Value({ children, muted }) {
   return (
     <div style={{
       fontSize: 12,
-      color: muted ? '#555566' : '#e8e8f0',
+      color: muted ? 'var(--cal-text-muted)' : 'var(--cal-text)',
       lineHeight: 1.5,
-    }}>{children || <span style={{ color: '#333344' }}>—</span>}</div>
+    }}>{children || <span style={{ color: 'var(--cal-text-faint)' }}>—</span>}</div>
   );
 }
 
 function Divider() {
-  return <div style={{ borderTop: '0.5px solid #1a1a28', margin: '10px 0' }}/>;
+  return <div style={{ borderTop: '0.5px solid var(--cal-surface-subtle)', margin: '10px 0' }}/>;
 }
 
 function formatDateRange(startDate, endDate) {
@@ -54,7 +54,7 @@ function linkifyText(text) {
   return parts.map((part, i) =>
     urlRegex.test(part) ? (
       <a key={i} href={part} target="_blank" rel="noreferrer"
-        style={{ color: '#3a7bd5', wordBreak: 'break-all' }}>
+        style={{ color: 'var(--cal-accent)', wordBreak: 'break-all' }}>
         {part}
       </a>
     ) : part
@@ -122,9 +122,9 @@ export default function JobInfoPanel({
 
   const tabBtn = (t, label) => (
     <button onClick={() => setTab(t)} style={{
-      background: tab === t ? '#1a1a28' : 'none',
-      border: `0.5px solid ${tab === t ? '#3a3a55' : '#2a2a35'}`,
-      borderRadius: 5, color: tab === t ? '#e8e8f0' : '#555566',
+      background: tab === t ? 'var(--cal-surface-subtle)' : 'none',
+      border: `0.5px solid ${tab === t ? 'var(--cal-border-active)' : 'var(--cal-border)'}`,
+      borderRadius: 5, color: tab === t ? 'var(--cal-text)' : 'var(--cal-text-muted)',
       fontFamily: 'Inter, system-ui, sans-serif',
       fontSize: 11, padding: '4px 10px', cursor: 'pointer',
     }}>{label}</button>
@@ -133,8 +133,8 @@ export default function JobInfoPanel({
   return (
     <div style={{
       width: embedded ? 340 : 320, flexShrink: 0,
-      background: '#12121a',
-      borderLeft: '0.5px solid #2a2a35',
+      background: 'var(--cal-sidebar)',
+      borderLeft: '0.5px solid var(--cal-border)',
       display: 'flex', flexDirection: 'column',
       height: embedded ? 'auto' : '100%', overflow: 'hidden',
       minHeight: 0,
@@ -142,27 +142,27 @@ export default function JobInfoPanel({
       {/* Header */}
       <div style={{
         padding: '10px 14px 8px',
-        borderBottom: '0.5px solid #2a2a35',
-        background: '#0e0e15',
+        borderBottom: '0.5px solid var(--cal-border)',
+        background: 'var(--cal-sidebar-header)',
         flexShrink: 0,
       }}>
-        <div style={{ fontSize: 14, fontWeight: 600, color: '#6d6d7e',
+        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--cal-text-heading-muted)',
           textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
           {heading || (locked ? '📌 Job info' : '👁 Job info')}
         </div>
         {!selectedEvent ? (
-          <div style={{ fontSize: 13, color: '#333344' }}>
+          <div style={{ fontSize: 13, color: 'var(--cal-text-faint)' }}>
             {emptyMessage || 'Hover or click a job to see details'}
           </div>
         ) : (
           <>
-            <div style={{ fontSize: 14, fontWeight: 600, color: '#e8e8f0',
+            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--cal-text)',
               lineHeight: 1.3, marginBottom: 4 }}>
               {selectedEvent.title}
             </div>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               {selectedEvent.ticket_id && (
-                <span style={{ fontSize: 12, color: '#888899',
+                <span style={{ fontSize: 12, color: 'var(--cal-text-secondary)',
                   fontFamily: 'JetBrains Mono, monospace' }}>
                   #{selectedEvent.ticket_id}
                 </span>
@@ -176,7 +176,7 @@ export default function JobInfoPanel({
                 </span>
               )}
               {selectedEvent.isGhost && (
-                <span style={{ fontSize: 10, color: '#c47a1a', fontStyle: 'italic' }}>
+                <span style={{ fontSize: 10, color: 'var(--cal-warning)', fontStyle: 'italic' }}>
                   tentative
                 </span>
               )}
@@ -188,7 +188,7 @@ export default function JobInfoPanel({
       {/* Tabs */}
       {selectedEvent && (
         <div style={{ display: 'flex', gap: 6, padding: '8px 14px',
-          borderBottom: '0.5px solid #1a1a28', flexShrink: 0 }}>
+          borderBottom: '0.5px solid var(--cal-surface-subtle)', flexShrink: 0 }}>
           {tabBtn('summary', 'Summary')}
           {tabBtn('details', 'Full details')}
         </div>
@@ -197,7 +197,7 @@ export default function JobInfoPanel({
       {/* Content */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '8px 14px 20px' }}>
         {!selectedEvent && (
-          <div style={{ marginTop: 20, fontSize: 11, color: '#434353',
+          <div style={{ marginTop: 20, fontSize: 11, color: 'var(--cal-text-quieter)',
             textAlign: 'center', lineHeight: 1.8 }}>
             {emptyMessage ? emptyMessage : <>
               Click the top right of a job to lock the panel.<br/>
@@ -207,7 +207,7 @@ export default function JobInfoPanel({
         )}
 
         {selectedEvent && loading && (
-          <div style={{ fontSize: 11, color: '#333344', marginTop: 16 }}>Loading…</div>
+          <div style={{ fontSize: 11, color: 'var(--cal-text-faint)', marginTop: 16 }}>Loading…</div>
         )}
 
         {selectedEvent && !loading && tab === 'summary' && (
@@ -254,9 +254,9 @@ function SummaryTab({ event, jobInfo, techs, assignments, serverMeta }) {
             return (
               <span key={t} style={{
                 padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 500,
-                background: tc?.bg || '#1a1a22',
-                color: tc?.fg || '#e8e8f0',
-                border: `0.5px solid ${tc?.border || '#2a2a35'}`,
+                background: tc?.bg || 'var(--cal-card)',
+                color: tc?.fg || 'var(--cal-text)',
+                border: `0.5px solid ${tc?.border || 'var(--cal-border)'}`,
               }}>{t}</span>
             );
           })}
@@ -291,9 +291,9 @@ function SummaryTab({ event, jobInfo, techs, assignments, serverMeta }) {
                 {jobInfo.servers.split(',').map(s => s.trim()).filter(Boolean).map(sid => (
                   <a key={sid} href={serverLink(sid, serverMeta)}
                     target="_blank" rel="noreferrer"
-                    style={{ color: '#3a7bd5', fontSize: 12, textDecoration: 'none',
+                    style={{ color: 'var(--cal-accent)', fontSize: 12, textDecoration: 'none',
                       padding: '1px 6px', borderRadius: 3,
-                      border: '0.5px solid #2a5a90', background: '#0e1a2e' }}>
+                      border: '0.5px solid var(--cal-info-border)', background: 'var(--cal-info-bg)' }}>
                     {sid}
                   </a>
                 ))}
@@ -341,7 +341,7 @@ function SummaryTab({ event, jobInfo, techs, assignments, serverMeta }) {
             <>
               <Label>Location</Label>
               <Value>{jobInfo.site_address}</Value>
-              {jobInfo.offsites && <div style={{ fontSize: 12, color: '#e8e8f0', lineHeight: 1.6 }}>
+              {jobInfo.offsites && <div style={{ fontSize: 12, color: 'var(--cal-text)', lineHeight: 1.6 }}>
                 {linkifyText(jobInfo.offsites)}
               </div>}
             </>
@@ -395,7 +395,7 @@ function SummaryTab({ event, jobInfo, techs, assignments, serverMeta }) {
       {!jobInfo && (
         <>
           <Divider/>
-          <div style={{ fontSize: 11, color: '#333344', fontStyle: 'italic' }}>
+          <div style={{ fontSize: 11, color: 'var(--cal-text-faint)', fontStyle: 'italic' }}>
             No job info found for "{event.title}"
           </div>
         </>
@@ -414,7 +414,7 @@ function SummaryTab({ event, jobInfo, techs, assignments, serverMeta }) {
 
 function DetailsTab({ jobInfo, event, serverMeta }) {
   if (!jobInfo) return (
-    <div style={{ fontSize: 11, color: '#333344', fontStyle: 'italic', marginTop: 16 }}>
+    <div style={{ fontSize: 11, color: 'var(--cal-text-faint)', fontStyle: 'italic', marginTop: 16 }}>
       No job info found for "{event.title}".<br/><br/>
       Add it from the Job Info tab on the dashboard.
     </div>
@@ -441,9 +441,9 @@ function DetailsTab({ jobInfo, event, serverMeta }) {
                 {jobInfo.servers.split(',').map(s => s.trim()).filter(Boolean).map(sid => (
                   <a key={sid} href={serverLink(sid, serverMeta)}
                     target="_blank" rel="noreferrer"
-                    style={{ color: '#3a7bd5', fontSize: 12, textDecoration: 'none',
+                    style={{ color: 'var(--cal-accent)', fontSize: 12, textDecoration: 'none',
                       padding: '1px 6px', borderRadius: 3,
-                      border: '0.5px solid #2a5a90', background: '#0e1a2e' }}>
+                      border: '0.5px solid var(--cal-info-border)', background: 'var(--cal-info-bg)' }}>
                     {sid}
                   </a>
                 ))}
@@ -458,7 +458,7 @@ function DetailsTab({ jobInfo, event, serverMeta }) {
 
       <Divider/>
       {row('Site address',    jobInfo.site_address)}
-      {row('Offsites',        <div style={{ fontSize: 12, color: '#e8e8f0', lineHeight: 1.6 }}>
+      {row('Offsites',        <div style={{ fontSize: 12, color: 'var(--cal-text)', lineHeight: 1.6 }}>
         {linkifyText(jobInfo.offsites)}
       </div>)}
 

@@ -4,6 +4,7 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Isensix Calibration Report</title>
+  <script src="theme.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
@@ -16,6 +17,7 @@
       --bg-header:    #111115;
       --bg-row-alt:   #1a1a1f;
       --bg-row-hover: #1f1f26;
+      --bg-input:     #1e1e24;
       --border:       #2a2a35;
       --border-light: #222230;
       --text:         #e8e8f0;
@@ -29,6 +31,28 @@
       --font:         'Inter', system-ui, sans-serif;
       --mono:         'JetBrains Mono', monospace;
       --radius:       6px;
+      --scroll-thumb: #2a2a38;
+    }
+
+    :root[data-theme="light"] {
+      --bg: #f4f5f7;
+      --bg-panel: #ffffff;
+      --bg-card: #ffffff;
+      --bg-header: #f1f3f5;
+      --bg-row-alt: #f7f8fa;
+      --bg-row-hover: #edf1f5;
+      --bg-input: #ffffff;
+      --border: #cfd4dc;
+      --border-light: #e2e5ea;
+      --text: #17191c;
+      --text-sec: #454b54;
+      --text-muted: #707782;
+      --green: #3f7c1c;
+      --red: #aa2525;
+      --orange: #985c0d;
+      --yellow: #7a6000;
+      --blue: #1459ad;
+      --scroll-thumb: #aeb5bf;
     }
 
     /* ─── Reset ─────────────────────────────────────────── */
@@ -57,7 +81,7 @@
     #status-msg { font-size: 11px; color: var(--text-muted); margin-left: auto; }
 
     button {
-      background: #1e1e24;
+      background: var(--bg-input);
       border: 0.5px solid var(--border);
       border-radius: 4px;
       color: var(--text);
@@ -66,7 +90,7 @@
       padding: 5px 12px;
       cursor: pointer;
     }
-    button:hover { background: #1f1f26; }
+    button:hover { background: var(--bg-row-hover); }
     button.primary { background: var(--blue); border-color: var(--blue); color: #fff; }
     button.primary:hover { background: #2f68c0; }
 
@@ -223,7 +247,9 @@
     @page { size: A4 landscape; margin: 12mm 10mm; }
 
     @media print {
-      :root {
+      :root,
+      :root[data-theme="dark"],
+      :root[data-theme="light"] {
         --bg: #fff;
         --bg-panel: #fff;
         --bg-card: #f5f5f5;
@@ -268,7 +294,7 @@
 
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: #2a2a38; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb { background: var(--scroll-thumb); border-radius: 3px; }
   </style>
 </head>
 <body>
@@ -277,6 +303,7 @@
 <div id="top-bar" class="noprint">
   <a href="index.html">← Dashboard</a>
   <a href="summary.html">Summary</a>
+  <button type="button" data-theme-toggle onclick="IsensixTheme.toggle()"></button>
   <span id="status-msg"></span>
   <button class="primary" onclick="window.print()">⬇ Download / Print PDF</button>
   <button onclick="loadData()">↻ Refresh</button>

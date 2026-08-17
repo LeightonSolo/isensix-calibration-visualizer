@@ -14,8 +14,8 @@ import JobInfoPanel from './components/JobInfoPanel';
 const STYLES = {
   app: {
     minHeight: '100vh',
-    background: '#0e0e10',
-    color: '#e8e8f0',
+    background: 'var(--cal-bg)',
+    color: 'var(--cal-text)',
     fontFamily: 'Inter, system-ui, sans-serif',
     fontSize: 13,
     display: 'flex',
@@ -24,27 +24,27 @@ const STYLES = {
   topbar: {
     display: 'flex', alignItems: 'center', gap: 10,
     padding: '10px 20px',
-    background: '#16161a',
-    borderBottom: '0.5px solid #2a2a35',
+    background: 'var(--cal-panel)',
+    borderBottom: '0.5px solid var(--cal-border)',
     flexWrap: 'wrap',
     flexShrink: 0,
   },
   btn: {
-    background: '#1e1e24', border: '0.5px solid #2a2a35',
-    borderRadius: 4, color: '#e8e8f0',
+    background: 'var(--cal-input)', border: '0.5px solid var(--cal-border)',
+    borderRadius: 4, color: 'var(--cal-text)',
     fontFamily: 'Inter, system-ui, sans-serif',
     fontSize: 12, padding: '5px 12px', cursor: 'pointer',
   },
   btnPrimary: {
-    background: '#3a7bd5', border: '0.5px solid #3a7bd5',
+    background: 'var(--cal-accent)', border: '0.5px solid var(--cal-accent)',
     borderRadius: 4, color: '#fff',
     fontFamily: 'Inter, system-ui, sans-serif',
     fontSize: 12, padding: '5px 12px', cursor: 'pointer',
   },
   tabBtn: (active) => ({
-    background: active ? '#1a1a22' : 'none',
-    border: `0.5px solid ${active ? '#3a3a50' : '#2a2a35'}`,
-    borderRadius: 6, color: active ? '#e8e8f0' : '#888899',
+    background: active ? 'var(--cal-card)' : 'none',
+    border: `0.5px solid ${active ? 'var(--cal-border-strong)' : 'var(--cal-border)'}`,
+    borderRadius: 6, color: active ? 'var(--cal-text)' : 'var(--cal-text-secondary)',
     fontFamily: 'Inter, system-ui, sans-serif',
     fontSize: 12, padding: '5px 13px', cursor: 'pointer',
   }),
@@ -53,6 +53,9 @@ const STYLES = {
 
 
 export default function App() {
+  const [theme, setTheme] = useState(
+    document.documentElement.dataset.theme === 'light' ? 'light' : 'dark'
+  );
   const [tab,           setTab]           = useState('grid');
   const [viewDate,      setViewDate]      = useState(new Date());
   const [editorToken,   setEditorToken]   = useState(
@@ -60,6 +63,28 @@ export default function App() {
   );
   const [showGate,      setShowGate]      = useState(false);
   const [pendingAction, setPendingAction] = useState(null);
+
+  const toggleTheme = useCallback(() => {
+    setTheme(current => {
+      const next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.dataset.theme = next;
+      document.documentElement.style.colorScheme = next;
+      try { localStorage.setItem('isensix_theme', next); } catch {}
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    const syncTheme = event => {
+      if (event.key !== 'isensix_theme') return;
+      const next = event.newValue === 'light' ? 'light' : 'dark';
+      document.documentElement.dataset.theme = next;
+      document.documentElement.style.colorScheme = next;
+      setTheme(next);
+    };
+    window.addEventListener('storage', syncTheme);
+    return () => window.removeEventListener('storage', syncTheme);
+  }, []);
 
   // Job info panel state
   const [hoveredEvent, setHoveredEvent] = useState(null);
@@ -287,7 +312,7 @@ function generateGhostEvents(events, assignments, jobInfoMap) {
       {/* Top bar */}
       <div style={STYLES.topbar}>
         <a href="../index.html"
-          style={{ color: '#888899', fontSize: 12, textDecoration: 'none' }}>
+          style={{ color: 'var(--cal-text-secondary)', fontSize: 12, textDecoration: 'none' }}>
           ← Dashboard
         </a>
         <span style={{ fontWeight: 600, fontSize: 14, marginRight: 8 }}>
@@ -303,21 +328,31 @@ function generateGhostEvents(events, assignments, jobInfoMap) {
           <button style={STYLES.btn} onClick={() => setViewDate(d => addMonths(d, 1))}>Month ›</button>
         </div>
 
-        <span style={{ fontSize: 12, color: '#888899' }}>{format(viewDate, 'MMMM yyyy')}</span>
+        <span style={{ fontSize: 12, color: 'var(--cal-text-secondary)' }}>{format(viewDate, 'MMMM yyyy')}</span>
 
-        {loading && <span style={{ fontSize: 11, color: '#555566' }}>Loading…</span>}
-        {error   && <span style={{ fontSize: 11, color: '#c83232' }}>{error}</span>}
+        {loading && <span style={{ fontSize: 11, color: 'var(--cal-text-muted)' }}>Loading…</span>}
+        {error   && <span style={{ fontSize: 11, color: 'var(--cal-danger)' }}>{error}</span>}
 
         {ghostEvents.length > 0 && (
-          <span style={{ fontSize: 11, color: '#c47a1a', marginLeft: 4 }}>
+          <span style={{ fontSize: 11, color: 'var(--cal-warning)', marginLeft: 4 }}>
             {ghostEvents.length} tentative job{ghostEvents.length !== 1 ? 's' : ''} upcoming
           </span>
         )}
 
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button
+            style={STYLES.btn}
+            type="button"
+            aria-pressed={theme === 'light'}
+            aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+            title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+            onClick={toggleTheme}
+          >
+            {theme === 'dark' ? '☀ Light mode' : '☾ Dark mode'}
+          </button>
           {editorToken ? (
             <>
-              <span style={{ fontSize: 11, color: '#5a9e2f' }}>✓ Editor</span>
+              <span style={{ fontSize: 11, color: 'var(--cal-success)' }}>✓ Editor</span>
               <button style={STYLES.btn} onClick={handleLock}>Lock</button>
             </>
           ) : (

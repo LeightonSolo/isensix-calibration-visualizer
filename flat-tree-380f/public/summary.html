@@ -4,6 +4,7 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Isensix Calibration Summary</title>
+  <script src="theme.js"></script>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
@@ -16,6 +17,7 @@
       --bg-card:      #1a1a22;
       --bg-header:    #111115;
       --bg-row-alt:   #1a1a1f;
+      --bg-input:     #1e1e24;
       --border:       #2a2a35;
       --border-light: #222230;
       --text:         #e8e8f0;
@@ -28,6 +30,26 @@
       --font:         'Inter', system-ui, sans-serif;
       --mono:         'JetBrains Mono', monospace;
       --radius:       8px;
+      --scroll-thumb: #2a2a38;
+    }
+
+    :root[data-theme="light"] {
+      --bg: #f4f5f7;
+      --bg-panel: #ffffff;
+      --bg-card: #ffffff;
+      --bg-header: #f1f3f5;
+      --bg-row-alt: #f7f8fa;
+      --bg-input: #ffffff;
+      --border: #cfd4dc;
+      --border-light: #e2e5ea;
+      --text: #17191c;
+      --text-sec: #454b54;
+      --text-muted: #707782;
+      --green: #3f7c1c;
+      --red: #aa2525;
+      --orange: #985c0d;
+      --blue: #1459ad;
+      --scroll-thumb: #aeb5bf;
     }
 
     /* ─── Reset ───────────────────────────────────────────── */
@@ -67,7 +89,7 @@
     #status-msg { font-size: 11px; color: var(--text-muted); margin-left: auto; }
 
     button {
-      background: #1e1e24;
+      background: var(--bg-input);
       border: 0.5px solid var(--border);
       border-radius: 4px;
       color: var(--text);
@@ -76,12 +98,12 @@
       padding: 5px 12px;
       cursor: pointer;
     }
-    button:hover { background: #1f1f26; }
+    button:hover { background: var(--bg-row-alt); }
     button.primary { background: var(--blue); border-color: var(--blue); color: #fff; }
     button.primary:hover { background: #2f68c0; }
 
     input[type="text"], textarea, select {
-      background: #1e1e24;
+      background: var(--bg-input);
       border: 0.5px solid var(--border);
       border-radius: 4px;
       color: var(--text);
@@ -322,7 +344,9 @@
 
     /* ─── Print styles ────────────────────────────────────── */
     @media print {
-      :root {
+      :root,
+      :root[data-theme="dark"],
+      :root[data-theme="light"] {
         --bg: #fff;
         --bg-panel: #fff;
         --bg-card: #f5f5f5;
@@ -377,7 +401,7 @@
 
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: #2a2a38; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb { background: var(--scroll-thumb); border-radius: 3px; }
   </style>
 </head>
 <body>
@@ -386,6 +410,7 @@
   <!-- Top bar (screen only) -->
   <div id="top-bar" class="noprint">
     <a href="index.html">← Back to Dashboard</a>
+    <button type="button" data-theme-toggle onclick="IsensixTheme.toggle()"></button>
     <span id="status-msg"></span>
     <button class="primary" onclick="window.print()">⬇ Download / Print PDF</button>
     <button onclick="loadData()">↻ Refresh</button>
@@ -810,18 +835,43 @@ function buildCheckTable(rows) {
     };
   }
 
-  ctx.strokeStyle = '#e8e8f0';
+  function signatureColor() {
+    return getComputedStyle(document.documentElement).getPropertyValue('--text').trim() || '#e8e8f0';
+  }
+
+  function recolorSignature() {
+    const color = signatureColor();
+    const match = color.match(/^#([0-9a-f]{6})$/i);
+    if (!match) return;
+    const rgb = [
+      parseInt(match[1].slice(0, 2), 16),
+      parseInt(match[1].slice(2, 4), 16),
+      parseInt(match[1].slice(4, 6), 16),
+    ];
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    for (let i = 0; i < imageData.data.length; i += 4) {
+      if (imageData.data[i + 3] <= 10) continue;
+      imageData.data[i] = rgb[0];
+      imageData.data[i + 1] = rgb[1];
+      imageData.data[i + 2] = rgb[2];
+    }
+    ctx.putImageData(imageData, 0, 0);
+    ctx.strokeStyle = color;
+  }
+
+  ctx.strokeStyle = signatureColor();
   ctx.lineWidth   = 2;
   ctx.lineCap     = 'round';
   ctx.lineJoin    = 'round';
 
-  canvas.addEventListener('mousedown',  e => { drawing = true; ctx.beginPath(); const p = getPos(e); ctx.moveTo(p.x, p.y); });
+  canvas.addEventListener('mousedown',  e => { drawing = true; ctx.strokeStyle = signatureColor(); ctx.beginPath(); const p = getPos(e); ctx.moveTo(p.x, p.y); });
   canvas.addEventListener('mousemove',  e => { if (!drawing) return; const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); });
   canvas.addEventListener('mouseup',    () => drawing = false);
   canvas.addEventListener('mouseleave', () => drawing = false);
-  canvas.addEventListener('touchstart', e => { e.preventDefault(); drawing = true; ctx.beginPath(); const p = getPos(e); ctx.moveTo(p.x, p.y); }, { passive: false });
+  canvas.addEventListener('touchstart', e => { e.preventDefault(); drawing = true; ctx.strokeStyle = signatureColor(); ctx.beginPath(); const p = getPos(e); ctx.moveTo(p.x, p.y); }, { passive: false });
   canvas.addEventListener('touchmove',  e => { e.preventDefault(); if (!drawing) return; const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); }, { passive: false });
   canvas.addEventListener('touchend',   () => drawing = false);
+  window.addEventListener('isensix:themechange', () => requestAnimationFrame(recolorSignature));
 })();
 
 function clearSig() {
@@ -855,12 +905,18 @@ function restoreCanvasAfterPrint() {
   const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
   const data = imageData.data;
   
+  const color = getComputedStyle(document.documentElement).getPropertyValue('--text').trim();
+  const match = color.match(/^#([0-9a-f]{6})$/i);
+  const rgb = match
+    ? [parseInt(match[1].slice(0, 2), 16), parseInt(match[1].slice(2, 4), 16), parseInt(match[1].slice(4, 6), 16)]
+    : [232, 232, 240];
+
   for (let i = 0; i < data.length; i += 4) {
     const a = data[i+3];
     if (a > 10) {
-      data[i]   = 232; // R — matches --text: #e8e8f0
-      data[i+1] = 232; // G
-      data[i+2] = 240; // B
+      data[i]   = rgb[0];
+      data[i+1] = rgb[1];
+      data[i+2] = rgb[2];
     }
   }
   ctx.putImageData(imageData, 0, 0);

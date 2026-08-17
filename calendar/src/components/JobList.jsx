@@ -113,10 +113,10 @@ export default function JobList({
   function thStyle(col) {
     return {
       padding: '7px 10px', fontSize: 11, fontWeight: 500,
-      color: sortCol === col ? '#e8e8f0' : '#888899',
+      color: sortCol === col ? 'var(--cal-text)' : 'var(--cal-text-secondary)',
       textAlign: 'left', cursor: 'pointer', userSelect: 'none',
-      borderBottom: '0.5px solid #2a2a35',
-      background: '#111115', whiteSpace: 'nowrap',
+      borderBottom: '0.5px solid var(--cal-border)',
+      background: 'var(--cal-header)', whiteSpace: 'nowrap',
     };
   }
 
@@ -126,16 +126,16 @@ export default function JobList({
   }
 
   const inputStyle = {
-    background: '#1e1e24', border: '0.5px solid #2a2a35',
-    borderRadius: 4, color: '#e8e8f0',
+    background: 'var(--cal-input)', border: '0.5px solid var(--cal-border)',
+    borderRadius: 4, color: 'var(--cal-text)',
     fontFamily: 'Inter, system-ui, sans-serif',
     fontSize: 12, padding: '5px 9px', outline: 'none',
   };
 
   const tabStyle = (active) => ({
-    background: active ? '#1a1a22' : 'none',
-    border: `0.5px solid ${active ? '#3a3a50' : '#2a2a35'}`,
-    borderRadius: 6, color: active ? '#e8e8f0' : '#888899',
+    background: active ? 'var(--cal-card)' : 'none',
+    border: `0.5px solid ${active ? 'var(--cal-border-strong)' : 'var(--cal-border)'}`,
+    borderRadius: 6, color: active ? 'var(--cal-text)' : 'var(--cal-text-secondary)',
     fontFamily: 'Inter, system-ui, sans-serif',
     fontSize: 12, padding: '5px 13px', cursor: 'pointer',
   });
@@ -194,14 +194,14 @@ export default function JobList({
         <input style={{ ...inputStyle, width: 200 }}
           placeholder="Search title, customer, ticket…"
           value={search} onChange={e => setSearch(e.target.value)}/>
-        <span style={{ fontSize: 11, color: '#555566', marginLeft: 'auto' }}>
+        <span style={{ fontSize: 11, color: 'var(--cal-text-muted)', marginLeft: 'auto' }}>
           {filtered.length} event{filtered.length !== 1 ? 's' : ''}
         </span>
         {editorToken && (
           <button
             onClick={() => setModal({ event: null })}
             style={{
-              background: '#3a7bd5', border: '0.5px solid #3a7bd5',
+              background: 'var(--cal-accent)', border: '0.5px solid var(--cal-accent)',
               borderRadius: 4, color: '#fff', fontSize: 12,
               padding: '5px 12px', cursor: 'pointer',
               fontFamily: 'Inter, system-ui, sans-serif',
@@ -210,7 +210,7 @@ export default function JobList({
           </button>
         )}
       </div> 
-      <div style={{ border: '0.5px solid #2a2a35', borderRadius: 8, overflow: 'hidden' }}>
+      <div style={{ border: '0.5px solid var(--cal-border)', borderRadius: 8, overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto', maxHeight: 'calc(100vh - 220px)', overflowY: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 800 }}>
             <thead style={{ position: 'sticky', top: 0, zIndex: 2 }}>
@@ -244,7 +244,7 @@ export default function JobList({
               {filtered.length === 0 && (
                 <tr>
                   <td colSpan={9} style={{ padding: '2rem', textAlign: 'center',
-                    color: '#555566', fontSize: 13 }}>
+                    color: 'var(--cal-text-muted)', fontSize: 13 }}>
                     No events found
                   </td>
                 </tr>
@@ -255,10 +255,10 @@ export default function JobList({
                 const isOver = isPast(parseISO(event.end_date));
                 return (
                   <tr key={event.id}
-                    style={{ background: i % 2 === 0 ? '#16161a' : '#1a1a1f' }}
+                    style={{ background: i % 2 === 0 ? 'var(--cal-panel)' : 'var(--cal-row-alt)' }}
                     onDoubleClick={() => openEdit(event)}>
                     <td style={{ padding: '7px 10px', fontSize: 12,
-                      color: '#e8e8f0', whiteSpace: 'nowrap',
+                      color: 'var(--cal-text)', whiteSpace: 'nowrap',
                       opacity: isOver ? 0.6 : 1 }}>
                       {event.start_date === event.end_date
                         ? format(parseISO(event.start_date), 'M/d/yy')
@@ -266,7 +266,7 @@ export default function JobList({
                       }
                     </td>
                     <td style={{ padding: '7px 10px', fontSize: 12,
-                      color: '#e8e8f0', fontWeight: 500, maxWidth: 200,
+                      color: 'var(--cal-text)', fontWeight: 500, maxWidth: 200,
                       overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                       title={event.title}>
                       {event.title}
@@ -282,19 +282,19 @@ export default function JobList({
                       </span>
                     </td>
                     <td style={{ padding: '7px 10px', fontSize: 12,
-                      color: '#888899', fontFamily: 'JetBrains Mono, monospace' }}>
+                      color: 'var(--cal-text-secondary)', fontFamily: 'JetBrains Mono, monospace' }}>
                       {event.ticket_id || '—'}
                     </td>
                     <td style={{ padding: '7px 10px', fontSize: 12,
-                      color: '#888899', maxWidth: 160,
+                      color: 'var(--cal-text-secondary)', maxWidth: 160,
                       overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {event.customer || '—'}
                     </td>
-                    <td style={{ padding: '7px 10px', fontSize: 11, color: '#888899' }}>
+                    <td style={{ padding: '7px 10px', fontSize: 11, color: 'var(--cal-text-secondary)' }}>
                       {techs.length > 0 ? techs.join(', ') : '—'}
                     </td>
                     <td style={{ padding: '7px 10px', fontSize: 11,
-                      color: '#555566', maxWidth: 200,
+                      color: 'var(--cal-text-muted)', maxWidth: 200,
                       overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                       title={event.notes || ''}>
                       {event.notes || '—'}
@@ -302,8 +302,8 @@ export default function JobList({
                     <td style={{ padding: '7px 10px', textAlign: 'center' }}>
                       <button onClick={() => openEdit(event)}
                         style={{
-                          background: 'none', border: '0.5px solid #2a2a35',
-                          borderRadius: 4, color: '#888899', fontSize: 11,
+                          background: 'none', border: '0.5px solid var(--cal-border)',
+                          borderRadius: 4, color: 'var(--cal-text-secondary)', fontSize: 11,
                           padding: '3px 8px', cursor: 'pointer',
                           fontFamily: 'Inter, system-ui, sans-serif',
                         }}>Edit</button>
@@ -368,16 +368,16 @@ function TechEventList({ techEvents, editorToken, requireEditor,
   }, [techEvents, filter, typeFilter, techFilter, sortCol, sortDir, today]);
 
   const inputStyle = {
-    background: '#1e1e24', border: '0.5px solid #2a2a35',
-    borderRadius: 4, color: '#e8e8f0',
+    background: 'var(--cal-input)', border: '0.5px solid var(--cal-border)',
+    borderRadius: 4, color: 'var(--cal-text)',
     fontFamily: 'Inter, system-ui, sans-serif',
     fontSize: 12, padding: '5px 9px', outline: 'none',
   };
 
   const tabStyle = (active) => ({
-    background: active ? '#1a1a22' : 'none',
-    border: `0.5px solid ${active ? '#3a3a50' : '#2a2a35'}`,
-    borderRadius: 6, color: active ? '#e8e8f0' : '#888899',
+    background: active ? 'var(--cal-card)' : 'none',
+    border: `0.5px solid ${active ? 'var(--cal-border-strong)' : 'var(--cal-border)'}`,
+    borderRadius: 6, color: active ? 'var(--cal-text)' : 'var(--cal-text-secondary)',
     fontFamily: 'Inter, system-ui, sans-serif',
     fontSize: 12, padding: '5px 13px', cursor: 'pointer',
   });
@@ -385,10 +385,10 @@ function TechEventList({ techEvents, editorToken, requireEditor,
   function thStyle(col) {
     return {
       padding: '7px 10px', fontSize: 11, fontWeight: 500,
-      color: sortCol === col ? '#e8e8f0' : '#888899',
+      color: sortCol === col ? 'var(--cal-text)' : 'var(--cal-text-secondary)',
       textAlign: 'left', cursor: 'pointer', userSelect: 'none',
-      borderBottom: '0.5px solid #2a2a35',
-      background: '#111115', whiteSpace: 'nowrap',
+      borderBottom: '0.5px solid var(--cal-border)',
+      background: 'var(--cal-header)', whiteSpace: 'nowrap',
     };
   }
 
@@ -430,13 +430,13 @@ function TechEventList({ techEvents, editorToken, requireEditor,
           ))}
         </select>
 
-        <span style={{ fontSize: 11, color: '#555566', marginLeft: 'auto' }}>
+        <span style={{ fontSize: 11, color: 'var(--cal-text-muted)', marginLeft: 'auto' }}>
           {filtered.length} event{filtered.length !== 1 ? 's' : ''}
         </span>
 
         {editorToken && (
           <button onClick={() => setModal({ event: null })} style={{
-            background: '#3a7bd5', border: '0.5px solid #3a7bd5',
+            background: 'var(--cal-accent)', border: '0.5px solid var(--cal-accent)',
             borderRadius: 4, color: '#fff', fontSize: 12,
             padding: '5px 12px', cursor: 'pointer',
             fontFamily: 'Inter, system-ui, sans-serif',
@@ -445,7 +445,7 @@ function TechEventList({ techEvents, editorToken, requireEditor,
       </div>
 
       {/* Table */}
-      <div style={{ border: '0.5px solid #2a2a35', borderRadius: 8, overflow: 'hidden' }}>
+      <div style={{ border: '0.5px solid var(--cal-border)', borderRadius: 8, overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto', maxHeight: 'calc(100vh - 220px)', overflowY: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 500 }}>
             <thead style={{ position: 'sticky', top: 0, zIndex: 2 }}>
@@ -469,7 +469,7 @@ function TechEventList({ techEvents, editorToken, requireEditor,
               {filtered.length === 0 && (
                 <tr>
                   <td colSpan={5} style={{ padding: '2rem', textAlign: 'center',
-                    color: '#555566', fontSize: 13 }}>
+                    color: 'var(--cal-text-muted)', fontSize: 13 }}>
                     No events found
                   </td>
                 </tr>
@@ -479,10 +479,10 @@ function TechEventList({ techEvents, editorToken, requireEditor,
                 const tc    = CONFIG.TECH_COLORS?.[te.tech_name];
                 return (
                   <tr key={te.id}
-                    style={{ background: i % 2 === 0 ? '#16161a' : '#1a1a1f' }}
+                    style={{ background: i % 2 === 0 ? 'var(--cal-panel)' : 'var(--cal-row-alt)' }}
                     onDoubleClick={() => setModal({ event: te })}>
                     <td style={{ padding: '7px 10px', fontSize: 12, fontWeight: 500,
-                      color: tc?.fg || '#e8e8f0' }}>
+                      color: tc?.fg || 'var(--cal-text)' }}>
                       {te.tech_name}
                     </td>
                     <td style={{ padding: '7px 10px' }}>
@@ -497,20 +497,20 @@ function TechEventList({ techEvents, editorToken, requireEditor,
                       </span>
                     </td>
                     <td style={{ padding: '7px 10px', fontSize: 12,
-                      color: te.date < today ? '#555566' : '#e8e8f0',
+                      color: te.date < today ? 'var(--cal-text-muted)' : 'var(--cal-text)',
                       fontFamily: 'JetBrains Mono, monospace' }}>
                       {te.date}
                     </td>
                     <td style={{ padding: '7px 10px', fontSize: 11,
-                      color: '#555566', maxWidth: 300,
+                      color: 'var(--cal-text-muted)', maxWidth: 300,
                       overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {te.notes || '—'}
                     </td>
                     <td style={{ padding: '7px 10px', textAlign: 'center' }}>
                       <button onClick={() => setModal({ event: te })}
                         style={{
-                          background: 'none', border: '0.5px solid #2a2a35',
-                          borderRadius: 4, color: '#888899', fontSize: 11,
+                          background: 'none', border: '0.5px solid var(--cal-border)',
+                          borderRadius: 4, color: 'var(--cal-text-secondary)', fontSize: 11,
                           padding: '3px 8px', cursor: 'pointer',
                           fontFamily: 'Inter, system-ui, sans-serif',
                         }}>Edit</button>

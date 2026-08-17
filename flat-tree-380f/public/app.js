@@ -68,7 +68,7 @@ function showPage(page) {
         page === "dashboard" ? "" : "none";
 }
 
-document.querySelectorAll(".nav-btn").forEach(btn => {
+document.querySelectorAll(".nav-btn[data-page]").forEach(btn => {
     btn.onclick = () => showPage(btn.dataset.page);
 });
 
@@ -434,7 +434,7 @@ function renderMetrics() {
   const fail  = sensors.filter(isFailed).length;
   const pct   = total > 0 ? Math.round((cal / total) * 100) : 0;
   const r = 26, circ = 2 * Math.PI * r, dash = (pct / 100) * circ;
-  const track = '#2a2a38';
+  const track = 'var(--border)';
   const excepted = allSensors.filter(isExcepted).length;
   const check = allSensors.filter(s =>   //sensors in check
     s.status?.toUpperCase() === 'ENABLED' &&
@@ -496,16 +496,16 @@ function renderMetrics() {
     <div id="donut-card" class="metric-card donut-card">
       <svg width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="Progress ${pct}%">
         <circle cx="32" cy="32" r="${r}" fill="none" stroke="${track}" stroke-width="7"/>
-        <circle cx="32" cy="32" r="${r}" fill="none" stroke="#5a9e2f" stroke-width="7"
+        <circle cx="32" cy="32" r="${r}" fill="none" stroke="var(--accent-green)" stroke-width="7"
           stroke-dasharray="${dash.toFixed(1)} ${circ.toFixed(1)}"
           stroke-linecap="round" transform="rotate(-90 32 32)"/>
         <text x="32" y="37" text-anchor="middle" font-size="12" font-weight="600"
-          fill="#e8e8f0">${pct}%</text>
+          fill="var(--text-primary)">${pct}%</text>
       </svg>
       <div class="donut-legend">
         <div class="metric-label">Progress</div>
         <div class="donut-legend-item">
-          <span class="donut-dot" style="background:#5a9e2f"></span>Done
+          <span class="donut-dot" style="background:var(--accent-green)"></span>Done
         </div>
         <div class="donut-legend-item">
           <span class="donut-dot" style="background:${track}"></span>Left

@@ -21,8 +21,8 @@ export default function EditorGate({ onUnlock }) {
       zIndex: 1000,
     }}>
       <div style={{
-        background: '#16161a',
-        border: '0.5px solid #2a2a35',
+        background: 'var(--cal-panel)',
+        border: '0.5px solid var(--cal-border)',
         borderRadius: 10,
         padding: 28,
         width: 340,
@@ -31,7 +31,7 @@ export default function EditorGate({ onUnlock }) {
         gap: 14,
       }}>
         <div style={{ fontSize: 15, fontWeight: 600 }}>Editor access</div>
-        <div style={{ fontSize: 12, color: '#888899' }}>
+        <div style={{ fontSize: 12, color: 'var(--cal-text-secondary)' }}>
           Enter the editor password to create or modify events.
         </div>
         <input
@@ -41,26 +41,26 @@ export default function EditorGate({ onUnlock }) {
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && attempt()}
           style={{
-            background: '#1e1e24', border: '0.5px solid #2a2a35',
-            borderRadius: 4, color: '#e8e8f0',
+            background: 'var(--cal-input)', border: '0.5px solid var(--cal-border)',
+            borderRadius: 4, color: 'var(--cal-text)',
             fontFamily: 'Inter, system-ui, sans-serif',
             fontSize: 13, padding: '6px 10px', outline: 'none',
           }}
           autoFocus
         />
         {error && (
-          <div style={{ fontSize: 12, color: '#c83232' }}>
+          <div style={{ fontSize: 12, color: 'var(--cal-danger)' }}>
             Incorrect password
           </div>
         )}
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
           <button onClick={() => onUnlock(null)} style={{
-            background: '#1e1e24', border: '0.5px solid #2a2a35',
-            borderRadius: 4, color: '#e8e8f0', fontSize: 12,
+            background: 'var(--cal-input)', border: '0.5px solid var(--cal-border)',
+            borderRadius: 4, color: 'var(--cal-text)', fontSize: 12,
             padding: '5px 12px', cursor: 'pointer',
           }}>Cancel</button>
           <button onClick={attempt} style={{
-            background: '#3a7bd5', border: '0.5px solid #3a7bd5',
+            background: 'var(--cal-accent)', border: '0.5px solid var(--cal-accent)',
             borderRadius: 4, color: '#fff', fontSize: 12,
             padding: '5px 12px', cursor: 'pointer',
           }}>Unlock</button>

@@ -4,11 +4,21 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Isensix Technician Calendar</title>
+    <script>
+      (() => {
+        let theme = 'dark';
+        try {
+          theme = localStorage.getItem('isensix_theme') === 'light' ? 'light' : 'dark';
+        } catch (_) {}
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.style.colorScheme = theme;
+      })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com"/>
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet"/>
-    <script type="module" crossorigin src="/calendar/assets/index-CaTHOimZ.js"></script>
-    <link rel="stylesheet" crossorigin href="/calendar/assets/index-BixH5rXi.css">
+    <script type="module" crossorigin src="/calendar/assets/index-D01aqr6o.js"></script>
+    <link rel="stylesheet" crossorigin href="/calendar/assets/index-OdH-LO7K.css">
   </head>
   <body>
     <div id="root"></div>

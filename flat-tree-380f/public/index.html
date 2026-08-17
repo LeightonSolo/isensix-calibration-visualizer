@@ -4,6 +4,7 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Isensix Calibration Dashboard</title>
+  <script src="theme.js"></script>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
@@ -24,6 +25,7 @@
     </div>
 
     <div class="nav-links">
+      <button class="nav-btn" type="button" data-theme-toggle onclick="IsensixTheme.toggle()"></button>
       <button class="nav-btn active" data-page="dashboard" style="padding:5px">
         <i class="ti ti-layout-dashboard"></i>
         Dashboard
@@ -174,10 +176,10 @@
   <!-- Tab bar -->
   <div id="tab-bar">
     <button class="tab-btn active" data-tab="left">Sensors left</button>
-    <button class="tab-btn" style="background-color: rgb(0, 25, 0);" data-tab="calibrated">Calibrated</button>
-    <button class="tab-btn" style="background-color: rgb(25, 0, 0);" data-tab="failures">Failures</button>
-    <button class="tab-btn" style="background-color: rgb(31, 19, 0);" data-tab="exceptions">Exceptions</button>
-    <button class="tab-btn" style="background-color: rgb(5, 5, 5);" data-tab="check">In CHECK</button>
+    <button class="tab-btn tab-calibrated" data-tab="calibrated">Calibrated</button>
+    <button class="tab-btn tab-failures" data-tab="failures">Failures</button>
+    <button class="tab-btn tab-exceptions" data-tab="exceptions">Exceptions</button>
+    <button class="tab-btn tab-check" data-tab="check">In CHECK</button>
     <button class="tab-btn" data-tab="types">By Type</button>
     <button class="tab-btn" data-tab="zones">By Zone</button>
     <button class="tab-btn" data-tab="all">All Sensors</button>

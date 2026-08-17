@@ -15,7 +15,7 @@ const DATE_W = 60;
 
 function getEventColor(ev) {
   // Ghost events get a distinct muted/dashed look
-  if (ev.isGhost) return { bg: '#1a1a22', fg: '#555566', border: '#2a2a35' };
+  if (ev.isGhost) return { bg: 'var(--cal-card)', fg: 'var(--cal-text-muted)', border: 'var(--cal-border)' };
   if (ev.event_type !== 'calibration')
     return CONFIG.TYPE_COLORS[ev.event_type] || CONFIG.TYPE_COLORS.other;
   return CONFIG.STATUS_COLORS[ev.status] || CONFIG.STATUS_COLORS.ticketed;
@@ -225,9 +225,9 @@ export default function ResourceGrid({
   }
 
   const btnStyle = (primary) => ({
-    background: primary ? '#3a7bd5' : '#1e1e24',
-    border: `0.5px solid ${primary ? '#3a7bd5' : '#2a2a35'}`,
-    borderRadius: 4, color: primary ? '#fff' : '#e8e8f0',
+    background: primary ? 'var(--cal-accent)' : 'var(--cal-input)',
+    border: `0.5px solid ${primary ? 'var(--cal-accent)' : 'var(--cal-border)'}`,
+    borderRadius: 4, color: primary ? '#fff' : 'var(--cal-text)',
     fontFamily: 'Inter, system-ui, sans-serif',
     fontSize: 12, padding: '5px 12px', cursor: 'pointer',
   });
@@ -249,9 +249,9 @@ export default function ResourceGrid({
         <div style={{
           position: 'fixed',
           left: hoverCard.x + 12, top: hoverCard.y + 12,
-          background: '#1e1e28', border: '0.5px solid #3a3a50',
+          background: 'var(--cal-popover)', border: '0.5px solid var(--cal-border-strong)',
           borderRadius: 6, padding: '8px 12px',
-          fontSize: 12, color: '#e8e8f0',
+          fontSize: 12, color: 'var(--cal-text)',
           zIndex: 9999, pointerEvents: 'none', maxWidth: 260,
           boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
         }}>
@@ -263,10 +263,10 @@ export default function ResourceGrid({
                 letterSpacing: '0.04em', marginBottom: 4 }}>
                 {hoverCard.data.event_type}
               </div>
-              <div style={{ color: '#888899', fontSize: 11 }}>{hoverCard.data.date}</div>
+              <div style={{ color: 'var(--cal-text-secondary)', fontSize: 11 }}>{hoverCard.data.date}</div>
               {hoverCard.data.notes && (
-                <div style={{ color: '#aaaabc', fontSize: 11, marginTop: 4,
-                  borderTop: '0.5px solid #2a2a35', paddingTop: 4 }}>
+                <div style={{ color: 'var(--cal-text-soft)', fontSize: 11, marginTop: 4,
+                  borderTop: '0.5px solid var(--cal-border)', paddingTop: 4 }}>
                   {hoverCard.data.notes}
                 </div>
               )}
@@ -276,22 +276,22 @@ export default function ResourceGrid({
               <div style={{ fontWeight: 600, marginBottom: 3 }}>{hoverCard.data.title}</div>
               <div style={{ display: 'flex', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
                 {hoverCard.data.ticket_id && (
-                  <span style={{ color: '#888899', fontSize: 11 }}>#{hoverCard.data.ticket_id}</span>
+                  <span style={{ color: 'var(--cal-text-secondary)', fontSize: 11 }}>#{hoverCard.data.ticket_id}</span>
                 )}
                 <span style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase',
                   letterSpacing: '0.04em',
-                  color: hoverCard.data.isGhost ? '#c47a1a'
+                  color: hoverCard.data.isGhost ? 'var(--cal-warning)'
                     : (CONFIG.STATUS_COLORS[hoverCard.data.status] || CONFIG.STATUS_COLORS.ticketed).fg }}>
                   {hoverCard.data.isGhost ? 'tentative' : hoverCard.data.status}
                 </span>
               </div>
-              <div style={{ color: '#555566', fontSize: 10 }}>
+              <div style={{ color: 'var(--cal-text-muted)', fontSize: 10 }}>
                 {hoverCard.data.start_date}
                 {hoverCard.data.end_date !== hoverCard.data.start_date && ` → ${hoverCard.data.end_date}`}
               </div>
               {hoverCard.data.notes && (
-                <div style={{ color: '#aaaabc', fontSize: 11, marginTop: 4,
-                  borderTop: '0.5px solid #2a2a35', paddingTop: 4 }}>
+                <div style={{ color: 'var(--cal-text-soft)', fontSize: 11, marginTop: 4,
+                  borderTop: '0.5px solid var(--cal-border)', paddingTop: 4 }}>
                   {hoverCard.data.notes}
                 </div>
               )}
@@ -342,7 +342,7 @@ export default function ResourceGrid({
             <div key={s} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
               <span style={{ width: 10, height: 10, borderRadius: 2, background: c.bg,
                 border: `1px solid ${c.border}`, display: 'inline-block' }}/>
-              <span style={{ fontSize: 11, color: '#888899', textTransform: 'capitalize' }}>{s}</span>
+              <span style={{ fontSize: 11, color: 'var(--cal-text-secondary)', textTransform: 'capitalize' }}>{s}</span>
             </div>
           ))}
           {['install','upgrade','pto'].map(t => {
@@ -351,22 +351,22 @@ export default function ResourceGrid({
               <div key={t} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 <span style={{ width: 10, height: 10, borderRadius: 2, background: c.bg,
                   border: `1px solid ${c.border}`, display: 'inline-block' }}/>
-                <span style={{ fontSize: 11, color: '#888899', textTransform: 'capitalize' }}>{t}</span>
+                <span style={{ fontSize: 11, color: 'var(--cal-text-secondary)', textTransform: 'capitalize' }}>{t}</span>
               </div>
             );
           })}
           {/* Tentative ghost indicator */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             <span style={{ width: 10, height: 10, borderRadius: 2,
-              background: '#1a1a22', border: '1px dashed #555566',
+              background: 'var(--cal-card)', border: '1px dashed var(--cal-text-muted)',
               display: 'inline-block' }}/>
-            <span style={{ fontSize: 11, color: '#888899' }}>tentative</span>
+            <span style={{ fontSize: 11, color: 'var(--cal-text-secondary)' }}>tentative</span>
           </div>
         </div>
       </div>
 
       {/* Grid */}
-      <div style={{ flex: 1, overflow: 'auto', border: '0.5px solid #2a2a35', borderRadius: 8 }}>
+      <div style={{ flex: 1, overflow: 'auto', border: '0.5px solid var(--cal-border)', borderRadius: 8 }}>
         <table style={{
           borderCollapse: 'collapse', tableLayout: 'fixed',
           width: DATE_W + CONFIG.TECHNICIANS.length * COL_W,
@@ -378,21 +378,21 @@ export default function ResourceGrid({
           </colgroup>
 
           <thead style={{ position: 'sticky', top: 0, zIndex: 4 }}>
-            <tr style={{ background: '#111115' }}>
+            <tr style={{ background: 'var(--cal-header)' }}>
               <th style={{
-                padding: '8px 10px', fontSize: 11, fontWeight: 500, color: '#555566',
-                textAlign: 'left', borderBottom: '0.5px solid #2a2a35',
-                borderRight: '0.5px solid #2a2a35',
-                position: 'sticky', left: 0, zIndex: 5, background: '#111115',
+                padding: '8px 10px', fontSize: 11, fontWeight: 500, color: 'var(--cal-text-muted)',
+                textAlign: 'left', borderBottom: '0.5px solid var(--cal-border)',
+                borderRight: '0.5px solid var(--cal-border)',
+                position: 'sticky', left: 0, zIndex: 5, background: 'var(--cal-header)',
               }}>Date</th>
               {CONFIG.TECHNICIANS.map((tech, i) => {
-                const tc = CONFIG.TECH_COLORS?.[tech] || { bg: '#1a1a22', fg: '#e8e8f0', border: '#2a2a35' };
+                const tc = CONFIG.TECH_COLORS?.[tech] || { bg: 'var(--cal-card)', fg: 'var(--cal-text)', border: 'var(--cal-border)' };
                 return (
                   <th key={tech} style={{
                     padding: '8px 10px', fontSize: 13, fontWeight: 600,
                     color: tc.fg, textAlign: 'center',
                     borderBottom: `2px solid ${tc.border}`,
-                    borderRight: i < CONFIG.TECHNICIANS.length - 1 ? '0.5px solid #2a2a35' : 'none',
+                    borderRight: i < CONFIG.TECHNICIANS.length - 1 ? '0.5px solid var(--cal-border)' : 'none',
                     background: tc.bg, letterSpacing: '-0.01em',
                   }}>{tech}</th>
                 );
@@ -410,7 +410,7 @@ export default function ResourceGrid({
               const isSep   = monthSeparators.has(ds);
               const weekBg  = isToday
                 ? 'rgba(90,158,47,0.06)'
-                : oddWeek ? 'rgba(255,255,255,0.012)' : 'transparent';
+                : oddWeek ? 'var(--cal-week-tint)' : 'transparent';
 
               return (
                 <>
@@ -418,25 +418,25 @@ export default function ResourceGrid({
                     <tr key={`month-${ds}`}>
                       <td colSpan={CONFIG.TECHNICIANS.length + 1} style={{
                         padding: '5px 10px', fontSize: 10, fontWeight: 700,
-                        color: '#555566', textTransform: 'uppercase',
-                        letterSpacing: '0.08em', background: '#0a0a0c',
-                        borderTop: '0.5px solid #2a2a35',
-                        borderBottom: '0.5px solid #2a2a35',
+                        color: 'var(--cal-text-muted)', textTransform: 'uppercase',
+                        letterSpacing: '0.08em', background: 'var(--cal-week-label)',
+                        borderTop: '0.5px solid var(--cal-border)',
+                        borderBottom: '0.5px solid var(--cal-border)',
                       }}>{format(d, 'MMMM yyyy')}</td>
                     </tr>
                   )}
 
                   <tr key={ds} style={{ height: rowH, background: weekBg,
-                    borderTop: isMon ? '1px solid #2a2a40' : undefined }}>
+                    borderTop: isMon ? '1px solid var(--cal-border-week)' : undefined }}>
                     <td style={{
                       padding: '0 8px', fontSize: 11,
-                      color: isToday ? '#7ec85a' : isMon ? '#aaaacc' : '#888899',
+                      color: isToday ? 'var(--cal-success-text)' : isMon ? 'var(--cal-text-soft-alt)' : 'var(--cal-text-secondary)',
                       fontWeight: isToday || isMon ? 600 : 400,
-                      borderBottom: '0.5px solid #1a1a1f',
-                      borderRight: '0.5px solid #2a2a35',
-                      borderTop: isMon ? '1px solid #2a2a40' : undefined,
+                      borderBottom: '0.5px solid var(--cal-row-alt)',
+                      borderRight: '0.5px solid var(--cal-border)',
+                      borderTop: isMon ? '1px solid var(--cal-border-week)' : undefined,
                       position: 'sticky', left: 0, zIndex: 2,
-                      background: isToday ? '#0d1a0d' : oddWeek ? '#0f0f14' : '#0e0e10',
+                      background: isToday ? 'var(--cal-today-bg)' : oddWeek ? 'var(--cal-week-alt)' : 'var(--cal-bg)',
                       whiteSpace: 'nowrap', verticalAlign: 'middle', height: rowH,
                     }}>
                       <span style={{ fontWeight: 600 }}>{format(d, 'EEE')} </span>
@@ -461,13 +461,13 @@ export default function ResourceGrid({
                           }}
                           style={{
                             position: 'relative', height: rowH,
-                            borderBottom: '0.5px solid #1a1a1f',
-                            borderRight: !isLast ? '0.5px solid #1a1a1f' : 'none',
-                            borderTop: isMon ? '1px solid #2a2a40' : undefined,
+                            borderBottom: '0.5px solid var(--cal-row-alt)',
+                            borderRight: !isLast ? '0.5px solid var(--cal-row-alt)' : 'none',
+                            borderTop: isMon ? '1px solid var(--cal-border-week)' : undefined,
                             cursor: editorToken && !activeOnDay.length && !techEvs.length ? 'pointer' : 'default',
                             padding: 0, verticalAlign: 'top',
                             background: isDropTarget ? 'rgba(58,123,213,0.15)' : 'transparent',
-                            outline: isDropTarget ? '1.5px dashed #3a7bd5' : 'none',
+                            outline: isDropTarget ? '1.5px dashed var(--cal-accent)' : 'none',
                             outlineOffset: -2,
                           }}>
 
@@ -511,7 +511,7 @@ export default function ResourceGrid({
                             const laneH       = totalH / (l.totalLanes || 1);
                             const blockTop    = l.lane * laneH + 3;
                             const blockH      = laneH - 2;
-                            const accentColor = l.event.isGhost ? '#555566' : (tc ? tc.fg : color.fg);
+                            const accentColor = l.event.isGhost ? 'var(--cal-text-muted)' : (tc ? tc.fg : color.fg);
                             const showNotes   = l.event.notes && blockH > 30;
                             const isLocked    = String(l.event.id) === String(lockedEventId);
                             const isGhost     = l.event.isGhost;
@@ -552,10 +552,10 @@ export default function ResourceGrid({
                                   borderRadius: 4,
                                   background: color.bg,
                                   border: isGhost
-                                    ? '1px dashed #333344'
+                                    ? '1px dashed var(--cal-text-faint)'
                                     : `0.5px solid ${color.border}`,
                                   borderLeft: isGhost
-                                    ? '3px dashed #555566'
+                                    ? '3px dashed var(--cal-text-muted)'
                                     : `3px solid ${accentColor}`,
                                   outline: isLocked ? `2px solid ${accentColor}` : 'none',
                                   outlineOffset: 1,
@@ -648,7 +648,7 @@ export default function ResourceGrid({
       </div>
 
       {!editorToken && (
-        <div style={{ marginTop: 8, fontSize: 11, color: '#555566', textAlign: 'center', flexShrink: 0 }}>
+        <div style={{ marginTop: 8, fontSize: 11, color: 'var(--cal-text-muted)', textAlign: 'center', flexShrink: 0 }}>
           View only — click Editor login to make changes
         </div>
       )}

@@ -17,8 +17,8 @@ const S = {
     zIndex: 1000,
   },
   modal: {
-    background: '#16161a',
-    border: '0.5px solid #2a2a35',
+    background: 'var(--cal-panel)',
+    border: '0.5px solid var(--cal-border)',
     borderRadius: 10,
     width: 'min(980px, 96vw)',
     height: 'min(860px, 94vh)',
@@ -36,12 +36,12 @@ const S = {
     flexDirection: 'column',
     gap: 14,
   },
-  title: { fontSize: 15, fontWeight: 600, color: '#e8e8f0' },
-  label: { fontSize: 11, color: '#888899', textTransform: 'uppercase',
+  title: { fontSize: 15, fontWeight: 600, color: 'var(--cal-text)' },
+  label: { fontSize: 11, color: 'var(--cal-text-secondary)', textTransform: 'uppercase',
            letterSpacing: '0.04em', marginBottom: 4, display: 'block' },
   input: {
-    background: '#1e1e24', border: '0.5px solid #2a2a35',
-    borderRadius: 4, color: '#e8e8f0',
+    background: 'var(--cal-input)', border: '0.5px solid var(--cal-border)',
+    borderRadius: 4, color: 'var(--cal-text)',
     fontFamily: 'Inter, system-ui, sans-serif',
     fontSize: 12, padding: '6px 10px', outline: 'none', width: '100%',
     boxSizing: 'border-box',
@@ -49,20 +49,20 @@ const S = {
   jobPicker: { position: 'relative' },
   jobPickerArrow: {
     position: 'absolute', top: 0, right: 0, bottom: 0, width: 32,
-    background: '#24242b', border: 0, borderLeft: '0.5px solid #343440',
-    borderRadius: '0 4px 4px 0', color: '#888899', cursor: 'pointer',
+    background: 'var(--cal-button-addon)', border: 0, borderLeft: '0.5px solid var(--cal-addon-border)',
+    borderRadius: '0 4px 4px 0', color: 'var(--cal-text-secondary)', cursor: 'pointer',
     fontSize: 11,
   },
   jobOptions: {
     position: 'absolute', left: 0, right: 0, top: 'calc(100% + 4px)',
     maxHeight: 230, overflowY: 'auto', zIndex: 20,
-    background: '#1a1a20', border: '0.5px solid #3a3a46', borderRadius: 5,
+    background: 'var(--cal-menu)', border: '0.5px solid var(--cal-menu-border)', borderRadius: 5,
     boxShadow: '0 8px 24px rgba(0,0,0,0.55)', padding: 4,
   },
   jobOption: {
     display: 'block', width: '100%', padding: '7px 9px', textAlign: 'left',
     background: 'transparent', border: 0, borderRadius: 3,
-    color: '#d8d8e2', fontFamily: 'Inter, system-ui, sans-serif',
+    color: 'var(--cal-menu-text)', fontFamily: 'Inter, system-ui, sans-serif',
     fontSize: 12, cursor: 'pointer',
   },
   row: { display: 'flex', gap: 12 },
@@ -74,34 +74,34 @@ const S = {
     marginTop: 4,
   },
   techBtn: (selected) => ({
-    background: selected ? '#1a2e14' : '#1e1e24',
-    border: `0.5px solid ${selected ? '#3a6e2a' : '#2a2a35'}`,
+    background: selected ? 'var(--cal-success-bg)' : 'var(--cal-input)',
+    border: `0.5px solid ${selected ? 'var(--cal-success-border)' : 'var(--cal-border)'}`,
     borderRadius: 4,
-    color: selected ? '#7ec85a' : '#888899',
+    color: selected ? 'var(--cal-success-text)' : 'var(--cal-text-secondary)',
     fontSize: 12, padding: '5px 8px', cursor: 'pointer',
     fontFamily: 'Inter, system-ui, sans-serif',
   }),
   footer: { display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 },
   btn: {
-    background: '#1e1e24', border: '0.5px solid #2a2a35',
-    borderRadius: 4, color: '#e8e8f0',
+    background: 'var(--cal-input)', border: '0.5px solid var(--cal-border)',
+    borderRadius: 4, color: 'var(--cal-text)',
     fontFamily: 'Inter, system-ui, sans-serif',
     fontSize: 12, padding: '6px 14px', cursor: 'pointer',
   },
   btnPrimary: {
-    background: '#3a7bd5', border: '0.5px solid #3a7bd5',
+    background: 'var(--cal-accent)', border: '0.5px solid var(--cal-accent)',
     borderRadius: 4, color: '#fff',
     fontFamily: 'Inter, system-ui, sans-serif',
     fontSize: 12, padding: '6px 14px', cursor: 'pointer',
   },
   btnDanger: {
-    background: '#2e1010', border: '0.5px solid #6e2020',
-    borderRadius: 4, color: '#d46060',
+    background: 'var(--cal-danger-bg)', border: '0.5px solid var(--cal-danger-border)',
+    borderRadius: 4, color: 'var(--cal-danger-text)',
     fontFamily: 'Inter, system-ui, sans-serif',
     fontSize: 12, padding: '6px 14px', cursor: 'pointer',
     marginRight: 'auto',
   },
-  divider: { borderTop: '0.5px solid #2a2a35', margin: '4px 0' },
+  divider: { borderTop: '0.5px solid var(--cal-border)', margin: '4px 0' },
 };
 
 export default function JobModal({
@@ -291,26 +291,26 @@ export default function JobModal({
                     aria-selected={jobName === matchedJobInfo?.job_name}
                     style={{
                       ...S.jobOption,
-                      background: jobName === matchedJobInfo?.job_name ? '#24243a' : 'transparent',
+                      background: jobName === matchedJobInfo?.job_name ? 'var(--cal-selection)' : 'transparent',
                     }}
-                    onMouseEnter={e => { e.currentTarget.style.background = '#292933'; }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'var(--cal-selection-hover)'; }}
                     onMouseLeave={e => {
                       e.currentTarget.style.background =
-                        jobName === matchedJobInfo?.job_name ? '#24243a' : 'transparent';
+                        jobName === matchedJobInfo?.job_name ? 'var(--cal-selection)' : 'transparent';
                     }}
                     onClick={() => selectJobName(jobName)}>
                     {jobName}
                   </button>
                 ))}
                 {visibleJobNames.length === 0 && (
-                  <div style={{ padding: '8px 9px', color: '#666677', fontSize: 11 }}>
+                  <div style={{ padding: '8px 9px', color: 'var(--cal-text-empty)', fontSize: 11 }}>
                     No matching jobs — this can still be used as a custom event name.
                   </div>
                 )}
               </div>
             )}
           </div>
-          <div style={{ fontSize: 10, color: '#555566', marginTop: 4 }}>
+          <div style={{ fontSize: 10, color: 'var(--cal-text-muted)', marginTop: 4 }}>
             Choose a suggested job to preview Job Info, or enter any event name.
           </div>
         </div>
@@ -333,7 +333,7 @@ export default function JobModal({
               value={status} onChange={e => setStatus(e.target.value)}>
               {CONFIG.EVENT_STATUSES.map(s =>
                 <option key={s} value={s}
-                  style={{ background: '#1e1e24', color: '#e8e8f0' }}>
+                  style={{ background: 'var(--cal-input)', color: 'var(--cal-text)' }}>
                   {s.charAt(0).toUpperCase()+s.slice(1)}
                 </option>
               )}
@@ -384,28 +384,28 @@ export default function JobModal({
             <label style={S.label}>Technician assignment</label>
             <div style={{
               overflowX: 'auto',
-              border: '0.5px solid #2a2a35',
+              border: '0.5px solid var(--cal-border)',
               borderRadius: 6,
             }}>
               <table style={{ borderCollapse: 'collapse', minWidth: '100%' }}>
                 <thead>
                   <tr>
                     <th style={{ padding: '6px 10px', fontSize: 11,
-                      color: '#888899', textAlign: 'left',
-                      borderBottom: '0.5px solid #2a2a35',
-                      background: '#111115', width: 100 }}>Tech</th>
+                      color: 'var(--cal-text-secondary)', textAlign: 'left',
+                      borderBottom: '0.5px solid var(--cal-border)',
+                      background: 'var(--cal-header)', width: 100 }}>Tech</th>
                     {days.map(d => (
                       <th key={d} style={{ padding: '6px 8px', fontSize: 10,
-                        color: '#888899', textAlign: 'center',
-                        borderBottom: '0.5px solid #2a2a35',
-                        background: '#111115', whiteSpace: 'nowrap' }}>
+                        color: 'var(--cal-text-secondary)', textAlign: 'center',
+                        borderBottom: '0.5px solid var(--cal-border)',
+                        background: 'var(--cal-header)', whiteSpace: 'nowrap' }}>
                         {format(d, 'EEE M/d')}
                       </th>
                     ))}
                     <th style={{ padding: '6px 8px', fontSize: 10,
-                      color: '#555566', textAlign: 'center',
-                      borderBottom: '0.5px solid #2a2a35',
-                      background: '#111115' }}>All</th>
+                      color: 'var(--cal-text-muted)', textAlign: 'center',
+                      borderBottom: '0.5px solid var(--cal-border)',
+                      background: 'var(--cal-header)' }}>All</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -416,19 +416,19 @@ export default function JobModal({
                     return (
                       <tr key={tech}>
                         <td style={{ padding: '5px 10px', fontSize: 12,
-                          color: '#e8e8f0', borderBottom: '0.5px solid #1a1a1f',
+                          color: 'var(--cal-text)', borderBottom: '0.5px solid var(--cal-row-alt)',
                           fontWeight: 500 }}>{tech}</td>
                         {days.map(d => {
                           const ds = format(d, 'yyyy-MM-dd');
                           const on = assigned.has(ds);
                           return (
                             <td key={ds} style={{ textAlign: 'center',
-                              borderBottom: '0.5px solid #1a1a1f',
-                              borderLeft: '0.5px solid #1a1a1f' }}>
+                              borderBottom: '0.5px solid var(--cal-row-alt)',
+                              borderLeft: '0.5px solid var(--cal-row-alt)' }}>
                               <button onClick={() => toggleTechDay(tech, ds)}
                                 style={{
-                                  background: on ? '#1a2e14' : '#1e1e24',
-                                  border: `0.5px solid ${on ? '#3a6e2a' : '#2a2a35'}`,
+                                  background: on ? 'var(--cal-success-bg)' : 'var(--cal-input)',
+                                  border: `0.5px solid ${on ? 'var(--cal-success-border)' : 'var(--cal-border)'}`,
                                   borderRadius: 3, cursor: 'pointer',
                                   width: 24, height: 24, fontSize: 13,
                                   display: 'flex', alignItems: 'center',
@@ -440,15 +440,15 @@ export default function JobModal({
                           );
                         })}
                         <td style={{ textAlign: 'center',
-                          borderBottom: '0.5px solid #1a1a1f',
-                          borderLeft: '0.5px solid #2a2a35' }}>
+                          borderBottom: '0.5px solid var(--cal-row-alt)',
+                          borderLeft: '0.5px solid var(--cal-border)' }}>
                           <button onClick={() => toggleTechAllDays(tech)}
                             style={{
-                              background: allOn ? '#0e2340' : '#1e1e24',
-                              border: `0.5px solid ${allOn ? '#2a5e90' : '#2a2a35'}`,
+                              background: allOn ? 'var(--cal-info-strong-bg)' : 'var(--cal-input)',
+                              border: `0.5px solid ${allOn ? 'var(--cal-info-border-strong)' : 'var(--cal-border)'}`,
                               borderRadius: 3, cursor: 'pointer',
                               width: 24, height: 24, fontSize: 10,
-                              color: allOn ? '#5a9ed5' : '#555566',
+                              color: allOn ? 'var(--cal-info-text)' : 'var(--cal-text-muted)',
                               margin: '3px auto', display: 'flex',
                               alignItems: 'center', justifyContent: 'center',
                             }}>all</button>
