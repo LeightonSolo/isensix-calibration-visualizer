@@ -17,8 +17,8 @@ export const CONFIG = {
   EVENT_STATUSES: ['ticketed', 'confirmed', 'booked'],
   TECH_EVENT_TYPES: ['pto', 'holiday', 'office', 'jury_duty', 'Software', 'other'],
   STATUS_COLORS: {
-    ticketed:  { bg: 'var(--cal-success-bg)', fg: 'var(--cal-success-text)', border: 'var(--cal-success-border)' },
-    confirmed: { bg: 'var(--cal-info-strong-bg)', fg: 'var(--cal-info-text)', border: 'var(--cal-info-border-strong)' },
+    ticketed:  { bg: 'var(--event-ticketed-bg)', fg: 'var(--event-ticketed-text)', border: 'var(--event-ticketed-border)' },
+    confirmed: { bg: 'var(--event-confirmed-bg)', fg: 'var(--event-confirmed-text)', border: 'var(--event-confirmed-border)' },
     booked:    { bg: 'var(--event-booked-bg)', fg: 'var(--event-booked-text)', border: 'var(--event-booked-border)' },
   },
   TYPE_COLORS: {
