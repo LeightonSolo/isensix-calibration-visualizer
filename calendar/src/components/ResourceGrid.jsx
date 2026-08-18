@@ -413,21 +413,8 @@ export default function ResourceGrid({
                 : oddWeek ? 'var(--cal-week-tint)' : 'transparent';
 
               return (
-                <>
-                  {isSep && (
-                    <tr key={`month-${ds}`}>
-                      <td colSpan={CONFIG.TECHNICIANS.length + 1} style={{
-                        padding: '5px 10px', fontSize: 10, fontWeight: 700,
-                        color: 'var(--cal-text-muted)', textTransform: 'uppercase',
-                        letterSpacing: '0.08em', background: 'var(--cal-week-label)',
-                        borderTop: '0.5px solid var(--cal-border)',
-                        borderBottom: '0.5px solid var(--cal-border)',
-                      }}>{format(d, 'MMMM yyyy')}</td>
-                    </tr>
-                  )}
-
-                  <tr key={ds} style={{ height: rowH, background: weekBg,
-                    borderTop: isMon ? '1px solid var(--cal-border-week)' : undefined }}>
+                <tr key={ds} style={{ height: rowH, background: weekBg,
+                  borderTop: isMon ? '1px solid var(--cal-border-week)' : undefined }}>
                     <td style={{
                       padding: '0 8px', fontSize: 11,
                       color: isToday ? 'var(--cal-success-text)' : isMon ? 'var(--cal-text-soft-alt)' : 'var(--cal-text-secondary)',
@@ -435,12 +422,22 @@ export default function ResourceGrid({
                       borderBottom: '0.5px solid var(--cal-row-alt)',
                       borderRight: '0.5px solid var(--cal-border)',
                       borderTop: isMon ? '1px solid var(--cal-border-week)' : undefined,
+                      boxShadow: isSep ? 'inset 0 2px 0 var(--cal-accent)' : undefined,
                       position: 'sticky', left: 0, zIndex: 2,
                       background: isToday ? 'var(--cal-today-bg)' : oddWeek ? 'var(--cal-week-alt)' : 'var(--cal-bg)',
                       whiteSpace: 'nowrap', verticalAlign: 'middle', height: rowH,
                     }}>
-                      <span style={{ fontWeight: 600 }}>{format(d, 'EEE')} </span>
-                      <span style={{ fontSize: 10 }}>{format(d, 'M/d')}</span>
+                      {isSep && (
+                        <div style={{
+                          fontSize: 8, fontWeight: 700, lineHeight: 1.1,
+                          color: 'var(--cal-accent)', letterSpacing: '0.04em',
+                          textTransform: 'uppercase',
+                        }}>{format(d, 'MMM yyyy')}</div>
+                      )}
+                      <div style={{ lineHeight: 1.2 }}>
+                        <span style={{ fontWeight: 600 }}>{format(d, 'EEE')} </span>
+                        <span style={{ fontSize: 10 }}>{format(d, 'M/d')}</span>
+                      </div>
                     </td>
 
                     {CONFIG.TECHNICIANS.map((tech, ti) => {
@@ -464,6 +461,7 @@ export default function ResourceGrid({
                             borderBottom: '0.5px solid var(--cal-row-alt)',
                             borderRight: !isLast ? '0.5px solid var(--cal-row-alt)' : 'none',
                             borderTop: isMon ? '1px solid var(--cal-border-week)' : undefined,
+                            boxShadow: isSep ? 'inset 0 2px 0 var(--cal-accent)' : undefined,
                             cursor: editorToken && !activeOnDay.length && !techEvs.length ? 'pointer' : 'default',
                             padding: 0, verticalAlign: 'top',
                             background: isDropTarget ? 'rgba(58,123,213,0.15)' : 'transparent',
@@ -639,7 +637,6 @@ export default function ResourceGrid({
                     })}
                     
                   </tr>
-                </>
               );
               
             })}
