@@ -105,8 +105,16 @@
   async function loadData() {
     $('load-status').textContent = 'Loading jobs…';
     try {
+      const jobsRequest = api('/jobinfo/summary').then(async rows => {
+        if (rows.some(row => Object.prototype.hasOwnProperty.call(row, 'prev_hotel'))) return rows;
+        // Compatibility with a deployed Worker that predates prev_hotel in the
+        // summary projection. Remove this fallback after every environment is updated.
+        const legacyRows = await api('/jobinfo/all');
+        const hotelByJob = new Map(legacyRows.map(row => [row.job_name, row.prev_hotel]));
+        return rows.map(row => ({ ...row, prev_hotel: hotelByJob.get(row.job_name) ?? null }));
+      });
       const [jobs, stats, events, assignments] = await Promise.all([
-        api('/jobinfo/summary'), api('/jobinfo/stats'),
+        jobsRequest, api('/jobinfo/stats'),
         api('/calendar/events').catch(() => []), api('/calendar/assignments').catch(() => []),
       ]);
       state.jobs = jobs.map(job => ({ ...job, location: locationLabel(job), state: parseState(job.site_address) }));
@@ -180,6 +188,46 @@
     state.stats.overview.guardian_sensors ??= hardwareSensors.Guardian || 0;
     state.stats.overview.arms_sensors ??= hardwareSensors.ARMS || 0;
     state.stats.overview.mixed_sensors ??= hardwareSensors.Mix || 0;
+  }
+
+  function aggregateJobCategories(extractor) {
+    const totals = {};
+    state.jobs.forEach(job => {
+      [...new Set(extractor(job))].forEach(label => {
+        if (!label) return;
+        totals[label] ||= { label, value: 0, sensor_value: 0 };
+        totals[label].value += 1;
+        totals[label].sensor_value += Number(job.sensors) || 0;
+      });
+    });
+    return Object.values(totals).sort((a, b) => b.value - a.value || b.sensor_value - a.sensor_value || a.label.localeCompare(b.label));
+  }
+
+  function airportCodes(job) {
+    const excluded = new Set(['THE', 'AND', 'AIR', 'VIA', 'USE', 'USA']);
+    return (String(job.airport_info || '').toUpperCase().match(/\b[A-Z]{3}\b/g) || [])
+      .filter(code => !excluded.has(code));
+  }
+
+  function hotelParents(job) {
+    const hotel = String(job.prev_hotel || '').trim();
+    if (!hotel || /^(none|nothing|n\/a|no hotel)[.!\s]*$/i.test(hotel)) return [];
+    const portfolios = [
+      ['Hilton', /\b(hilton|hampton|homewood|home2|doubletree|embassy suites|tru by|waldorf astoria|conrad|canopy)\b/i],
+      ['Marriott', /\b(marriott|fairf+ield|springhill|courtyard|town(?:e)?place|sheraton|four points|westin|aloft|renaissance|residence inn|ac hotel|moxy|element|st\.? regis|ritz-carlton)\b/i],
+      ['IHG', /\b(ihg|holiday inn|hie|crowne plaza|staybridge|candlewood|hotel indigo|intercontinental|kimpton|avid hotel)\b/i],
+      ['Hyatt', /\b(hyatt|andaz)\b/i],
+      ['Best Western', /\b(best western|surestay|glo best)\b/i],
+      ['Choice Hotels', /\b(choice hotel|radisson|country inn|comfort inn|comfort suites|quality inn|sleep inn|clarion|cambria|mainstay|econo lodge|rodeway)\b/i],
+      ['Wyndham', /\b(wyndham|la quinta|days inn|super 8|ramada|wingate|microtel|baymont|hawthorn suites)\b/i],
+      ['Sonesta', /\b(sonesta|red lion|americas best value inn)\b/i],
+      ['Accor', /\b(accor|fairmont|novotel|sofitel|ibis|m[öo]venpick)\b/i],
+      ['Drury', /\bdrury\b/i],
+      ['Omni', /\bomni\b/i],
+      ['Extended Stay America', /\bextended stay america\b/i],
+    ];
+    const matches = portfolios.filter(([, pattern]) => pattern.test(hotel)).map(([parent]) => parent);
+    return matches.length ? matches : ['Independent / Other'];
   }
 
   function uniqueValues(key) {
@@ -367,6 +415,8 @@
     }, {})).sort((a, b) => b.value - a.value);
     barChart('state-chart', byState, label => filterFromChart('state-filter', label === 'Unknown' ? '' : label));
     monthChart('latest-chart', state.stats.latest_calibrations_by_month);
+    barChart('airport-chart', aggregateJobCategories(airportCodes));
+    barChart('hotel-chart', aggregateJobCategories(hotelParents));
   }
 
   function filterFromChart(id, value) {

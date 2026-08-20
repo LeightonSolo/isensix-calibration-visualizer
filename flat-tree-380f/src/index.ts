@@ -267,7 +267,7 @@ export default {
           id, customer, job_name, servers, sensors, meters, o2,
           server_version, hardware, num_tech, active, status,
           estimated_days, scheduled_start_date, scheduled_end_date,
-          scheduled_with, site_address, vpn_works, airport_info,
+          scheduled_with, site_address, vpn_works, airport_info, prev_hotel,
           primary_tech, last_calibrated, updated_at
         FROM job_info
         ORDER BY job_name

@@ -59,6 +59,7 @@ describe('Job Info API', () => {
     expect(await response.json()).toEqual([{ id: 1, job_name: 'Alpha' }]);
     const sql = prepare.mock.calls[0][0] as string;
     expect(sql).toContain('last_calibrated');
+    expect(sql).toContain('prev_hotel');
     expect(sql).not.toContain('credentials');
     expect(sql).not.toContain('main_contact');
   });
