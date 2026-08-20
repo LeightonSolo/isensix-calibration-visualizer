@@ -13,7 +13,7 @@
 .panel { background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius-md); }
 .jobs-toolbar { padding:10px 12px; margin-bottom:10px; }
 .jobs-filter-row { display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
-.jobs-search { min-width:290px; flex:1; display:flex; align-items:center; gap:7px; background:var(--bg-input); border:1px solid var(--border); border-radius:var(--radius-sm); padding-left:9px; color:var(--text-muted); }
+.jobs-search { min-width:290px; flex:1; display:flex; align-items:center; gap:7px; background:var(--bg-input); border:1px solid var(--border); border-radius:var(--radius-sm); padding:6px 8px; color:var(--text-muted); }
 .jobs-search:focus-within { border-color:var(--accent-blue); }
 .jobs-search input { width:100%; border:0; background:transparent; color:var(--text-primary); padding-left:0; }
 .jobs-search input:focus { outline:0; }
@@ -25,7 +25,7 @@
 #jobs-table th { position:sticky; top:0; z-index:3; padding:8px 10px; background:var(--bg-header); border-bottom:1px solid var(--border); color:var(--text-secondary); font-size:11px; font-weight:600; text-align:left; white-space:nowrap; cursor:pointer; }
 #jobs-table th:first-child, #jobs-table td:first-child { position:sticky; left:0; z-index:2; }
 #jobs-table th:first-child { z-index:4; }
-#jobs-table td { padding:8px 10px; border-bottom:1px solid var(--border-light); color:var(--text-secondary); font-size:12px; max-width:270px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#jobs-table td { padding:8px 10px; border-bottom:1px solid var(--border-light); color:var(--text-secondary); font-size:13px; max-width:270px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 #jobs-table tbody tr:nth-child(odd) td { background:var(--bg-panel); }
 #jobs-table tbody tr:nth-child(even) td { background:var(--bg-row-alt); }
 #jobs-table tbody tr:hover td { background:var(--bg-row-hover); cursor:pointer; }
@@ -36,7 +36,7 @@
 .badge.guardian { color:#9bc4ff; border-color:#315d91; background:rgba(4,69,160,.15); }
 .badge.arms { color:#ff5252; border-color:#d4180b; background:rgba(107, 1, 1, 0.13); }
 .badge.mix { color:#9e00e7; border-color:#c500ec; background:rgba(134, 26, 196, 0.13); }
-.badge.o2 { color:#ffca75; border-color:var(--accent-orange); background:rgba(196,122,26,.18); }
+.badge.o2 { color:#ec9a17; border-color:var(--accent-orange); background:rgba(196,122,26,.18); font-weight:900; }
 .analytics-cards { display:grid; grid-template-columns:repeat(6,minmax(130px,1fr)); gap:10px; margin-bottom:10px; }
 .analytics-card { padding:14px; }
 .analytics-card span { display:block; color:var(--text-muted); font-size:11px; margin-bottom:5px; }
