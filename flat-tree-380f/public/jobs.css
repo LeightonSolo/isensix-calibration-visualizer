@@ -26,6 +26,7 @@
 #jobs-table th:first-child, #jobs-table td:first-child { position:sticky; left:0; z-index:2; }
 #jobs-table th:first-child { z-index:4; }
 #jobs-table td { padding:8px 10px; border-bottom:1px solid var(--border-light); color:var(--text-secondary); font-size:13px; max-width:270px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#jobs-table td:first-child {  border-right: 1px solid var(--text-muted); } /*line after first column*/
 #jobs-table tbody tr:nth-child(odd) td { background:var(--bg-panel); }
 #jobs-table tbody tr:nth-child(even) td { background:var(--bg-row-alt); }
 #jobs-table tbody tr:hover td { background:var(--bg-row-hover); cursor:pointer; }
