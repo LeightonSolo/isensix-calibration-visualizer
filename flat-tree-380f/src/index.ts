@@ -259,6 +259,91 @@ export default {
       return json(results);
     }
 
+    // Lightweight rows for the Jobs directory. Sensitive and long-form fields
+    // stay on the individual record endpoint.
+    if (request.method === 'GET' && pathname === '/jobinfo/summary') {
+      const { results } = await env.DB.prepare(`
+        SELECT
+          id, customer, job_name, servers, sensors, meters, o2,
+          server_version, hardware, num_tech, active, status,
+          estimated_days, scheduled_start_date, scheduled_end_date,
+          scheduled_with, site_address, vpn_works, airport_info,
+          primary_tech, last_calibrated, updated_at
+        FROM job_info
+        ORDER BY job_name
+      `).all();
+      return json(results);
+    }
+
+    // Current inventory plus historical workload from the calendar tables.
+    if (request.method === 'GET' && pathname === '/jobinfo/stats') {
+      const batches = await env.DB.batch([
+        env.DB.prepare(`
+          SELECT
+            COUNT(*) AS total_jobs,
+            COALESCE(SUM(sensors), 0) AS total_sensors,
+            SUM(CASE WHEN hardware = 'Guardian' THEN 1 ELSE 0 END) AS guardian_jobs,
+            SUM(CASE WHEN hardware = 'Guardian' THEN COALESCE(sensors, 0) ELSE 0 END) AS guardian_sensors,
+            SUM(CASE WHEN hardware = 'ARMS' THEN 1 ELSE 0 END) AS arms_jobs,
+            SUM(CASE WHEN hardware = 'ARMS' THEN COALESCE(sensors, 0) ELSE 0 END) AS arms_sensors,
+            SUM(CASE WHEN hardware = 'Mix' THEN 1 ELSE 0 END) AS mixed_jobs,
+            SUM(CASE WHEN hardware = 'Mix' THEN COALESCE(sensors, 0) ELSE 0 END) AS mixed_sensors,
+            SUM(CASE WHEN hardware IS NULL OR trim(hardware) = '' OR hardware = '#N/A' THEN 1 ELSE 0 END) AS hardware_missing,
+            SUM(CASE WHEN site_address IS NULL OR trim(site_address) = '' THEN 1 ELSE 0 END) AS address_missing,
+            SUM(CASE WHEN last_calibrated IS NULL OR trim(last_calibrated) = '' THEN 1 ELSE 0 END) AS calibration_date_missing
+          FROM job_info
+        `),
+        env.DB.prepare(`
+          SELECT COALESCE(NULLIF(trim(hardware), ''), 'Unknown') AS label,
+            COUNT(*) AS value, COALESCE(SUM(sensors), 0) AS sensor_value
+          FROM job_info GROUP BY label ORDER BY value DESC, label
+        `),
+        env.DB.prepare(`
+          SELECT COALESCE(NULLIF(trim(server_version), ''), 'Unknown') AS label,
+            COUNT(*) AS value, COALESCE(SUM(sensors), 0) AS sensor_value
+          FROM job_info GROUP BY label ORDER BY value DESC, label
+        `),
+        env.DB.prepare(`
+          SELECT substr(last_calibrated, 1, 7) AS label, COUNT(*) AS value,
+            COALESCE(SUM(sensors), 0) AS sensor_value
+          FROM job_info
+          WHERE last_calibrated IS NOT NULL AND trim(last_calibrated) <> ''
+          GROUP BY label ORDER BY label
+        `),
+        env.DB.prepare(`
+          SELECT substr(e.start_date, 1, 7) AS label, COUNT(*) AS value,
+            COALESCE(SUM(COALESCE(j.sensors, 0)), 0) AS sensor_value
+          FROM calendar_events e
+          LEFT JOIN job_info j ON lower(trim(j.job_name)) = lower(trim(e.title))
+          WHERE e.event_type = 'calibration'
+          GROUP BY label ORDER BY label
+        `),
+        env.DB.prepare(`
+          WITH tech_jobs AS (
+            SELECT DISTINCT a.tech_name, a.event_id
+            FROM event_assignments a
+            JOIN calendar_events e ON e.id = a.event_id
+            WHERE e.event_type = 'calibration'
+          )
+          SELECT t.tech_name AS label, COUNT(*) AS value,
+            COALESCE(SUM(COALESCE(j.sensors, 0)), 0) AS sensor_value
+          FROM tech_jobs t
+          JOIN calendar_events e ON e.id = t.event_id
+          LEFT JOIN job_info j ON lower(trim(j.job_name)) = lower(trim(e.title))
+          GROUP BY t.tech_name ORDER BY value DESC, label
+        `),
+      ]);
+
+      return json({
+        overview: batches[0].results[0] ?? {},
+        hardware: batches[1].results,
+        software: batches[2].results,
+        latest_calibrations_by_month: batches[3].results,
+        calendar_jobs_by_month: batches[4].results,
+        calendar_jobs_by_tech: batches[5].results,
+      });
+    }
+
     // GET /jobinfo/:job_name
     if (request.method === 'GET' && pathname.startsWith('/jobinfo/')) {
       const job_name = decodeURIComponent(pathname.split('/').pop() || '');
@@ -271,6 +356,11 @@ export default {
 
     // POST /jobinfo — upsert job info for a customer
     if (request.method === 'POST' && pathname === '/jobinfo') {
+      const editorKey = request.headers.get('X-Editor-Token');
+      if (editorKey !== env.EDITOR_TOKEN) {
+        return new Response('Forbidden', { status: 403, headers: corsHeaders() });
+      }
+
       const body = await request.json() as Record<string, any>;
       const { job_name } = body;
 
@@ -280,6 +370,7 @@ export default {
 
       const hasScheduledStart = Object.prototype.hasOwnProperty.call(body, 'scheduled_start_date');
       const hasScheduledEnd = Object.prototype.hasOwnProperty.call(body, 'scheduled_end_date');
+      const hasLastCalibrated = Object.prototype.hasOwnProperty.call(body, 'last_calibrated');
       const scheduledStartDate = body.scheduled_start_date ?? null;
       const scheduledEndDate = body.scheduled_end_date ?? null;
 
@@ -304,6 +395,10 @@ export default {
         if (hasStartValue && scheduledStartDate > scheduledEndDate) {
           return json({ error: 'Scheduled end date cannot be before the start date' }, 400);
         }
+      }
+      if (body.last_calibrated !== null && body.last_calibrated !== undefined
+        && body.last_calibrated !== '' && !isIsoDate(body.last_calibrated)) {
+        return json({ error: 'Last calibrated must use YYYY-MM-DD format' }, 400);
       }
 
       await env.DB.prepare(`
@@ -338,10 +433,11 @@ export default {
           primary_tech,
           restaurants,
           other_notes,
-          active
+          active,
+          last_calibrated
         )
         VALUES (
-          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(job_name) DO UPDATE SET
           customer         = excluded.customer,
           job_name         = excluded.job_name,
@@ -380,6 +476,10 @@ export default {
           restaurants      = excluded.restaurants,
           other_notes      = excluded.other_notes,
           active           = excluded.active,
+          last_calibrated  = CASE
+            WHEN ? THEN excluded.last_calibrated
+            ELSE job_info.last_calibrated
+          END,
           updated_at       = datetime('now')
       `).bind(
         body.customer ?? null,
@@ -413,8 +513,10 @@ export default {
         body.restaurants ?? null,
         body.other_notes ?? null,
         body.active ?? 1,
+        body.last_calibrated || null,
         hasScheduledStart ? 1 : 0,
-        hasScheduledEnd ? 1 : 0
+        hasScheduledEnd ? 1 : 0,
+        hasLastCalibrated ? 1 : 0
       ).run();
 
       return json({ ok: true });

@@ -818,7 +818,7 @@ function renderTable() {
     return;
   }
     if (currentTab === 'jobinfo') {
-    title.textContent = 'Job Information  -  WORK IN PROGRESS!';
+    title.textContent = 'Job Information';
     count.textContent = currentCustomer || 'No customer assigned';
     area.innerHTML = buildJobInfoHTML();
     buildJobInfoTab();
@@ -1321,6 +1321,14 @@ async function saveJobInfo({ silent = false } = {}) {
     }
     return;
   }
+  let editorToken = sessionStorage.getItem('cal_editor_token');
+  if (!editorToken && silent) return;
+  if (!editorToken) {
+    editorToken = prompt('Enter the editor password to save job information:')?.trim();
+    if (!editorToken) return;
+    sessionStorage.setItem('cal_editor_token', editorToken);
+  }
+
   const get = (id, key) => {
     const el = document.getElementById(id);
     return el ? (el.value.trim() || null) : (jobInfo[key] ?? null);
@@ -1384,7 +1392,11 @@ async function saveJobInfo({ silent = false } = {}) {
   try {
     const res = await fetch(`${CONFIG.WORKER_URL}/jobinfo`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Api-Key': CONFIG.API_KEY },
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Api-Key': CONFIG.API_KEY,
+        'X-Editor-Token': editorToken,
+      },
       body: JSON.stringify(body),
     });
     console.log('Saved job info');
@@ -1395,7 +1407,10 @@ async function saveJobInfo({ silent = false } = {}) {
       setTimeout(() => { if (el) el.textContent = ''; }, 3000);
     }
   } catch(e) {
-    alert('Failed to save job info');
+    if (e.message.includes('Forbidden')) sessionStorage.removeItem('cal_editor_token');
+    if (!silent) alert(e.message.includes('Forbidden')
+      ? 'Incorrect editor password. Please try again.'
+      : 'Failed to save job info');
     console.error(e);
   }
 }
@@ -1599,6 +1614,7 @@ function buildJobInfoHTML() {
 
     <div style="display:flex;gap:10px;align-items:center;padding:14px 9px 9px;">
       <button class="primary" onclick="saveJobInfo()">Save job info</button>
+      <a href="jobs.html?job=${encodeURIComponent(currentCustomer || '')}" style="color:var(--accent-light-blue);font-size:12px;">Open full job record</a>
       <span id="ji-save-status" style="font-size:12px;color:var(--accent-green);"></span>
     </div>`;
 }

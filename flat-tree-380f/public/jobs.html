@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Isensix Jobs</title>
+  <script src="theme.js"></script>
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="jobs.css">
+</head>
+<body>
+<div id="jobs-app">
+  <nav id="navbar" class="jobs-navbar">
+    <a class="nav-brand jobs-brand" href="index.html">
+      <i class="ti ti-briefcase"></i><span>Isensix Jobs</span>
+    </a>
+    <div class="nav-links jobs-nav-links">
+      <button type="button" data-theme-toggle onclick="IsensixTheme.toggle()"></button>
+      <a class="jobs-nav-link" href="index.html"><i class="ti ti-layout-dashboard"></i> Dashboard</a>
+      <a class="jobs-nav-link" href="calendar/"><i class="ti ti-calendar"></i> Calendar</a>
+      <button id="editor-btn" type="button"><i class="ti ti-lock"></i> Editor login</button>
+    </div>
+  </nav>
+
+  <header class="jobs-heading">
+    <div>
+      <h1>Job information</h1>
+      <p>Search, review, and maintain customer site information.</p>
+    </div>
+    <div class="jobs-heading-actions">
+      <span id="load-status" role="status">Loading jobs…</span>
+      <button id="refresh-btn" type="button"><i class="ti ti-refresh"></i> Refresh</button>
+      <button id="new-job-btn" class="primary" type="button"><i class="ti ti-plus"></i> New job</button>
+    </div>
+  </header>
+
+  <div class="jobs-view-tabs" role="tablist" aria-label="Jobs views">
+    <button class="jobs-view-tab active" data-view="directory" role="tab">Directory</button>
+    <button class="jobs-view-tab" data-view="analytics" role="tab">Analytics</button>
+  </div>
+
+  <main>
+    <section id="directory-view">
+      <div class="jobs-toolbar panel">
+        <div class="jobs-filter-row">
+          <label class="jobs-search"><i class="ti ti-search"></i><input id="job-search" type="search" placeholder="Search jobs, servers, locations, techs…"></label>
+          <select id="hardware-filter" aria-label="Filter by hardware"><option value="">All hardware</option></select>
+          <select id="software-filter" aria-label="Filter by software"><option value="">All software</option></select>
+          <select id="tech-filter" aria-label="Filter by technician"><option value="">All technicians</option></select>
+          <select id="state-filter" aria-label="Filter by state"><option value="">All states</option></select>
+          <select id="active-filter" aria-label="Filter by active status">
+            <option value="">Active and Inactive</option><option value="active">Active jobs</option><option value="inactive">Inactive jobs</option>
+          </select>
+          <button id="clear-filters-btn" type="button">Clear</button>
+        </div>
+        <div class="jobs-filter-row jobs-toolbar-secondary">
+          <span id="result-count">0 jobs</span>
+          <label>Columns
+            <select id="column-preset">
+              <option value="planning">Planning</option>
+              <option value="equipment">Equipment</option>
+              <option value="travel">Travel</option>
+              <option value="all" selected>All fields</option>
+            </select>
+          </label>
+          <button id="export-btn" type="button"><i class="ti ti-download"></i> Export filtered CSV</button>
+        </div>
+      </div>
+
+      <div class="jobs-table-panel panel">
+        <div class="jobs-table-scroll">
+          <table id="jobs-table">
+            <thead><tr id="jobs-table-head"></tr></thead>
+            <tbody id="jobs-table-body"></tbody>
+          </table>
+        </div>
+        <div id="jobs-empty" class="jobs-empty" hidden>No jobs match the current filters.</div>
+      </div>
+    </section>
+
+    <section id="analytics-view" hidden>
+      <div id="analytics-cards" class="analytics-cards"></div>
+      <div class="analytics-grid">
+        <article class="panel analytics-panel"><div class="analytics-title"><h2>Hardware</h2><span>Jobs and sensors</span></div><div id="hardware-chart"></div></article>
+        <article class="panel analytics-panel"><div class="analytics-title"><h2>Software versions</h2><span>Jobs and sensors</span></div><div id="software-chart"></div></article>
+        <article class="panel analytics-panel analytics-wide"><div class="analytics-title"><h2>Calibration jobs by month</h2><span>Calendar jobs and their sensors</span></div><div id="month-chart" class="month-chart"></div></article>
+        <article class="panel analytics-panel analytics-wide"><div class="analytics-title"><h2>Jobs by technician</h2><span>Scheduled assignments compared with primary ownership</span></div><div id="tech-chart"></div></article>
+        <article class="panel analytics-panel"><div class="analytics-title"><h2>Jobs by state</h2><span>Jobs and sensors; state derived from address</span></div><div id="state-chart"></div></article>
+        <article class="panel analytics-panel analytics-wide"><div class="analytics-title"><h2>Latest calibration dates</h2><span>Jobs and sensors; one latest date per job</span></div><div id="latest-chart" class="month-chart"></div></article>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div id="drawer-backdrop" class="drawer-backdrop" hidden></div>
+<aside id="job-drawer" class="job-drawer" aria-hidden="true" aria-labelledby="drawer-title">
+  <div class="drawer-header">
+    <div><span id="drawer-eyebrow">Job details</span><h2 id="drawer-title">Job</h2></div>
+    <button id="drawer-close" class="icon-button" type="button" aria-label="Close"><i class="ti ti-x"></i></button>
+  </div>
+  <div id="drawer-message" class="drawer-message" hidden></div>
+  <form id="job-form">
+    <div id="job-form-content" class="drawer-content"></div>
+    <div class="drawer-footer">
+      <span id="save-status" role="status"></span>
+      <button id="cancel-btn" type="button">Cancel</button>
+      <button id="edit-btn" type="button" class="primary"><i class="ti ti-edit"></i> Edit</button>
+      <button id="save-btn" type="submit" class="primary" hidden><i class="ti ti-device-floppy"></i> Save</button>
+    </div>
+  </form>
+</aside>
+
+<dialog id="editor-dialog" class="editor-dialog">
+  <form method="dialog" id="editor-form">
+    <h2>Editor access</h2>
+    <p>Enter the editor password to create or modify job information.</p>
+    <input id="editor-password" type="password" autocomplete="current-password" placeholder="Editor password" required>
+    <div class="dialog-actions"><button id="editor-cancel" type="button">Cancel</button><button id="editor-unlock" type="submit" class="primary">Unlock</button></div>
+  </form>
+</dialog>
+
+<script src="config.js"></script>
+<script src="jobs.js"></script>
+</body>
+</html>

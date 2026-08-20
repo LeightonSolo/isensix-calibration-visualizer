@@ -315,6 +315,10 @@ function generateGhostEvents(events, assignments, jobInfoMap) {
           style={{ color: 'var(--cal-text-secondary)', fontSize: 12, textDecoration: 'none' }}>
           ← Dashboard
         </a>
+        <a href="../jobs.html"
+          style={{ color: 'var(--cal-text-secondary)', fontSize: 12, textDecoration: 'none' }}>
+          Jobs
+        </a>
         <span style={{ fontWeight: 600, fontSize: 14, marginRight: 8 }}>
           Isensix Calendar
         </span>
