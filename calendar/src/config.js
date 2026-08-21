@@ -7,7 +7,7 @@ export const CONFIG = {
     'Dejan',
     'Leighton',
     'Joey',
-    'Kyle',
+    'Brendon',
     'Matt',
     'Fernando',
     'Bissen',
@@ -38,7 +38,7 @@ export const CONFIG = {
   'Joey':     { bg: 'var(--tech-joey-bg)', fg: 'var(--tech-joey-text)', border: 'var(--tech-joey-border)' },
   'Bissen':   { bg: 'var(--tech-bissen-bg)', fg: 'var(--tech-bissen-text)', border: 'var(--tech-bissen-border)' },
   'Dejan':    { bg: 'var(--tech-dejan-bg)', fg: 'var(--tech-dejan-text)', border: 'var(--tech-dejan-border)' },
-  'Kyle':     { bg: 'var(--tech-kyle-bg)', fg: 'var(--tech-kyle-text)', border: 'var(--tech-kyle-border)' },
+  'Brendon':     { bg: 'var(--tech-brendon-bg)', fg: 'var(--tech-brendon-text)', border: 'var(--tech-brendon-border)' },
   'Matt':     { bg: 'var(--tech-matt-bg)', fg: 'var(--tech-matt-text)', border: 'var(--tech-matt-border)' },
   },
 };

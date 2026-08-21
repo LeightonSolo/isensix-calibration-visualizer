@@ -41,7 +41,7 @@ const CONFIG = {
     'Deyan',
     'Dejan',
     'Bissen',
-    'Kyle',
+    'Brendon',
     'Matt',
   ],
 };

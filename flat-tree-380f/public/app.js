@@ -1042,7 +1042,7 @@ function openExceptionModal(sensor_id, server) {
       flex-direction:column;gap:14px;">
       <div style="font-size:14px;font-weight:600;">Mark as Exception</div>
       <div style="font-size:12px;color:var(--text-secondary);">
-        <span style="color:var(--text-primary);font-weight:500;">#${sensor.sensor_id}</span>
+        <span style="color:var(--text-primary);font-weight:500;">${sensor.cp_address}</span>
         ${sensor.sensor_name || ''}
         <span class="muted"> — ${sensor.zone || ''}</span>
       </div>
