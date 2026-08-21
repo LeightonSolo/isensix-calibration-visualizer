@@ -14,7 +14,7 @@
   const columns = {
     planning: [
       ['job_name', 'Job'], ['servers', 'Servers'], ['last_calibrated', 'Last calibrated'],
-      ['sensors', 'Sensors'], ['o2', 'O₂'], ['primary_tech', 'Primary tech'], ['num_tech', 'Techs needed'], ['main_contact', 'Main contact'], ['other_contacts', 'Other contacts'],
+      ['sensors', 'Sensors'], ['num_tech', 'Techs'], ['o2', 'O₂'], ['primary_tech', 'Primary tech'], ['main_contact', 'Main contact'], ['other_contacts', 'Other contacts'],
       ['contact_notes', 'Contact notes'], ['scheduled_with', 'Scheduled with'], ['hardware', 'Hardware'], ['location', 'Location'],
     ],
     equipment: [
@@ -29,8 +29,8 @@
     ],
     all: [
       ['job_name', 'Job'], ['customer', 'Customer'], ['servers', 'Servers'],
-      ['last_calibrated', 'Last calibrated'], ['sensors', 'Sensors'], ['meters', 'Meters'],
-      ['o2', 'O₂'], ['num_tech', 'Techs needed'], ['scheduled_with', 'Scheduled with'],
+      ['last_calibrated', 'Last calibrated'], ['sensors', 'Sensors'], ['num_tech', 'Techs'], ['meters', 'Meters'],
+      ['o2', 'O₂'], ['scheduled_with', 'Scheduled with'],
       ['primary_tech', 'Primary tech'], ['hardware', 'Hardware'], ['server_version', 'Software'],
       ['location', 'Location'], ['site_address', 'Address'], ['vpn_works', 'VPN'],
       ['airport_info', 'Airport'], ['emerald_aisle', 'Emerald Aisle'], ['main_contact', 'Main contact'], ['other_contacts', 'Other contacts'], ['contact_notes', 'Contact notes'],
@@ -289,6 +289,38 @@
     const selectedColumns = columns[state.preset];
     const presetWidths = state.columnWidths[state.preset];
     const tableWidth = presetWidths?.reduce((total, width) => total + width, 0);
+    const numericRange = key => {
+      const values = state.jobs.map(job => job[key])
+        .filter(value => value !== null && value !== undefined && value !== '')
+        .map(Number).filter(Number.isFinite);
+      return { min: Math.min(...values), max: Math.max(...values) };
+    };
+    const sensorRange = numericRange('sensors');
+    const techRange = numericRange('num_tech');
+    const calibrationAges = state.jobs.map(job => {
+      const timestamp = Date.parse(`${job.last_calibrated || ''}T00:00:00`);
+      return Number.isFinite(timestamp) ? Math.max(0, (Date.now() - timestamp) / 86400000) : null;
+    }).filter(Number.isFinite);
+    const calibrationRange = {
+      min: Math.min(...calibrationAges),
+      max: Math.max(...calibrationAges),
+    };
+    const rangeLevel = (value, range) => {
+      if (!Number.isFinite(value) || !Number.isFinite(range.min) || !Number.isFinite(range.max)) return null;
+      if (range.max === range.min) return 0.35;
+      return 0.08 + 0.92 * ((value - range.min) / (range.max - range.min));
+    };
+    const metricBar = (key, value) => {
+      if (value === null || value === undefined || value === '') return null;
+      if (key === 'sensors') return { level: rangeLevel(Number(value), sensorRange), color: '#287fd1' };
+      if (key === 'num_tech') return { level: rangeLevel(Number(value), techRange), color: '#8b63d2' };
+      if (key !== 'last_calibrated') return null;
+      const timestamp = Date.parse(`${value}T00:00:00`);
+      if (!Number.isFinite(timestamp)) return null;
+      const age = Math.max(0, (Date.now() - timestamp) / 86400000);
+      const level = rangeLevel(age, calibrationRange);
+      return { level, color: `hsl(${Math.round(120 * (1 - level))} 58% 48%)` };
+    };
     $('jobs-table').classList.toggle('has-resized-columns', Boolean(presetWidths));
     $('jobs-table').style.width = tableWidth ? `${tableWidth}px` : '';
     $('jobs-table').style.minWidth = tableWidth ? `${tableWidth}px` : '';
@@ -297,8 +329,10 @@
     $('jobs-table-body').innerHTML = state.filtered.map(job => `<tr class="${Number(job.active) === 1 ? '' : 'inactive-job'}" data-job="${escapeHtml(job.job_name)}">${selectedColumns.map(([key]) => {
       const value = job[key];
       if (key === 'hardware') return `<td><span class="badge ${hardwareClass(value)}">${escapeHtml(text(value))}</span></td>`;
-      if (key === 'o2' && Number(value) > 0) return `<td><span class="badge o2">${escapeHtml(value)}</span></td>`;
+      if (key === 'o2' && Number(value) > 0) return `<td><span style="background: #e03e3e;color:var(--text-primary);padding:1px 3px;border-radius:var(--radius-sm);">${escapeHtml(value)}</span></td>`;
       const cls = `${key === 'job_name' ? 'job-name' : ''} ${key === 'servers' ? 'mono' : ''}`.trim();
+      const bar = metricBar(key, value);
+      if (bar && bar.level !== null) return `<td class="${cls} data-bar" style="--data-level:${bar.level.toFixed(3)};--data-bar-color:${bar.color}" title="${escapeHtml(text(value))}"><span>${escapeHtml(text(value))}</span></td>`;
       return `<td class="${cls}" title="${escapeHtml(text(value))}">${escapeHtml(text(value))}</td>`;
     }).join('')}</tr>`).join('');
     $('result-count').textContent = `${state.filtered.length} of ${state.jobs.length} jobs`;
