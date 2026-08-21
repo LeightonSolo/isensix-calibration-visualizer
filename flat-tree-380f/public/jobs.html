@@ -20,10 +20,10 @@
       <i class="ti ti-briefcase"></i><span>Isensix Jobs</span>
     </a>
     <div class="nav-links jobs-nav-links">
-      <button type="button" data-theme-toggle onclick="IsensixTheme.toggle()"></button>
-      <a class="jobs-nav-link" href="index.html"><i class="ti ti-layout-dashboard"></i> Dashboard</a>
-      <a class="jobs-nav-link" href="calendar/"><i class="ti ti-calendar"></i> Calendar</a>
-      <button id="editor-btn" type="button"><i class="ti ti-lock"></i> Editor login</button>
+      <a class="nav-link" href="index.html"><i class="ti ti-layout-dashboard"></i> Dashboard</a>
+      <a class="nav-link active" href="jobs.html" aria-current="page"><i class="ti ti-briefcase"></i> Jobs</a>
+      <a class="nav-link" href="calendar/"><i class="ti ti-calendar"></i> Calendar</a>
+      <button class="nav-btn theme-nav-btn" type="button" data-theme-toggle onclick="IsensixTheme.toggle()"></button>
     </div>
   </nav>
 
@@ -34,6 +34,7 @@
     </div>
     <div class="jobs-heading-actions">
       <span id="load-status" role="status">Loading jobs…</span>
+      <button id="editor-btn" type="button"><i class="ti ti-lock"></i> Editor login</button>
       <button id="refresh-btn" type="button"><i class="ti ti-refresh"></i> Refresh</button>
       <button id="new-job-btn" class="primary" type="button"><i class="ti ti-plus"></i> New job</button>
     </div>

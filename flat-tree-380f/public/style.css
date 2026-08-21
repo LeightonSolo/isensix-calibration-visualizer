@@ -122,6 +122,13 @@ button.active {
   color: #fff;
 }
 
+.nav-link.active,
+.nav-link.active:hover {
+  background: var(--accent-blue);
+  border-color: var(--accent-blue);
+  color: #fff;
+}
+
 button.active:hover {
   background: #02327a;
 }
@@ -138,9 +145,37 @@ button.active:hover {
 
 .nav-links {
     display: flex;
+    align-items: center;
+    flex-wrap: wrap;
     gap: 4px;
     font-size: 10px;
+    margin-left: auto;
 }
+
+.nav-btn,
+.nav-link,
+.toolbar-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 29px;
+  padding: 5px 10px;
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: 12px;
+  line-height: 1;
+  text-decoration: none;
+}
+
+.nav-link:hover,
+.toolbar-link:hover {
+  background: var(--bg-row-hover);
+  border-color: var(--border-strong);
+}
+
+.theme-nav-btn { margin-left: 8px; }
 
 .nav-brand {
     display: flex;
@@ -156,6 +191,19 @@ button.active:hover {
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+#latest-cal-msg {
+  margin-left: 8px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.calibration-actions {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
 }
 
 #topbar h1 {
@@ -744,6 +792,27 @@ table.summary tr:hover td { background: var(--bg-row-hover); }
 .close-modal:focus {
     color: #5a9e2f; /* Highlight green on hover */
     text-decoration: none;
+}
+
+@media (max-width: 900px) {
+  #navbar { align-items: flex-start; flex-wrap: wrap; gap: 10px; }
+  .nav-links { width: 100%; margin-left: 0; }
+  .theme-nav-btn { margin-left: auto; }
+  .calibration-actions {
+    width: 100%;
+    margin-left: 0;
+    padding-top: 8px;
+    border-top: 1px solid var(--border-light);
+  }
+}
+
+@media (max-width: 560px) {
+  #app { padding: 14px 12px 30px; }
+  .nav-brand { width: 100%; flex-wrap: wrap; }
+  #customer-display { width: 100%; margin-left: 0 !important; }
+  #server-input { flex: 1 1 100%; }
+  #latest-cal-msg { width: 100%; margin-left: 0; }
+  .calibration-actions { flex-wrap: wrap; }
 }
 
 /* The pop-in animation */

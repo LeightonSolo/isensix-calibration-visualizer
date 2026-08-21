@@ -6,6 +6,7 @@
   const state = {
     jobs: [], stats: null, events: [], assignments: [], filtered: [], view: 'directory',
     sortKey: 'job_name', sortDir: 1, preset: 'all',
+    columnWidths: {},
     selected: null, editing: false, dirty: false, pendingAction: null,
     initialJob: new URLSearchParams(location.search).get('job'), initialJobOpened: false,
   };
@@ -13,17 +14,18 @@
   const columns = {
     planning: [
       ['job_name', 'Job'], ['servers', 'Servers'], ['last_calibrated', 'Last calibrated'],
-      ['sensors', 'Sensors'], ['num_tech', 'Techs needed'], ['scheduled_with', 'Scheduled with'],
-      ['hardware', 'Hardware'], ['location', 'Location'], ['vpn_works', 'VPN'],
+      ['sensors', 'Sensors'], ['o2', 'O₂'], ['primary_tech', 'Primary tech'], ['num_tech', 'Techs needed'], ['main_contact', 'Main contact'], ['other_contacts', 'Other contacts'],
+      ['contact_notes', 'Contact notes'], ['scheduled_with', 'Scheduled with'], ['hardware', 'Hardware'], ['location', 'Location'],
     ],
     equipment: [
       ['job_name', 'Job'], ['servers', 'Servers'], ['sensors', 'Sensors'], ['meters', 'Meters'],
-      ['o2', 'O₂'], ['hardware', 'Hardware'], ['server_version', 'Software'],
+      ['o2', 'O₂'], ['hardware', 'Hardware'], ['server_version', 'Software'], ['vpn_works', 'VPN'],
       ['last_calibrated', 'Last calibrated'],
     ],
     travel: [
       ['job_name', 'Job'], ['location', 'Location'], ['site_address', 'Main address'],
-      ['airport_info', 'Airport'], ['vpn_works', 'VPN'], ['scheduled_with', 'Technicians'],
+      ['airport_info', 'Airport'], ['emerald_aisle', 'Emerald Aisle'], ['prev_hotel', 'Previous hotel'], ['hotel_comments', 'Hotel comments'], ['restaurants', 'Restaurants and attractions'],
+      ['vpn_works', 'VPN'], ['scheduled_with', 'Technicians'],
     ],
     all: [
       ['job_name', 'Job'], ['customer', 'Customer'], ['servers', 'Servers'],
@@ -31,7 +33,8 @@
       ['o2', 'O₂'], ['num_tech', 'Techs needed'], ['scheduled_with', 'Scheduled with'],
       ['primary_tech', 'Primary tech'], ['hardware', 'Hardware'], ['server_version', 'Software'],
       ['location', 'Location'], ['site_address', 'Address'], ['vpn_works', 'VPN'],
-      ['airport_info', 'Airport'], ['updated_at', 'Updated'],
+      ['airport_info', 'Airport'], ['emerald_aisle', 'Emerald Aisle'], ['main_contact', 'Main contact'], ['other_contacts', 'Other contacts'], ['contact_notes', 'Contact notes'],
+       ['prev_hotel', 'Previous hotel'], ['hotel_comments', 'Hotel comments'], ['restaurants', 'Restaurants and attractions'], ['updated_at', 'Updated'], ['active', 'Active?'],
     ],
   };
 
@@ -284,9 +287,14 @@
 
   function renderTable() {
     const selectedColumns = columns[state.preset];
-    $('jobs-table-head').innerHTML = selectedColumns.map(([key, label]) =>
-      `<th data-sort="${key}">${escapeHtml(label)}${state.sortKey === key ? (state.sortDir === 1 ? ' ↑' : ' ↓') : ''}</th>`).join('');
-    $('jobs-table-body').innerHTML = state.filtered.map(job => `<tr data-job="${escapeHtml(job.job_name)}">${selectedColumns.map(([key]) => {
+    const presetWidths = state.columnWidths[state.preset];
+    const tableWidth = presetWidths?.reduce((total, width) => total + width, 0);
+    $('jobs-table').classList.toggle('has-resized-columns', Boolean(presetWidths));
+    $('jobs-table').style.width = tableWidth ? `${tableWidth}px` : '';
+    $('jobs-table').style.minWidth = tableWidth ? `${tableWidth}px` : '';
+    $('jobs-table-head').innerHTML = selectedColumns.map(([key, label], index) =>
+      `<th data-sort="${key}"${presetWidths ? ` style="width:${presetWidths[index]}px"` : ''}><span>${escapeHtml(label)}${state.sortKey === key ? (state.sortDir === 1 ? ' ↑' : ' ↓') : ''}</span><span class="column-resizer" aria-hidden="true"></span></th>`).join('');
+    $('jobs-table-body').innerHTML = state.filtered.map(job => `<tr class="${Number(job.active) === 1 ? '' : 'inactive-job'}" data-job="${escapeHtml(job.job_name)}">${selectedColumns.map(([key]) => {
       const value = job[key];
       if (key === 'hardware') return `<td><span class="badge ${hardwareClass(value)}">${escapeHtml(text(value))}</span></td>`;
       if (key === 'o2' && Number(value) > 0) return `<td><span class="badge o2">${escapeHtml(value)}</span></td>`;
@@ -295,6 +303,47 @@
     }).join('')}</tr>`).join('');
     $('result-count').textContent = `${state.filtered.length} of ${state.jobs.length} jobs`;
     $('jobs-empty').hidden = state.filtered.length !== 0;
+  }
+
+  function beginColumnResize(event) {
+    const handle = event.target.closest('.column-resizer');
+    if (!handle) return;
+    event.preventDefault();
+    event.stopPropagation();
+
+    const header = handle.closest('th');
+    const headers = [...$('jobs-table-head').querySelectorAll('th')];
+    const columnIndex = headers.indexOf(header);
+    if (columnIndex < 0) return;
+
+    const widths = headers.map(cell => Math.round(cell.getBoundingClientRect().width));
+    const startX = event.clientX;
+    const startWidth = widths[columnIndex];
+    state.columnWidths[state.preset] = [...widths];
+    headers.forEach((cell, index) => { cell.style.width = `${widths[index]}px`; });
+    $('jobs-table').classList.add('has-resized-columns');
+    const initialTableWidth = widths.reduce((total, width) => total + width, 0);
+    $('jobs-table').style.width = `${initialTableWidth}px`;
+    $('jobs-table').style.minWidth = `${initialTableWidth}px`;
+    document.body.classList.add('resizing-jobs-column');
+
+    const onMove = moveEvent => {
+      widths[columnIndex] = Math.max(70, Math.round(startWidth + moveEvent.clientX - startX));
+      state.columnWidths[state.preset] = [...widths];
+      header.style.width = `${widths[columnIndex]}px`;
+      const tableWidth = widths.reduce((total, width) => total + width, 0);
+      $('jobs-table').style.width = `${tableWidth}px`;
+      $('jobs-table').style.minWidth = `${tableWidth}px`;
+    };
+    const onUp = () => {
+      document.body.classList.remove('resizing-jobs-column');
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
   }
 
   function setView(view) {
@@ -580,10 +629,12 @@
   $('export-btn').addEventListener('click', exportCsv);
   $('column-preset').addEventListener('change', event => { state.preset = event.target.value; renderTable(); });
   $('jobs-table-head').addEventListener('click', event => {
+    if (event.target.closest('.column-resizer')) return;
     const key = event.target.closest('th')?.dataset.sort; if (!key) return;
     if (state.sortKey === key) state.sortDir *= -1; else { state.sortKey = key; state.sortDir = 1; }
     applyFilters();
   });
+  $('jobs-table-head').addEventListener('pointerdown', beginColumnResize);
   $('jobs-table-body').addEventListener('click', event => { const row = event.target.closest('tr[data-job]'); if (row) openJob(row.dataset.job); });
   $('new-job-btn').addEventListener('click', () => requireEditor(openNewJob));
   $('edit-btn').addEventListener('click', () => requireEditor(() => setEditing(true)));

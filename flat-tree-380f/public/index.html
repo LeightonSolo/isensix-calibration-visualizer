@@ -25,46 +25,19 @@
     </div>
 
     <div class="nav-links">
-      <button class="nav-btn" type="button" data-theme-toggle onclick="IsensixTheme.toggle()"></button>
-      <button class="nav-btn active" data-page="dashboard" style="padding:5px">
+      <button class="nav-btn active" data-page="dashboard" aria-current="page">
         <i class="ti ti-layout-dashboard"></i>
         Dashboard
       </button>
 
-      <a href="jobs.html" style="padding:5px 10px;color:var(--text-primary);font-size:12px;
-        text-decoration:none;display:flex;align-items:center;gap:5px;border:0.5px solid var(--border);
-        border-radius:var(--radius-md);background:var(--bg-input);">
+      <a class="nav-link" href="jobs.html">
         <i class="ti ti-briefcase"></i> Jobs
       </a>
 
-      <a href="calendar/" style="padding:5px 10px;color:var(--text-primary);font-size:12px;
-        text-decoration:none;display:flex;align-items:center;gap:5px;border:0.5px solid var(--border);
-        border-radius:var(--radius-md);background:var(--bg-input);">
+      <a class="nav-link" href="calendar/">
         <i class="ti ti-calendar"></i> Calendar
       </a>
-
-      
-
-      <button class="nav-btn" data-page="resources" style="padding:5px">
-        <i class="ti ti-books"></i>
-        Resources
-      </button>
-
-      <a href="summary.html" style="padding:5px;color:var(--text-primary);
-        font-size:12px;text-decoration:none;display:flex;align-items:center;gap:5px;
-        border:0.5px solid var(--border);border-radius:var(--radius-md);background:var(--bg-input);">
-        <i class="ti ti-file-text"></i> Summary
-        </a>
-
-        <a href="report.html" target="_blank" style="padding:5px;color:var(--text-primary);
-        font-size:12px;text-decoration:none;display:flex;align-items:center;gap:5px;
-        border:0.5px solid var(--border);border-radius:var(--radius-md);background:var(--bg-input);">
-        <i class="ti ti-file-description"></i> Full Report
-        </a>
-
-      
-
-      
+      <button class="nav-btn theme-nav-btn" type="button" data-theme-toggle onclick="IsensixTheme.toggle()"></button>
     </div>
   </nav>
 
@@ -79,9 +52,20 @@
     <button id="auto-refresh-btn" onclick="toggleAutoRefresh()" title="Reload every 3 minutes">⏱ Auto-refresh: Off</button>
     <!-- <button id="threshold-btn" onclick="toggleSettings()" title="Configure failure thresholds"><i class="ti ti-adjustments-horizontal"></i> Thresholds</button> -->
     <!-- <button id="server-config-btn" onclick="toggleServerConfig()" title="Configure servers"><i class="ti ti-server-2"></i> All Servers</button> -->
-     <button id="settings-btn" onclick="toggleSettings()"><i class="ti ti-settings"></i> Settings</button>
+    <button id="settings-btn" onclick="toggleSettings()"><i class="ti ti-settings"></i> Settings</button>
     <span id="status-msg"></span>
-    <span id="latest-cal-msg" style="font-size:14px;color:var(--text-muted);margin-left:8px;"></span>
+    <span id="latest-cal-msg"></span>
+    <div class="calibration-actions" aria-label="Calibration tools">
+      <button class="nav-btn" data-page="resources">
+        <i class="ti ti-books"></i> Resources
+      </button>
+      <a class="toolbar-link" href="summary.html">
+        <i class="ti ti-file-text"></i> Summary
+      </a>
+      <a class="toolbar-link" href="report.html" target="_blank">
+        <i class="ti ti-file-description"></i> Full Report
+      </a>
+    </div>
   </div>
 
   <!--<div id="settings-panel">
@@ -246,6 +230,7 @@
 </div>
 
 <div id="resources-page" class="page" style="display:none;">
+    <a href="index.html" style="color: #5a9e2f; text-decoration: underline; font-size: 16px; font-weight: 700;">← Back to Dashboard</a>
     <div class="panel" style="padding:16px;">
         
         <h2>Resources</h2>

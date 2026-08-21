@@ -268,7 +268,7 @@ export default {
           server_version, hardware, num_tech, active, status,
           estimated_days, scheduled_start_date, scheduled_end_date,
           scheduled_with, site_address, vpn_works, airport_info, prev_hotel,
-          primary_tech, last_calibrated, updated_at
+          primary_tech, last_calibrated, updated_at, main_contact, other_contacts, contact_notes, emerald_aisle, prev_hotel, hotel_comments, restaurants
         FROM job_info
         ORDER BY job_name
       `).all();

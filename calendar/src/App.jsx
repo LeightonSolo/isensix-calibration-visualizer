@@ -21,6 +21,30 @@ const STYLES = {
     display: 'flex',
     flexDirection: 'column',
   },
+  navbar: {
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+    padding: '10px 24px 10px',
+    background: 'var(--cal-bg)',
+    borderBottom: '0.5px solid var(--cal-border)',
+    flexWrap: 'wrap',
+    flexShrink: 0,
+  },
+  brand: {
+    display: 'flex', alignItems: 'center', gap: 6,
+    color: 'var(--cal-text)', fontSize: 15, fontWeight: 600,
+  },
+  globalLinks: {
+    display: 'flex', alignItems: 'center', gap: 4, marginLeft: 'auto',
+    flexWrap: 'wrap',
+  },
+  navLink: (active = false) => ({
+    display: 'inline-flex', alignItems: 'center', gap: 5, minHeight: 29,
+    background: active ? 'var(--cal-accent)' : 'var(--cal-input)',
+    border: `0.5px solid ${active ? 'var(--cal-accent)' : 'var(--cal-border)'}`,
+    borderRadius: 6, color: active ? '#fff' : 'var(--cal-text)',
+    fontFamily: 'Inter, system-ui, sans-serif', fontSize: 12,
+    lineHeight: 1, padding: '0px 10px', cursor: 'pointer', textDecoration: 'none',
+  }),
   topbar: {
     display: 'flex', alignItems: 'center', gap: 10,
     padding: '10px 20px',
@@ -309,19 +333,37 @@ function generateGhostEvents(events, assignments, jobInfoMap) {
     <div style={STYLES.app}>
       {showGate && <EditorGate onUnlock={handleUnlock} />}
 
-      {/* Top bar */}
+      {/* Global navigation */}
+      <nav style={STYLES.navbar} aria-label="Global navigation">
+        <div style={STYLES.brand}>
+          <i className="ti ti-calendar" aria-hidden="true" />
+          <span>Isensix Calendar</span>
+        </div>
+        <div style={STYLES.globalLinks}>
+          <a href="../index.html" style={STYLES.navLink()}>
+            <i className="ti ti-layout-dashboard" aria-hidden="true" /> Dashboard
+          </a>
+          <a href="../jobs.html" style={STYLES.navLink()}>
+            <i className="ti ti-briefcase" aria-hidden="true" /> Jobs
+          </a>
+          <a href="./" style={STYLES.navLink(true)} aria-current="page">
+            <i className="ti ti-calendar" aria-hidden="true" /> Calendar
+          </a>
+          <button
+            style={{ ...STYLES.navLink(), marginLeft: 8 }}
+            type="button"
+            aria-pressed={theme === 'light'}
+            aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+            title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+            onClick={toggleTheme}
+          >
+            {theme === 'dark' ? '☀ Light mode' : '☾ Dark mode'}
+          </button>
+        </div>
+      </nav>
+
+      {/* Calendar toolbar */}
       <div style={STYLES.topbar}>
-        <a href="../index.html"
-          style={{ color: 'var(--cal-text-secondary)', fontSize: 12, textDecoration: 'none' }}>
-          ← Dashboard
-        </a>
-        <a href="../jobs.html"
-          style={{ color: 'var(--cal-text-secondary)', fontSize: 12, textDecoration: 'none' }}>
-          Jobs
-        </a>
-        <span style={{ fontWeight: 600, fontSize: 14, marginRight: 8 }}>
-          Isensix Calendar
-        </span>
 
         <button style={STYLES.tabBtn(tab === 'grid')}  onClick={() => setTab('grid')}>📅 Schedule</button>
         <button style={STYLES.tabBtn(tab === 'list')}  onClick={() => setTab('list')}>📋 Job List</button>
@@ -344,16 +386,6 @@ function generateGhostEvents(events, assignments, jobInfoMap) {
         )}
 
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
-          <button
-            style={STYLES.btn}
-            type="button"
-            aria-pressed={theme === 'light'}
-            aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
-            title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
-            onClick={toggleTheme}
-          >
-            {theme === 'dark' ? '☀ Light mode' : '☾ Dark mode'}
-          </button>
           {editorToken ? (
             <>
               <span style={{ fontSize: 11, color: 'var(--cal-success)' }}>✓ Editor</span>
