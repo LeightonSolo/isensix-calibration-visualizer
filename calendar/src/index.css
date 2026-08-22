@@ -62,18 +62,21 @@
   --event-booked-bg: #14351b;
   --event-booked-text: #72d081;
   --event-booked-border: #367c43;
+  --event-tentative-bg: #23232a;
+  --event-tentative-text: #a4a4b5;
+  --event-tentative-border: #555566;
   --event-install-bg: #102b49;
   --event-install-text: #65adea;
   --event-install-border: #2f6f9f;
   --event-upgrade-bg: #172458;
   --event-upgrade-text: #7898f2;
   --event-upgrade-border: #465fae;
-  --event-other-bg: #1e1e28;
-  --event-other-text: #888899;
-  --event-other-border: #3a3a50;
-  --event-pto-bg: #3a0e3a;
-  --event-pto-text: #d070d0;
-  --event-pto-border: #6a2a6a;
+  --event-other-bg: #2b1838;
+  --event-other-text: #cf8bea;
+  --event-other-border: #87509e;
+  --event-pto-bg: #3a0e0e;
+  --event-pto-text: #d07070;
+  --event-pto-border: #6a2a2a;
   --event-holiday-bg: #2a0a0a;
   --event-holiday-text: #e06060;
   --event-holiday-border: #6a1a1a;
@@ -107,6 +110,9 @@
   --tech-matt-bg: #181818;
   --tech-matt-text: #dcffdc;
   --tech-matt-border: #666666;
+  --tech-unassigned-bg: #202025;
+  --tech-unassigned-text: #a4a4ae;
+  --tech-unassigned-border: #555560;
   scrollbar-color: var(--cal-scroll-thumb) var(--cal-header);
   scrollbar-width: thin;
 }
@@ -175,15 +181,18 @@
   --event-booked-bg: #e4f5e7;
   --event-booked-text: #246332;
   --event-booked-border: #84bc8d;
+  --event-tentative-bg: #eef0f3;
+  --event-tentative-text: #5f6670;
+  --event-tentative-border: #aeb5bf;
   --event-install-bg: #e2f1fc;
   --event-install-text: #185986;
   --event-install-border: #79add0;
   --event-upgrade-bg: #e8edff;
   --event-upgrade-text: #344f9e;
   --event-upgrade-border: #93a7df;
-  --event-other-bg: #eef1f5;
-  --event-other-text: #59616c;
-  --event-other-border: #b8bec7;
+  --event-other-bg: #f2e7f7;
+  --event-other-text: #7a3a91;
+  --event-other-border: #c39bd1;
   --event-pto-bg: #f7e8f7;
   --event-pto-text: #8f348f;
   --event-pto-border: #d2a0d2;
@@ -220,6 +229,9 @@
   --tech-matt-bg: #f0f2f0;
   --tech-matt-text: #374a37;
   --tech-matt-border: #b8c0b8;
+  --tech-unassigned-bg: #eef0f3;
+  --tech-unassigned-text: #5f6670;
+  --tech-unassigned-border: #aeb5bf;
 }
 
 * {

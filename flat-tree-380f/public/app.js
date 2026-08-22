@@ -516,7 +516,13 @@ function renderMetrics() {
     if((left == 0) && (!hasCelebratedCompletion) && (cal > 0)) {
       hasCelebratedCompletion = true;
       fireConfettiFromElement('#donut-card');
-      saveJobInfo({ silent: true });
+      const latestCalibration = sensors
+        .map(sensor => sensor.calibrated_at)
+        .filter(Boolean)
+        .sort()
+        .at(-1);
+      const lastCalibrated = String(latestCalibration || '').match(/^\d{4}-\d{2}-\d{2}/)?.[0] || null;
+      saveJobInfo({ silent: true, lastCalibrated });
     }
 }
 
@@ -1314,7 +1320,7 @@ async function loadJobInfo() {
   
 }
 
-async function saveJobInfo({ silent = false } = {}) {
+async function saveJobInfo({ silent = false, lastCalibrated = null } = {}) {
   if (!currentCustomer) {
     if (!silent) {
       alert('No customer assigned to these servers. Set a customer in the Servers panel first.');
@@ -1388,6 +1394,7 @@ async function saveJobInfo({ silent = false } = {}) {
     other_notes:     get('ji-other', 'other_notes'),
     primary_tech:    get('ji-primary-tech', 'primary_tech'),
   };
+  if (lastCalibrated) body.last_calibrated = lastCalibrated;
 
   try {
     const res = await fetch(`${CONFIG.WORKER_URL}/jobinfo`, {
@@ -1401,6 +1408,7 @@ async function saveJobInfo({ silent = false } = {}) {
     });
     console.log('Saved job info');
     if (!res.ok) throw new Error(await res.text());
+    if (lastCalibrated) jobInfo.last_calibrated = lastCalibrated;
     const el = document.getElementById('ji-save-status');
     if (el) {
       el.textContent = `Saved ${new Date().toLocaleTimeString()}`;

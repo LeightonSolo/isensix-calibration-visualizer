@@ -193,6 +193,7 @@ export default function JobModal({
     try {
       await onSave({
         id: event?.id,
+        isGhost: Boolean(event?.isGhost),
         title, event_type: eventType, status,
         customer: customer || null,
         start_date: startDate, end_date: endDate,

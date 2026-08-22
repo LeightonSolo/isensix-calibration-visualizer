@@ -11,12 +11,13 @@ export const CONFIG = {
     'Matt',
     'Fernando',
     'Bissen',
-    '',
   ],
+  UNASSIGNED_TECHNICIAN: 'Unassigned',
   EVENT_TYPES: ['calibration', 'install', 'upgrade', 'mapping', 'other'],
-  EVENT_STATUSES: ['ticketed', 'confirmed', 'booked'],
+  EVENT_STATUSES: ['tentative', 'ticketed', 'confirmed', 'booked'],
   TECH_EVENT_TYPES: ['pto', 'holiday', 'office', 'jury_duty', 'Software', 'other'],
   STATUS_COLORS: {
+    tentative: { bg: 'var(--event-tentative-bg)', fg: 'var(--event-tentative-text)', border: 'var(--event-tentative-border)' },
     ticketed:  { bg: 'var(--event-ticketed-bg)', fg: 'var(--event-ticketed-text)', border: 'var(--event-ticketed-border)' },
     confirmed: { bg: 'var(--event-confirmed-bg)', fg: 'var(--event-confirmed-text)', border: 'var(--event-confirmed-border)' },
     booked:    { bg: 'var(--event-booked-bg)', fg: 'var(--event-booked-text)', border: 'var(--event-booked-border)' },
@@ -40,5 +41,6 @@ export const CONFIG = {
   'Dejan':    { bg: 'var(--tech-dejan-bg)', fg: 'var(--tech-dejan-text)', border: 'var(--tech-dejan-border)' },
   'Brendon':     { bg: 'var(--tech-brendon-bg)', fg: 'var(--tech-brendon-text)', border: 'var(--tech-brendon-border)' },
   'Matt':     { bg: 'var(--tech-matt-bg)', fg: 'var(--tech-matt-text)', border: 'var(--tech-matt-border)' },
+  'Unassigned': { bg: 'var(--tech-unassigned-bg)', fg: 'var(--tech-unassigned-text)', border: 'var(--tech-unassigned-border)' },
   },
 };

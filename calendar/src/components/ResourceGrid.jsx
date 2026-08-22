@@ -12,6 +12,7 @@ import TechEventModal from './TechEventModal';
 const COL_W  = 130;
 const ROW_H  = 37;
 const DATE_W = 60;
+const RESOURCE_TECHNICIANS = [...CONFIG.TECHNICIANS, CONFIG.UNASSIGNED_TECHNICIAN];
 
 function getEventColor(ev) {
   // Ghost events get a distinct muted/dashed look
@@ -73,7 +74,7 @@ export default function ResourceGrid({
   const spans       = useMemo(() => buildSpans(events, assignments, dayStrs), [events, assignments, dayStrs]);
   const techLayouts = useMemo(() => {
     const m = {};
-    CONFIG.TECHNICIANS.forEach(tech => { m[tech] = layoutTechEvents(spans[tech], dayStrs); });
+    RESOURCE_TECHNICIANS.forEach(tech => { m[tech] = layoutTechEvents(spans[tech], dayStrs); });
     return m;
   }, [spans, dayStrs]);
 
@@ -89,14 +90,14 @@ export default function ResourceGrid({
 
   const techBusyDates = useMemo(() => {
     const m = {};
-    CONFIG.TECHNICIANS.forEach(t => { m[t] = new Set(); });
+    RESOURCE_TECHNICIANS.forEach(t => { m[t] = new Set(); });
     assignments.forEach(a => { if (m[a.tech_name]) m[a.tech_name].add(a.date); });
     return m;
   }, [assignments]);
 
   function getRowHeight(ds) {
     let maxLanes = 1;
-    CONFIG.TECHNICIANS.forEach(tech => {
+    RESOURCE_TECHNICIANS.forEach(tech => {
       const layout = techLayouts[tech] || [];
       const active = layout.filter(l => l.dates.includes(ds));
       if (active.length > maxLanes) maxLanes = active.length;
@@ -338,14 +339,14 @@ export default function ResourceGrid({
           </>
         )}
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-          {Object.entries(CONFIG.STATUS_COLORS).map(([s, c]) => (
+          {Object.entries(CONFIG.STATUS_COLORS).filter(([s]) => s !== 'tentative').map(([s, c]) => (
             <div key={s} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
               <span style={{ width: 10, height: 10, borderRadius: 2, background: c.bg,
                 border: `1px solid ${c.border}`, display: 'inline-block' }}/>
               <span style={{ fontSize: 11, color: 'var(--cal-text-secondary)', textTransform: 'capitalize' }}>{s}</span>
             </div>
           ))}
-          {['install','upgrade','pto'].map(t => {
+          {['install','upgrade','pto','other'].map(t => {
             const c = CONFIG.TYPE_COLORS[t];
             return (
               <div key={t} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -369,12 +370,12 @@ export default function ResourceGrid({
       <div style={{ flex: 1, overflow: 'auto', border: '0.5px solid var(--cal-border)', borderRadius: 8 }}>
         <table style={{
           borderCollapse: 'collapse', tableLayout: 'fixed',
-          width: DATE_W + CONFIG.TECHNICIANS.length * COL_W,
+          width: DATE_W + RESOURCE_TECHNICIANS.length * COL_W,
           minWidth: '100%',
         }}>
           <colgroup>
             <col style={{ width: DATE_W }}/>
-            {CONFIG.TECHNICIANS.map(t => <col key={t} style={{ width: COL_W }}/>)}
+            {RESOURCE_TECHNICIANS.map(t => <col key={t} style={{ width: COL_W }}/>)}
           </colgroup>
 
           <thead style={{ position: 'sticky', top: 0, zIndex: 4 }}>
@@ -385,14 +386,14 @@ export default function ResourceGrid({
                 borderRight: '0.5px solid var(--cal-border)',
                 position: 'sticky', left: 0, zIndex: 5, background: 'var(--cal-header)',
               }}>Date</th>
-              {CONFIG.TECHNICIANS.map((tech, i) => {
+              {RESOURCE_TECHNICIANS.map((tech, i) => {
                 const tc = CONFIG.TECH_COLORS?.[tech] || { bg: 'var(--cal-card)', fg: 'var(--cal-text)', border: 'var(--cal-border)' };
                 return (
                   <th key={tech} style={{
                     padding: '8px 10px', fontSize: 13, fontWeight: 600,
                     color: tc.fg, textAlign: 'center',
                     borderBottom: `2px solid ${tc.border}`,
-                    borderRight: i < CONFIG.TECHNICIANS.length - 1 ? '0.5px solid var(--cal-border)' : 'none',
+                    borderRight: i < RESOURCE_TECHNICIANS.length - 1 ? '0.5px solid var(--cal-border)' : 'none',
                     background: tc.bg, letterSpacing: '-0.01em',
                   }}>{tech}</th>
                 );
@@ -440,8 +441,8 @@ export default function ResourceGrid({
                       </div>
                     </td>
 
-                    {CONFIG.TECHNICIANS.map((tech, ti) => {
-                      const isLast       = ti === CONFIG.TECHNICIANS.length - 1;
+                    {RESOURCE_TECHNICIANS.map((tech, ti) => {
+                      const isLast       = ti === RESOURCE_TECHNICIANS.length - 1;
                       const techEvs      = techEventMap[tech]?.[ds] || [];
                       const layout       = techLayouts[tech] || [];
                       const activeOnDay  = layout.filter(l => l.dates.includes(ds));
