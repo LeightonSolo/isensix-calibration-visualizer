@@ -139,6 +139,11 @@ export default function App() {
 
   const [jobInfoMap, setJobInfoMap] = useState({});
 
+  const handleJobInfoSaved = useCallback(updatedJob => {
+    if (!updatedJob?.job_name) return;
+    setJobInfoMap(current => ({ ...current, [updatedJob.job_name]: updatedJob }));
+  }, []);
+
   // Load all job info on mount
   useEffect(() => {
     fetch(`${CONFIG.WORKER_URL}/jobinfo/all`, { headers: { 'X-Api-Key': CONFIG.API_KEY } })
@@ -371,6 +376,9 @@ export default function App() {
           assignments={allAssignments}
           locked={!!lockedEvent}
           serverMeta={serverMeta}
+          editorToken={editorToken}
+          requireEditor={requireEditor}
+          onJobInfoSaved={handleJobInfoSaved}
         />
       </div>
     </div>

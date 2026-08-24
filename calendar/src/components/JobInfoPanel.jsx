@@ -5,6 +5,43 @@ import { format, parseISO } from 'date-fns';
 const WORKER_URL = CONFIG.WORKER_URL;
 const API_KEY    = CONFIG.API_KEY;
 
+const EDIT_SECTIONS = [
+  { title: 'Scheduling', fields: [
+    { key: 'primary_tech', label: 'Primary tech', type: 'select', options: ['', ...CONFIG.TECHNICIANS] },
+    { key: 'status', label: 'Job status', type: 'select', options: ['', 'Unscheduled', 'Scheduled', 'In Progress', 'Complete', 'On Hold'] },
+    { key: 'num_tech', label: '# technicians', type: 'number', min: 0 },
+    { key: 'estimated_days', label: 'Estimated days', type: 'number', min: 1 },
+    { key: 'scheduled_start_date', label: 'Scheduled start', type: 'date' },
+    { key: 'scheduled_end_date', label: 'Scheduled end', type: 'date' },
+    { key: 'scheduled_with', label: 'Scheduled with' },
+  ]},
+  { title: 'Location', fields: [
+    { key: 'site_address', label: 'Main site address' },
+    { key: 'offsites', label: 'Offsites', type: 'textarea' },
+  ]},
+  { title: 'Travel', fields: [
+    { key: 'vpn_works', label: 'VPN works?', type: 'select', options: ['', 'Yes', 'No'] },
+    { key: 'airport_info', label: 'Airport info' },
+    { key: 'emerald_aisle', label: 'Emerald Aisle?', type: 'select', options: ['', 'Yes', 'No'] },
+    { key: 'prev_hotel', label: 'Previous hotel' },
+    { key: 'hotel_comments', label: 'Hotel comments', type: 'textarea' },
+    { key: 'restaurants', label: 'Restaurants & attractions', type: 'textarea' },
+  ]},
+  { title: 'Contacts', fields: [
+    { key: 'main_contact', label: 'Main contact' },
+    { key: 'other_contacts', label: 'Other contacts', type: 'textarea' },
+    { key: 'contact_notes', label: 'Contact notes', type: 'textarea' },
+    { key: 'credentials', label: 'Credentials', type: 'select', options: ['', 'None', 'Vendormate', 'Symplr', 'Green Security', 'IntelliCentrics'] },
+  ]},
+  { title: 'Documentation', fields: [
+    { key: 'comments', label: 'Comments', type: 'textarea' },
+    { key: 'report', label: 'Report', type: 'textarea' },
+    { key: 'other_notes', label: 'Other notes', type: 'textarea' },
+  ]},
+];
+
+const NUMBER_FIELDS = new Set(['num_tech', 'estimated_days']);
+
 function Label({ children }) {
   return (
     <div style={{
@@ -70,11 +107,17 @@ export default function JobInfoPanel({
   embedded = false,
   heading,
   emptyMessage,
+  editorToken,
+  requireEditor,
+  onJobInfoSaved,
 }) {
   const [fetchedJobInfo, setFetchedJobInfo] = useState(null);
   const [loading,  setLoading]  = useState(false);
   const [tab,      setTab]      = useState('summary');
   const [lastTitle, setLastTitle] = useState(null);
+  const [draft, setDraft] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState('');
   const abortRef = useRef(null);
   const hasJobInfoOverride = jobInfoOverride !== undefined;
   const jobInfo = hasJobInfoOverride ? jobInfoOverride : fetchedJobInfo;
@@ -84,9 +127,19 @@ export default function JobInfoPanel({
       setLoading(false);
       return;
     }
-    if (!selectedEvent) { setFetchedJobInfo(null); setLastTitle(null); return; }
+    if (!selectedEvent) {
+      setFetchedJobInfo(null);
+      setLastTitle(null);
+      setTab('summary');
+      setDraft(null);
+      return;
+    }
     const title = selectedEvent.title;
     if (title === lastTitle) return;
+
+    setTab('summary');
+    setDraft(null);
+    setSaveMessage('');
 
     // Cancel any in-flight request
     if (abortRef.current) abortRef.current.abort();
@@ -101,7 +154,12 @@ export default function JobInfoPanel({
       signal: controller.signal,
     })
       .then(r => r.json())
-      .then(data => { setFetchedJobInfo(Object.keys(data).length ? data : null); setLoading(false); })
+      .then(data => {
+        const nextJobInfo = Object.keys(data).length ? data : null;
+        setFetchedJobInfo(nextJobInfo);
+        setDraft(nextJobInfo ? { ...nextJobInfo } : null);
+        setLoading(false);
+      })
       .catch(e => { if (e.name !== 'AbortError') { setFetchedJobInfo(null); setLoading(false); } });
 
     return () => controller.abort();
@@ -120,8 +178,16 @@ export default function JobInfoPanel({
     ? (CONFIG.STATUS_COLORS[selectedEvent.status] || CONFIG.STATUS_COLORS.ticketed)
     : null;
 
+  function selectTab(nextTab) {
+    if (nextTab === 'edit' && jobInfo) {
+      setDraft({ ...jobInfo });
+      setSaveMessage('');
+    }
+    setTab(nextTab);
+  }
+
   const tabBtn = (t, label) => (
-    <button onClick={() => setTab(t)} style={{
+    <button onClick={() => selectTab(t)} style={{
       background: tab === t ? 'var(--cal-surface-subtle)' : 'none',
       border: `0.5px solid ${tab === t ? 'var(--cal-border-active)' : 'var(--cal-border)'}`,
       borderRadius: 5, color: tab === t ? 'var(--cal-text)' : 'var(--cal-text-muted)',
@@ -129,6 +195,75 @@ export default function JobInfoPanel({
       fontSize: 12, padding: '4px 10px', cursor: 'pointer',
     }}>{label}</button>
   );
+
+  async function saveJobInfo(token) {
+    if (!jobInfo || !draft || !selectedEvent) return;
+    const start = draft.scheduled_start_date || null;
+    const end = draft.scheduled_end_date || null;
+    if (Boolean(start) !== Boolean(end)) {
+      setSaveMessage('Enter both scheduled dates, or clear both.');
+      return;
+    }
+    if (start && end && start > end) {
+      setSaveMessage('Scheduled end cannot be before the start.');
+      return;
+    }
+
+    const updates = {};
+    EDIT_SECTIONS.flatMap(section => section.fields).forEach(field => {
+      const value = draft[field.key];
+      if (NUMBER_FIELDS.has(field.key)) {
+        updates[field.key] = value === '' || value === null || value === undefined
+          ? null
+          : Number(value);
+      } else {
+        updates[field.key] = value === '' || value === undefined ? null : value;
+      }
+    });
+    const payload = { ...jobInfo, ...updates, job_name: jobInfo.job_name || selectedEvent.title };
+
+    setSaving(true);
+    setSaveMessage('');
+    try {
+      const response = await fetch(`${WORKER_URL}/jobinfo`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Api-Key': API_KEY,
+          'X-Editor-Token': token,
+        },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) throw new Error(await response.text());
+
+      const refreshedResponse = await fetch(
+        `${WORKER_URL}/jobinfo/${encodeURIComponent(payload.job_name)}`,
+        { headers: { 'X-Api-Key': API_KEY } }
+      );
+      if (!refreshedResponse.ok) throw new Error('Saved, but could not reload the job record.');
+      const refreshed = await refreshedResponse.json();
+      setFetchedJobInfo(refreshed);
+      setDraft({ ...refreshed });
+      onJobInfoSaved?.(refreshed);
+      setSaveMessage('Saved');
+      setTab('summary');
+    } catch (error) {
+      if (String(error.message).includes('Forbidden')) {
+        sessionStorage.removeItem(CONFIG.EDITOR_TOKEN_KEY);
+        setSaveMessage('Editor password was rejected. Lock and sign in again.');
+      } else {
+        setSaveMessage(error.message || 'Could not save job info.');
+      }
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function requestSave(event) {
+    event.preventDefault();
+    if (editorToken) saveJobInfo(editorToken);
+    else requireEditor?.(saveJobInfo);
+  }
 
   return (
     <div className={`job-info-panel${embedded ? ' job-info-panel--embedded' : ''}${!selectedEvent ? ' job-info-panel--empty' : ''}`} style={{
@@ -191,6 +326,20 @@ export default function JobInfoPanel({
           borderBottom: '0.5px solid var(--cal-surface-subtle)', flexShrink: 0 }}>
           {tabBtn('summary', 'Summary')}
           {tabBtn('details', 'Full details')}
+          {jobInfo && requireEditor && tabBtn('edit', 'Edit')}
+          {saveMessage && tab !== 'edit' && (
+            <span style={{ alignSelf: 'center', color: saveMessage === 'Saved'
+              ? 'var(--cal-success)' : 'var(--cal-warning)', fontSize: 12 }}>
+              {saveMessage}
+            </span>
+          )}
+          {jobInfo && (
+            <a href={`../jobs.html?job=${encodeURIComponent(jobInfo.job_name || selectedEvent.title)}`}
+              style={{ marginLeft: 'auto', alignSelf: 'center', color: 'var(--cal-accent)',
+                fontSize: 12, textDecoration: 'none' }}>
+              Open full record
+            </a>
+          )}
         </div>
       )}
 
@@ -223,8 +372,97 @@ export default function JobInfoPanel({
         {selectedEvent && !loading && tab === 'details' && (
           <DetailsTab jobInfo={jobInfo} event={selectedEvent} serverMeta={serverMeta} />
         )}
+
+        {selectedEvent && !loading && tab === 'edit' && jobInfo && draft && (
+          <JobInfoEditForm
+            draft={draft}
+            setDraft={setDraft}
+            saving={saving}
+            saveMessage={saveMessage}
+            onSave={requestSave}
+            onCancel={() => { setDraft({ ...jobInfo }); setSaveMessage(''); setTab('summary'); }}
+          />
+        )}
       </div>
     </div>
+  );
+}
+
+function JobInfoEditForm({ draft, setDraft, saving, saveMessage, onSave, onCancel }) {
+  const controlStyle = {
+    width: '100%', boxSizing: 'border-box',
+    background: 'var(--cal-input)', color: 'var(--cal-text)',
+    border: '0.5px solid var(--cal-border-strong)', borderRadius: 5,
+    fontFamily: 'Inter, system-ui, sans-serif', fontSize: 12,
+    lineHeight: 1.4, padding: '6px 8px', outline: 'none',
+  };
+  const setValue = (key, value) => setDraft(current => ({ ...current, [key]: value }));
+
+  return (
+    <form onSubmit={onSave}>
+      <div style={{ fontSize: 12, color: 'var(--cal-text-secondary)', marginBottom: 10 }}>
+        Equipment and server fields remain managed by the CMS sync.
+      </div>
+      {EDIT_SECTIONS.map(section => (
+        <div key={section.title} style={{ marginBottom: 14 }}>
+          <Label>{section.title}</Label>
+          <div style={{ display: 'grid', gap: 9 }}>
+            {section.fields.map(field => {
+              const value = draft[field.key] ?? '';
+              return (
+                <label key={field.key} style={{ display: 'grid', gap: 3,
+                  color: 'var(--cal-text-secondary)', fontSize: 12 }}>
+                  {field.label}
+                  {field.type === 'textarea' ? (
+                    <textarea value={value} rows={3} style={{ ...controlStyle, resize: 'vertical' }}
+                      onChange={event => setValue(field.key, event.target.value)} />
+                  ) : field.type === 'select' ? (
+                    <select value={value} style={controlStyle}
+                      onChange={event => setValue(field.key, event.target.value)}>
+                      {field.options.map(option => (
+                        <option key={option || 'blank'} value={option}>
+                          {option || 'Select…'}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input type={field.type || 'text'} value={value} min={field.min}
+                      style={controlStyle}
+                      onChange={event => setValue(field.key, event.target.value)} />
+                  )}
+                </label>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+
+      <div style={{ position: 'sticky', bottom: -20, zIndex: 2,
+        display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap',
+        padding: '10px 0 4px', background: 'var(--cal-sidebar)' }}>
+        <button type="submit" disabled={saving} style={{
+          background: 'var(--cal-accent)', color: '#fff',
+          border: '0.5px solid var(--cal-accent)', borderRadius: 5,
+          fontSize: 12, padding: '6px 12px', cursor: saving ? 'wait' : 'pointer',
+          opacity: saving ? 0.65 : 1,
+        }}>
+          {saving ? 'Saving…' : 'Save job info'}
+        </button>
+        <button type="button" onClick={onCancel} disabled={saving} style={{
+          background: 'var(--cal-input)', color: 'var(--cal-text)',
+          border: '0.5px solid var(--cal-border)', borderRadius: 5,
+          fontSize: 12, padding: '6px 12px', cursor: 'pointer',
+        }}>
+          Cancel
+        </button>
+        {saveMessage && (
+          <span style={{ color: saveMessage === 'Saved' ? 'var(--cal-success)' : 'var(--cal-warning)',
+            fontSize: 12 }}>
+            {saveMessage}
+          </span>
+        )}
+      </div>
+    </form>
   );
 }
 
