@@ -1,7 +1,10 @@
+import { previewCmsSync, syncCmsInventory } from './cms-sync';
+
 export interface Env {
   DB: D1Database;
   API_KEY: string;
   EDITOR_TOKEN: string;
+  CMS_API_KEY: string;
 }
 
 function corsHeaders() {
@@ -38,6 +41,42 @@ export default {
     const authKey = request.headers.get('X-Api-Key');
     if (authKey !== env.API_KEY) {
       return json({ error: 'Unauthorized' }, 401);
+    }
+
+    // POST /admin/cms-sync - manually run the same guarded sync used by cron.
+    if (request.method === 'POST' && pathname === '/admin/cms-sync') {
+      const editorKey = request.headers.get('X-Editor-Token');
+      if (editorKey !== env.EDITOR_TOKEN) {
+        return json({ error: 'Forbidden' }, 403);
+      }
+      try {
+        return json(await syncCmsInventory(env));
+      } catch (error) {
+        console.error('CMS inventory sync failed', error);
+        return json({ error: error instanceof Error ? error.message : 'CMS inventory sync failed' }, 502);
+      }
+    }
+
+    // POST /admin/cms-sync/preview - fetch and transform CMS data without writes.
+    if (request.method === 'POST' && pathname === '/admin/cms-sync/preview') {
+      const editorKey = request.headers.get('X-Editor-Token');
+      if (editorKey !== env.EDITOR_TOKEN) {
+        return json({ error: 'Forbidden' }, 403);
+      }
+      try {
+        return json(await previewCmsSync(env));
+      } catch (error) {
+        console.error('CMS inventory preview failed', error);
+        return json({ error: error instanceof Error ? error.message : 'CMS inventory preview failed' }, 502);
+      }
+    }
+
+    // GET /admin/cms-sync/status
+    if (request.method === 'GET' && pathname === '/admin/cms-sync/status') {
+      const result = await env.DB.prepare(`
+        SELECT * FROM cms_sync_runs ORDER BY id DESC LIMIT 1
+      `).first();
+      return json(result || {});
     }
 
     // GET /servers
@@ -675,5 +714,13 @@ export default {
     }
 
     return new Response('Not found', { status: 404 });
+  },
+
+  async scheduled(
+    _controller: ScheduledController,
+    env: Env,
+    ctx: ExecutionContext,
+  ): Promise<void> {
+    ctx.waitUntil(syncCmsInventory(env));
   },
 };
