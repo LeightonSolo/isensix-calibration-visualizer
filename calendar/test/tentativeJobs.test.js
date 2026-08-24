@@ -1,6 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { generateTentativeJobs, materializeTentativeJob } from '../src/utils/tentativeJobs.js';
+import {
+  generateTentativeJobs,
+  materializeTentativeJob,
+  normalizeTentativeCalendar,
+} from '../src/utils/tentativeJobs.js';
 
 const now = new Date(2026, 7, 21, 12);
 
@@ -69,4 +73,48 @@ test('materializing a tentative job preserves the selected status and ticket', (
   assert.equal(materialized.ticket_id, 'INC-1234');
   assert.equal('isGhost' in materialized, false);
   assert.equal('sourceJobInfo' in materialized, false);
+});
+
+test('normalizes stored tentative events and assignments to estimated business days', () => {
+  const jobs = {
+    Skyline: { job_name: 'Skyline', estimated_days: 3, num_tech: 1, primary_tech: 'Daniel' },
+  };
+  const events = [{ id: 312, title: 'Skyline', status: 'tentative', start_date: '2026-09-14', end_date: '2026-09-14' }];
+  const assignments = [{ event_id: 312, tech_name: 'Joey', date: '2026-09-14' }];
+
+  const normalized = normalizeTentativeCalendar(events, assignments, jobs);
+
+  assert.equal(normalized.events[0].end_date, '2026-09-16');
+  assert.deepEqual(normalized.assignments, [
+    { event_id: 312, tech_name: 'Joey', date: '2026-09-14' },
+    { event_id: 312, tech_name: 'Joey', date: '2026-09-15' },
+    { event_id: 312, tech_name: 'Joey', date: '2026-09-16' },
+  ]);
+});
+
+test('stacks same-technician ghosts into the next open business-day slot', () => {
+  const jobs = {
+    Alpha: { id: 40, job_name: 'Alpha', active: 1, last_calibrated: '2025-08-18', estimated_days: 3, num_tech: 1, primary_tech: 'Daniel' },
+    Beta: { id: 41, job_name: 'Beta', active: 1, last_calibrated: '2025-08-18', estimated_days: 3, num_tech: 1, primary_tech: 'Daniel' },
+  };
+
+  const projected = generateTentativeJobs(jobs, [], now);
+
+  assert.deepEqual(projected.map(event => [event.title, event.start_date, event.end_date]), [
+    ['Alpha', '2026-08-17', '2026-08-19'],
+    ['Beta', '2026-08-20', '2026-08-24'],
+  ]);
+});
+
+test('places ghosts around real assignments and technician time off', () => {
+  const jobs = {
+    Alpha: { id: 50, job_name: 'Alpha', active: 1, last_calibrated: '2025-08-18', estimated_days: 2, num_tech: 1, primary_tech: 'Daniel' },
+  };
+  const assignments = [{ event_id: 900, tech_name: 'Daniel', date: '2026-08-17' }];
+  const techEvents = [{ tech_name: 'Daniel', date: '2026-08-18', event_type: 'pto' }];
+
+  const projected = generateTentativeJobs(jobs, [], now, assignments, techEvents);
+
+  assert.equal(projected[0].start_date, '2026-08-19');
+  assert.equal(projected[0].end_date, '2026-08-20');
 });

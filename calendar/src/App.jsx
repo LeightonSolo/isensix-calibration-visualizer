@@ -8,7 +8,11 @@ import ResourceGrid from './components/ResourceGrid';
 import JobList from './components/JobList';
 import EditorGate from './components/EditorGate';
 import JobInfoPanel from './components/JobInfoPanel';
-import { generateTentativeJobs, materializeTentativeJob } from './utils/tentativeJobs';
+import {
+  generateTentativeJobs,
+  materializeTentativeJob,
+  normalizeTentativeCalendar,
+} from './utils/tentativeJobs';
 
 const STYLES = {
   app: {
@@ -147,17 +151,33 @@ export default function App() {
       .catch(console.error);
   }, []);
 
-  // Generate ghost events and merge with real events
+  // Normalize stored tentative durations, then place ghosts in open technician slots.
+  const normalizedTentativeCalendar = useMemo(
+    () => normalizeTentativeCalendar(events, assignments, jobInfoMap),
+    [events, assignments, jobInfoMap]
+  );
   const ghostEvents = useMemo(
-    () => generateTentativeJobs(jobInfoMap, events),
-    [events, jobInfoMap]
+    () => generateTentativeJobs(
+      jobInfoMap,
+      normalizedTentativeCalendar.events,
+      new Date(),
+      normalizedTentativeCalendar.assignments,
+      techEvents
+    ),
+    [jobInfoMap, normalizedTentativeCalendar, techEvents]
   );
   const ghostAssignments = useMemo(
     () => ghostEvents.flatMap(g => g.ghostAssignments || []),
     [ghostEvents]
   );
-  const allEvents      = useMemo(() => [...events, ...ghostEvents],      [events, ghostEvents]);
-  const allAssignments = useMemo(() => [...assignments, ...ghostAssignments], [assignments, ghostAssignments]);
+  const allEvents = useMemo(
+    () => [...normalizedTentativeCalendar.events, ...ghostEvents],
+    [normalizedTentativeCalendar, ghostEvents]
+  );
+  const allAssignments = useMemo(
+    () => [...normalizedTentativeCalendar.assignments, ...ghostAssignments],
+    [normalizedTentativeCalendar, ghostAssignments]
+  );
 
   // Derived panel event: locked takes priority over hovered
   const panelEvent = lockedEvent || hoveredEvent;
