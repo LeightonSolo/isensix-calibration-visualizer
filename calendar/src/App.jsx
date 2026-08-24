@@ -297,11 +297,11 @@ export default function App() {
 
         <span style={{ fontSize: 12, color: 'var(--cal-text-secondary)' }}>{format(viewDate, 'MMMM yyyy')}</span>
 
-        {loading && <span style={{ fontSize: 11, color: 'var(--cal-text-muted)' }}>Loading…</span>}
-        {error   && <span style={{ fontSize: 11, color: 'var(--cal-danger)' }}>{error}</span>}
+        {loading && <span style={{ fontSize: 12, color: 'var(--cal-text-muted)' }}>Loading…</span>}
+        {error   && <span style={{ fontSize: 12, color: 'var(--cal-danger)' }}>{error}</span>}
 
         {ghostEvents.length > 0 && (
-          <span style={{ fontSize: 11, color: 'var(--cal-warning)', marginLeft: 4 }}>
+          <span style={{ fontSize: 12, color: 'var(--cal-warning)', marginLeft: 4 }}>
             {ghostEvents.length} tentative job{ghostEvents.length !== 1 ? 's' : ''} projected
           </span>
         )}
@@ -309,7 +309,7 @@ export default function App() {
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
           {editorToken ? (
             <>
-              <span style={{ fontSize: 11, color: 'var(--cal-success)' }}>✓ Editor</span>
+              <span style={{ fontSize: 12, color: 'var(--cal-success)' }}>✓ Editor</span>
               <button style={STYLES.btn} onClick={handleLock}>Lock</button>
             </>
           ) : (
@@ -321,10 +321,10 @@ export default function App() {
       </div>
 
       {/* Main content — grid/list + side panel */}
-      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+      <div className="calendar-main-layout">
 
         {/* Left: calendar or list */}
-        <div style={{ flex: 1, overflow: 'hidden', padding: '12px 12px 12px 16px' }}>
+        <div className="calendar-primary-content">
           {tab === 'grid' && (
             <ResourceGrid
               viewDate={viewDate}

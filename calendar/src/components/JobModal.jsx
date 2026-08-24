@@ -37,7 +37,7 @@ const S = {
     gap: 14,
   },
   title: { fontSize: 15, fontWeight: 600, color: 'var(--cal-text)' },
-  label: { fontSize: 11, color: 'var(--cal-text-secondary)', textTransform: 'uppercase',
+  label: { fontSize: 12, color: 'var(--cal-text-secondary)', textTransform: 'uppercase',
            letterSpacing: '0.04em', marginBottom: 4, display: 'block' },
   input: {
     background: 'var(--cal-input)', border: '0.5px solid var(--cal-border)',
@@ -51,7 +51,7 @@ const S = {
     position: 'absolute', top: 0, right: 0, bottom: 0, width: 32,
     background: 'var(--cal-button-addon)', border: 0, borderLeft: '0.5px solid var(--cal-addon-border)',
     borderRadius: '0 4px 4px 0', color: 'var(--cal-text-secondary)', cursor: 'pointer',
-    fontSize: 11,
+    fontSize: 12,
   },
   jobOptions: {
     position: 'absolute', left: 0, right: 0, top: 'calc(100% + 4px)',
@@ -304,14 +304,14 @@ export default function JobModal({
                   </button>
                 ))}
                 {visibleJobNames.length === 0 && (
-                  <div style={{ padding: '8px 9px', color: 'var(--cal-text-empty)', fontSize: 11 }}>
+                  <div style={{ padding: '8px 9px', color: 'var(--cal-text-empty)', fontSize: 12 }}>
                     No matching jobs — this can still be used as a custom event name.
                   </div>
                 )}
               </div>
             )}
           </div>
-          <div style={{ fontSize: 10, color: 'var(--cal-text-muted)', marginTop: 4 }}>
+          <div style={{ fontSize: 12, color: 'var(--cal-text-muted)', marginTop: 4 }}>
             Choose a suggested job to preview Job Info, or enter any event name.
           </div>
         </div>
@@ -391,19 +391,19 @@ export default function JobModal({
               <table style={{ borderCollapse: 'collapse', minWidth: '100%' }}>
                 <thead>
                   <tr>
-                    <th style={{ padding: '6px 10px', fontSize: 11,
+                    <th style={{ padding: '6px 10px', fontSize: 12,
                       color: 'var(--cal-text-secondary)', textAlign: 'left',
                       borderBottom: '0.5px solid var(--cal-border)',
                       background: 'var(--cal-header)', width: 100 }}>Tech</th>
                     {days.map(d => (
-                      <th key={d} style={{ padding: '6px 8px', fontSize: 10,
+                      <th key={d} style={{ padding: '6px 8px', fontSize: 12,
                         color: 'var(--cal-text-secondary)', textAlign: 'center',
                         borderBottom: '0.5px solid var(--cal-border)',
                         background: 'var(--cal-header)', whiteSpace: 'nowrap' }}>
                         {format(d, 'EEE M/d')}
                       </th>
                     ))}
-                    <th style={{ padding: '6px 8px', fontSize: 10,
+                    <th style={{ padding: '6px 8px', fontSize: 12,
                       color: 'var(--cal-text-muted)', textAlign: 'center',
                       borderBottom: '0.5px solid var(--cal-border)',
                       background: 'var(--cal-header)' }}>All</th>
@@ -448,7 +448,7 @@ export default function JobModal({
                               background: allOn ? 'var(--cal-info-strong-bg)' : 'var(--cal-input)',
                               border: `0.5px solid ${allOn ? 'var(--cal-info-border-strong)' : 'var(--cal-border)'}`,
                               borderRadius: 3, cursor: 'pointer',
-                              width: 24, height: 24, fontSize: 10,
+                              width: 24, height: 24, fontSize: 12,
                               color: allOn ? 'var(--cal-info-text)' : 'var(--cal-text-muted)',
                               margin: '3px auto', display: 'flex',
                               alignItems: 'center', justifyContent: 'center',

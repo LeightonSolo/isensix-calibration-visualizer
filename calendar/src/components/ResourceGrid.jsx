@@ -25,6 +25,12 @@ function getTechEventColor(te) {
   return CONFIG.TYPE_COLORS[te.event_type] || CONFIG.TYPE_COLORS.other;
 }
 
+function eventTitleFontSize(blockHeight, title) {
+  const length = String(title || '').length;
+  const lengthLimit = length <= 12 ? 20 : length <= 22 ? 17 : length <= 34 ? 15 : 13;
+  return Math.min(lengthLimit, Math.max(12, Math.round(10 + blockHeight / 18)));
+}
+
 function buildSpans(events, assignments, dayStrs) {
   const raw = {};
   assignments.forEach(a => {
@@ -243,7 +249,7 @@ export default function ResourceGrid({
   }, [days]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 100px)' }}>
+    <div className="resource-grid">
 
       {/* Hover card tooltip */}
       {hoverCard && (
@@ -252,7 +258,7 @@ export default function ResourceGrid({
           left: hoverCard.x + 12, top: hoverCard.y + 12,
           background: 'var(--cal-popover)', border: '0.5px solid var(--cal-border-strong)',
           borderRadius: 6, padding: '8px 12px',
-          fontSize: 12, color: 'var(--cal-text)',
+          fontSize: 14, color: 'var(--cal-text)',
           zIndex: 9999, pointerEvents: 'none', maxWidth: 260,
           boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
         }}>
@@ -260,13 +266,13 @@ export default function ResourceGrid({
             <>
               <div style={{ fontWeight: 600, marginBottom: 3 }}>{hoverCard.data.tech_name}</div>
               <div style={{ color: getTechEventColor(hoverCard.data).fg,
-                textTransform: 'uppercase', fontSize: 10, fontWeight: 600,
+                textTransform: 'uppercase', fontSize: 13, fontWeight: 600,
                 letterSpacing: '0.04em', marginBottom: 4 }}>
                 {hoverCard.data.event_type}
               </div>
-              <div style={{ color: 'var(--cal-text-secondary)', fontSize: 11 }}>{hoverCard.data.date}</div>
+              <div style={{ color: 'var(--cal-text-secondary)', fontSize: 13 }}>{hoverCard.data.date}</div>
               {hoverCard.data.notes && (
-                <div style={{ color: 'var(--cal-text-soft)', fontSize: 11, marginTop: 4,
+                <div style={{ color: 'var(--cal-text-soft)', fontSize: 13, marginTop: 4,
                   borderTop: '0.5px solid var(--cal-border)', paddingTop: 4 }}>
                   {hoverCard.data.notes}
                 </div>
@@ -277,21 +283,21 @@ export default function ResourceGrid({
               <div style={{ fontWeight: 600, marginBottom: 3 }}>{hoverCard.data.title}</div>
               <div style={{ display: 'flex', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
                 {hoverCard.data.ticket_id && (
-                  <span style={{ color: 'var(--cal-text-secondary)', fontSize: 11 }}>#{hoverCard.data.ticket_id}</span>
+                  <span style={{ color: 'var(--cal-text-secondary)', fontSize: 13 }}>#{hoverCard.data.ticket_id}</span>
                 )}
-                <span style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase',
+                <span style={{ fontSize: 13, fontWeight: 600, textTransform: 'uppercase',
                   letterSpacing: '0.04em',
                   color: hoverCard.data.isGhost ? 'var(--cal-warning)'
                     : (CONFIG.STATUS_COLORS[hoverCard.data.status] || CONFIG.STATUS_COLORS.ticketed).fg }}>
                   {hoverCard.data.isGhost ? 'tentative' : hoverCard.data.status}
                 </span>
               </div>
-              <div style={{ color: 'var(--cal-text-muted)', fontSize: 10 }}>
+              <div style={{ color: 'var(--cal-text)', fontSize: 13 }}>
                 {hoverCard.data.start_date}
                 {hoverCard.data.end_date !== hoverCard.data.start_date && ` → ${hoverCard.data.end_date}`}
               </div>
               {hoverCard.data.notes && (
-                <div style={{ color: 'var(--cal-text-soft)', fontSize: 11, marginTop: 4,
+                <div style={{ color: 'var(--cal-text-soft)', fontSize: 13, marginTop: 4,
                   borderTop: '0.5px solid var(--cal-border)', paddingTop: 4 }}>
                   {hoverCard.data.notes}
                 </div>
@@ -343,7 +349,7 @@ export default function ResourceGrid({
             <div key={s} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
               <span style={{ width: 10, height: 10, borderRadius: 2, background: c.bg,
                 border: `1px solid ${c.border}`, display: 'inline-block' }}/>
-              <span style={{ fontSize: 11, color: 'var(--cal-text-secondary)', textTransform: 'capitalize' }}>{s}</span>
+              <span style={{ fontSize: 12, color: 'var(--cal-text-secondary)', textTransform: 'capitalize' }}>{s}</span>
             </div>
           ))}
           {['install','upgrade','pto','other'].map(t => {
@@ -352,7 +358,7 @@ export default function ResourceGrid({
               <div key={t} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 <span style={{ width: 10, height: 10, borderRadius: 2, background: c.bg,
                   border: `1px solid ${c.border}`, display: 'inline-block' }}/>
-                <span style={{ fontSize: 11, color: 'var(--cal-text-secondary)', textTransform: 'capitalize' }}>{t}</span>
+                <span style={{ fontSize: 12, color: 'var(--cal-text-secondary)', textTransform: 'capitalize' }}>{t}</span>
               </div>
             );
           })}
@@ -361,7 +367,7 @@ export default function ResourceGrid({
             <span style={{ width: 10, height: 10, borderRadius: 2,
               background: 'var(--cal-card)', border: '1px dashed var(--cal-text-muted)',
               display: 'inline-block' }}/>
-            <span style={{ fontSize: 11, color: 'var(--cal-text-secondary)' }}>tentative</span>
+            <span style={{ fontSize: 12, color: 'var(--cal-text-secondary)' }}>tentative</span>
           </div>
         </div>
       </div>
@@ -381,7 +387,7 @@ export default function ResourceGrid({
           <thead style={{ position: 'sticky', top: 0, zIndex: 4 }}>
             <tr style={{ background: 'var(--cal-header)' }}>
               <th style={{
-                padding: '8px 10px', fontSize: 11, fontWeight: 500, color: 'var(--cal-text-muted)',
+                padding: '8px 10px', fontSize: 12, fontWeight: 500, color: 'var(--cal-text-muted)',
                 textAlign: 'left', borderBottom: '0.5px solid var(--cal-border)',
                 borderRight: '0.5px solid var(--cal-border)',
                 position: 'sticky', left: 0, zIndex: 5, background: 'var(--cal-header)',
@@ -417,7 +423,7 @@ export default function ResourceGrid({
                 <tr key={ds} style={{ height: rowH, background: weekBg,
                   borderTop: isMon ? '1px solid var(--cal-border-week)' : undefined }}>
                     <td style={{
-                      padding: '0 8px', fontSize: 11,
+                      padding: '0 8px', fontSize: 12,
                       color: isToday ? 'var(--cal-success-text)' : isMon ? 'var(--cal-text-soft-alt)' : 'var(--cal-text-secondary)',
                       fontWeight: isToday || isMon ? 600 : 400,
                       borderBottom: '0.5px solid var(--cal-row-alt)',
@@ -430,14 +436,14 @@ export default function ResourceGrid({
                     }}>
                       {isSep && (
                         <div style={{
-                          fontSize: 8, fontWeight: 700, lineHeight: 1.1,
+                          fontSize: 12, fontWeight: 700, lineHeight: 1.1,
                           color: 'var(--cal-accent)', letterSpacing: '0.04em',
                           textTransform: 'uppercase',
                         }}>{format(d, 'MMM yyyy')}</div>
                       )}
                       <div style={{ lineHeight: 1.2 }}>
                         <span style={{ fontWeight: 600 }}>{format(d, 'EEE')} </span>
-                        <span style={{ fontSize: 10 }}>{format(d, 'M/d')}</span>
+                        <span style={{ fontSize: 12 }}>{format(d, 'M/d')}</span>
                       </div>
                     </td>
 
@@ -492,7 +498,7 @@ export default function ResourceGrid({
                                     background: getTechEventColor(te).bg,
                                     border: `0.5px solid ${getTechEventColor(te).border}`,
                                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    fontSize: 10, color: getTechEventColor(te).fg,
+                                    fontSize: 12, color: getTechEventColor(te).fg,
                                     fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em',
                                     zIndex: 2,
                                   }}>
@@ -514,6 +520,15 @@ export default function ResourceGrid({
                             const showNotes   = l.event.notes && blockH > 30;
                             const isLocked    = String(l.event.id) === String(lockedEventId);
                             const isGhost     = l.event.isGhost;
+                            const titleFontSize = eventTitleFontSize(blockH, l.event.title);
+                            const statusLabel = isGhost ? 'tentative'
+                              : l.event.event_type !== 'calibration'
+                                ? l.event.event_type + (l.event.status ? ` · ${l.event.status}` : '')
+                                : l.event.status || '';
+                            const showStatus = statusLabel && blockH >= 45;
+                            const showFooter = showNotes || showStatus;
+                            const footerLines = showNotes && blockH >= 90 ? 2 : 1;
+                            const footerSpace = showFooter ? (footerLines === 2 ? 34 : 20) : 4;
 
                             return (
                               
@@ -584,7 +599,7 @@ export default function ResourceGrid({
                                       background: 'rgba(0,0,0,0.3)',
                                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                                       cursor: 'pointer', zIndex: 4, flexShrink: 0,
-                                      fontSize: 11, color: color.fg, opacity: 0.7,
+                                      fontSize: 12, color: color.fg, opacity: 0.7,
                                       fontWeight: 700,
                                     }}
                                     onMouseEnter={e => e.currentTarget.style.opacity = '1'}
@@ -593,41 +608,51 @@ export default function ResourceGrid({
                                     ℹ
                                   </div>
 
-                                <div style={{ display: 'flex', alignItems: 'center',
-                                  overflow: 'hidden', minWidth: 0, whiteSpace: 'nowrap' }}>
-                                  <span style={{ flexShrink: 1, overflow: 'hidden',
-                                    textOverflow: 'ellipsis', minWidth: 0,
-                                    fontSize: 11, color: color.fg, fontWeight: 500 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  overflow: 'hidden', minWidth: 0, minHeight: 0, flex: 1,
+                                  padding: blockH >= 56
+                                    ? `16px 2px ${footerSpace}px`
+                                    : '2px 18px 2px 2px' }}>
+                                  <span style={{ overflow: 'hidden', minWidth: 0,
+                                    display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: 4,
+                                    textAlign: 'center', lineHeight: 1.15,
+                                    fontSize: titleFontSize, color: color.fg, fontWeight: 600 }}>
                                     {l.event.title}
                                   </span>
                                   {l.event.ticket_id && (
                                     <span style={{ position: 'absolute',
-                                      top: 0, left: 0, marginLeft: 4, opacity: 0.55, fontSize: 11,
+                                      top: 0, left: 0, marginLeft: 4, opacity: 0.55, fontSize: 12,
                                       flexShrink: 0, whiteSpace: 'nowrap', color: color.fg }}>
                                       #{l.event.ticket_id}
                                     </span>
                                   )}
-                                  <span style={{ position: 'absolute',
-                                      bottom: 2, right: 2, marginLeft: 'auto', paddingLeft: 6,
-                                    fontSize: 11, opacity: 0.45, flexShrink: 2,
-                                    overflow: 'hidden', textOverflow: 'ellipsis',
-                                    whiteSpace: 'nowrap', minWidth: 0, color: color.fg }}>
-                                    {isGhost ? 'tentative'
-                                      : l.event.event_type !== 'calibration'
-                                        ? l.event.event_type + (l.event.status ? ' · ' + l.event.status : '')
-                                        : l.event.status || ''}
-                                  </span>
-                                  
                                 </div>
 
-                                {showNotes && (
-                                  <div style={{ fontSize: 11, opacity: 0.45,
-                                    overflow: 'hidden', textOverflow: 'ellipsis',
-                                    whiteSpace: 'nowrap', minWidth: 0,
-                                    marginTop: 2, color: color.fg }}>
-                                    {l.event.notes}
+                                {showFooter && (
+                                  <div style={{
+                                    position: 'absolute', left: 4, right: 4, bottom: 3,
+                                    display: 'flex', alignItems: 'flex-end', gap: 6,
+                                    minWidth: 0, color: color.fg, fontSize: 12, opacity: 0.5,
+                                  }}>
+                                    {showNotes && (
+                                      <span title={l.event.notes} style={{
+                                        flex: 1, minWidth: 0, overflow: 'hidden',
+                                        display: '-webkit-box', WebkitBoxOrient: 'vertical',
+                                        WebkitLineClamp: footerLines, lineHeight: 1.15,
+                                        overflowWrap: 'anywhere',
+                                      }}>
+                                        {l.event.notes}
+                                      </span>
+                                    )}
+                                    {showStatus && (
+                                      <span style={{
+                                        flexShrink: 0, maxWidth: '45%', overflow: 'hidden',
+                                        textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                      }}>
+                                        {statusLabel}
+                                      </span>
+                                    )}
                                   </div>
-                                  
                                 )}
                               </div>
                             );
@@ -646,7 +671,7 @@ export default function ResourceGrid({
       </div>
 
       {!editorToken && (
-        <div style={{ marginTop: 8, fontSize: 11, color: 'var(--cal-text-muted)', textAlign: 'center', flexShrink: 0 }}>
+        <div style={{ marginTop: 8, fontSize: 12, color: 'var(--cal-text-muted)', textAlign: 'center', flexShrink: 0 }}>
           View only — click Editor login to make changes
         </div>
       )}

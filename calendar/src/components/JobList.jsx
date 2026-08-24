@@ -16,7 +16,7 @@ const S = {
     display: 'inline-block',
     padding: '2px 7px',
     borderRadius: 4,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: 500,
     background: color.bg,
     color: color.fg,
@@ -112,7 +112,7 @@ export default function JobList({
 
   function thStyle(col) {
     return {
-      padding: '7px 10px', fontSize: 11, fontWeight: 500,
+      padding: '7px 10px', fontSize: 12, fontWeight: 500,
       color: sortCol === col ? 'var(--cal-text)' : 'var(--cal-text-secondary)',
       textAlign: 'left', cursor: 'pointer', userSelect: 'none',
       borderBottom: '0.5px solid var(--cal-border)',
@@ -194,7 +194,7 @@ export default function JobList({
         <input style={{ ...inputStyle, width: 200 }}
           placeholder="Search title, customer, ticket…"
           value={search} onChange={e => setSearch(e.target.value)}/>
-        <span style={{ fontSize: 11, color: 'var(--cal-text-muted)', marginLeft: 'auto' }}>
+        <span style={{ fontSize: 12, color: 'var(--cal-text-muted)', marginLeft: 'auto' }}>
           {filtered.length} event{filtered.length !== 1 ? 's' : ''}
         </span>
         {editorToken && (
@@ -290,10 +290,10 @@ export default function JobList({
                       overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {event.customer || '—'}
                     </td>
-                    <td style={{ padding: '7px 10px', fontSize: 11, color: 'var(--cal-text-secondary)' }}>
+                    <td style={{ padding: '7px 10px', fontSize: 12, color: 'var(--cal-text-secondary)' }}>
                       {techs.length > 0 ? techs.join(', ') : '—'}
                     </td>
-                    <td style={{ padding: '7px 10px', fontSize: 11,
+                    <td style={{ padding: '7px 10px', fontSize: 12,
                       color: 'var(--cal-text-muted)', maxWidth: 200,
                       overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                       title={event.notes || ''}>
@@ -303,7 +303,7 @@ export default function JobList({
                       <button onClick={() => openEdit(event)}
                         style={{
                           background: 'none', border: '0.5px solid var(--cal-border)',
-                          borderRadius: 4, color: 'var(--cal-text-secondary)', fontSize: 11,
+                          borderRadius: 4, color: 'var(--cal-text-secondary)', fontSize: 12,
                           padding: '3px 8px', cursor: 'pointer',
                           fontFamily: 'Inter, system-ui, sans-serif',
                         }}>Edit</button>
@@ -384,7 +384,7 @@ function TechEventList({ techEvents, editorToken, requireEditor,
 
   function thStyle(col) {
     return {
-      padding: '7px 10px', fontSize: 11, fontWeight: 500,
+      padding: '7px 10px', fontSize: 12, fontWeight: 500,
       color: sortCol === col ? 'var(--cal-text)' : 'var(--cal-text-secondary)',
       textAlign: 'left', cursor: 'pointer', userSelect: 'none',
       borderBottom: '0.5px solid var(--cal-border)',
@@ -430,7 +430,7 @@ function TechEventList({ techEvents, editorToken, requireEditor,
           ))}
         </select>
 
-        <span style={{ fontSize: 11, color: 'var(--cal-text-muted)', marginLeft: 'auto' }}>
+        <span style={{ fontSize: 12, color: 'var(--cal-text-muted)', marginLeft: 'auto' }}>
           {filtered.length} event{filtered.length !== 1 ? 's' : ''}
         </span>
 
@@ -488,7 +488,7 @@ function TechEventList({ techEvents, editorToken, requireEditor,
                     <td style={{ padding: '7px 10px' }}>
                       <span style={{
                         display: 'inline-block', padding: '2px 7px',
-                        borderRadius: 4, fontSize: 11, fontWeight: 500,
+                        borderRadius: 4, fontSize: 12, fontWeight: 500,
                         background: color.bg, color: color.fg,
                         border: `0.5px solid ${color.border}`,
                         textTransform: 'capitalize',
@@ -501,7 +501,7 @@ function TechEventList({ techEvents, editorToken, requireEditor,
                       fontFamily: 'JetBrains Mono, monospace' }}>
                       {te.date}
                     </td>
-                    <td style={{ padding: '7px 10px', fontSize: 11,
+                    <td style={{ padding: '7px 10px', fontSize: 12,
                       color: 'var(--cal-text-muted)', maxWidth: 300,
                       overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {te.notes || '—'}
@@ -510,7 +510,7 @@ function TechEventList({ techEvents, editorToken, requireEditor,
                       <button onClick={() => setModal({ event: te })}
                         style={{
                           background: 'none', border: '0.5px solid var(--cal-border)',
-                          borderRadius: 4, color: 'var(--cal-text-secondary)', fontSize: 11,
+                          borderRadius: 4, color: 'var(--cal-text-secondary)', fontSize: 12,
                           padding: '3px 8px', cursor: 'pointer',
                           fontFamily: 'Inter, system-ui, sans-serif',
                         }}>Edit</button>

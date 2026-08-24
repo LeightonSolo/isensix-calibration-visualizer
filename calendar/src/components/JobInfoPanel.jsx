@@ -8,7 +8,7 @@ const API_KEY    = CONFIG.API_KEY;
 function Label({ children }) {
   return (
     <div style={{
-      fontSize: 11, fontWeight: 600, color: 'var(--cal-text-muted)',
+      fontSize: 12, fontWeight: 600, color: 'var(--cal-text-muted)',
       textTransform: 'uppercase', letterSpacing: '0.06em',
       marginBottom: 3, marginTop: 10,
     }}>{children}</div>
@@ -126,12 +126,12 @@ export default function JobInfoPanel({
       border: `0.5px solid ${tab === t ? 'var(--cal-border-active)' : 'var(--cal-border)'}`,
       borderRadius: 5, color: tab === t ? 'var(--cal-text)' : 'var(--cal-text-muted)',
       fontFamily: 'Inter, system-ui, sans-serif',
-      fontSize: 11, padding: '4px 10px', cursor: 'pointer',
+      fontSize: 12, padding: '4px 10px', cursor: 'pointer',
     }}>{label}</button>
   );
 
   return (
-    <div style={{
+    <div className={`job-info-panel${embedded ? ' job-info-panel--embedded' : ''}${!selectedEvent ? ' job-info-panel--empty' : ''}`} style={{
       width: embedded ? 340 : 320, flexShrink: 0,
       background: 'var(--cal-sidebar)',
       borderLeft: '0.5px solid var(--cal-border)',
@@ -169,14 +169,14 @@ export default function JobInfoPanel({
               )}
               {statusColor && (
                 <span style={{
-                  fontSize: 10, fontWeight: 600, textTransform: 'uppercase',
+                  fontSize: 12, fontWeight: 600, textTransform: 'uppercase',
                   color: statusColor.fg, letterSpacing: '0.04em',
                 }}>
                   {selectedEvent.status || 'unconfirmed'}
                 </span>
               )}
               {selectedEvent.isGhost && (
-                <span style={{ fontSize: 10, color: 'var(--cal-warning)', fontStyle: 'italic' }}>
+                <span style={{ fontSize: 12, color: 'var(--cal-warning)', fontStyle: 'italic' }}>
                   tentative
                 </span>
               )}
@@ -197,7 +197,7 @@ export default function JobInfoPanel({
       {/* Content */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '8px 14px 20px' }}>
         {!selectedEvent && (
-          <div style={{ marginTop: 20, fontSize: 11, color: 'var(--cal-text-quieter)',
+          <div style={{ marginTop: 20, fontSize: 12, color: 'var(--cal-text-quieter)',
             textAlign: 'center', lineHeight: 1.8 }}>
             {emptyMessage ? emptyMessage : <>
               Click the top right of a job to lock the panel.<br/>
@@ -207,7 +207,7 @@ export default function JobInfoPanel({
         )}
 
         {selectedEvent && loading && (
-          <div style={{ fontSize: 11, color: 'var(--cal-text-faint)', marginTop: 16 }}>Loading…</div>
+          <div style={{ fontSize: 12, color: 'var(--cal-text-faint)', marginTop: 16 }}>Loading…</div>
         )}
 
         {selectedEvent && !loading && tab === 'summary' && (
@@ -253,7 +253,7 @@ function SummaryTab({ event, jobInfo, techs, assignments, serverMeta }) {
             const tc = CONFIG.TECH_COLORS?.[t];
             return (
               <span key={t} style={{
-                padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 500,
+                padding: '2px 8px', borderRadius: 4, fontSize: 12, fontWeight: 500,
                 background: tc?.bg || 'var(--cal-card)',
                 color: tc?.fg || 'var(--cal-text)',
                 border: `0.5px solid ${tc?.border || 'var(--cal-border)'}`,
@@ -395,7 +395,7 @@ function SummaryTab({ event, jobInfo, techs, assignments, serverMeta }) {
       {!jobInfo && (
         <>
           <Divider/>
-          <div style={{ fontSize: 11, color: 'var(--cal-text-faint)', fontStyle: 'italic' }}>
+          <div style={{ fontSize: 12, color: 'var(--cal-text-faint)', fontStyle: 'italic' }}>
             No job info found for "{event.title}"
           </div>
         </>
@@ -414,7 +414,7 @@ function SummaryTab({ event, jobInfo, techs, assignments, serverMeta }) {
 
 function DetailsTab({ jobInfo, event, serverMeta }) {
   if (!jobInfo) return (
-    <div style={{ fontSize: 11, color: 'var(--cal-text-faint)', fontStyle: 'italic', marginTop: 16 }}>
+    <div style={{ fontSize: 12, color: 'var(--cal-text-faint)', fontStyle: 'italic', marginTop: 16 }}>
       No job info found for "{event.title}".<br/><br/>
       Add it from the Job Info tab on the dashboard.
     </div>

@@ -16,7 +16,7 @@ const S = {
     display: 'flex', flexDirection: 'column', gap: 14,
   },
   title:  { fontSize: 15, fontWeight: 600, color: 'var(--cal-text)' },
-  label:  { fontSize: 11, color: 'var(--cal-text-secondary)', textTransform: 'uppercase',
+  label:  { fontSize: 12, color: 'var(--cal-text-secondary)', textTransform: 'uppercase',
             letterSpacing: '0.04em', marginBottom: 4, display: 'block' },
   input:  {
     background: 'var(--cal-input)', border: '0.5px solid var(--cal-border)',
@@ -190,7 +190,7 @@ export default function TechEventModal({
 
         {/* Days preview */}
         {!isEdit && days.length > 0 && (
-          <div style={{ fontSize: 11, color: 'var(--cal-text-secondary)' }}>
+          <div style={{ fontSize: 12, color: 'var(--cal-text-secondary)' }}>
             {days.length} weekday{days.length !== 1 ? 's' : ''}:&nbsp;
             {days.map(d => format(d, 'EEE M/d')).join(', ')}
           </div>
@@ -216,7 +216,7 @@ export default function TechEventModal({
               <label style={{ ...S.label, marginBottom: 0 }}>Technicians</label>
               <button onClick={toggleAllTechs} style={{
                 background: 'none', border: 'none', cursor: 'pointer',
-                fontSize: 11, color: 'var(--cal-accent)', padding: 0,
+                fontSize: 12, color: 'var(--cal-accent)', padding: 0,
                 fontFamily: 'Inter, system-ui, sans-serif',
               }}>
                 {allSelected ? 'Deselect all' : 'Select all'}
