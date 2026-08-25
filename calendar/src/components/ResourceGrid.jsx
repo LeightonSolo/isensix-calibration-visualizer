@@ -449,7 +449,7 @@ export default function ResourceGrid({
                         : isPast ? 'var(--cal-text-quieter)'
                           : isMon ? 'var(--cal-text-soft-alt)' : 'var(--cal-text-secondary)',
                       fontWeight: isToday || isMon ? 600 : 400,
-                      borderBottom: isToday ? '1px solid var(--cal-today-border)' : '0.5px solid var(--cal-row-alt)',
+                      borderBottom: isToday ? '2px solid var(--cal-today-border)' : '0.5px solid var(--cal-row-alt)',
                       borderRight: '0.5px solid var(--cal-border)',
                       borderTop: isToday ? '2px solid var(--cal-today-border)'
                         : isMon ? '1px solid var(--cal-border-week)' : undefined,
@@ -463,8 +463,8 @@ export default function ResourceGrid({
                     }}>
                       {isSep && (
                         <div style={{
-                          fontSize: 12, fontWeight: 700, lineHeight: 1.1,
-                          color: 'var(--cal-accent)', letterSpacing: '0.04em',
+                          fontSize: 11, fontWeight: 500, lineHeight: 1.2,
+                          color: 'var(--cal-accent)', letterSpacing: '0.01em',
                           textTransform: 'uppercase',
                         }}>{format(d, 'MMM yyyy')}</div>
                       )}
