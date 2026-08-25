@@ -8,6 +8,7 @@ import {
   shouldUpdateAutofilledCustomer,
 } from '../utils/jobInfoMatch';
 import JobInfoPanel from './JobInfoPanel';
+import { withoutAutomaticUnassigned } from '../utils/calendarAssignments.js';
 
 const S = {
   overlay: {
@@ -130,7 +131,7 @@ export default function JobModal({
   const [techDates, setTechDates] = useState(() => {
     if (!event?.assignments) return {};
     const map = {};
-    event.assignments.forEach(a => {
+    withoutAutomaticUnassigned(event.assignments).forEach(a => {
       if (!map[a.tech_name]) map[a.tech_name] = new Set();
       map[a.tech_name].add(a.date);
     });

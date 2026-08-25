@@ -8,6 +8,10 @@ import { CONFIG } from '../config';
 import { layoutTechEvents } from '../utils/layoutTechEvents';
 import JobModal from './JobModal';
 import TechEventModal from './TechEventModal';
+import {
+  withAutomaticUnassigned,
+  withoutAutomaticUnassigned,
+} from '../utils/calendarAssignments.js';
 
 const COL_W  = 130;
 const ROW_H  = 37;
@@ -77,7 +81,14 @@ export default function ResourceGrid({
   const dayStrs = useMemo(() => days.map(d => format(d, 'yyyy-MM-dd')), [days]);
   const today   = format(new Date(), 'yyyy-MM-dd');
 
-  const spans       = useMemo(() => buildSpans(events, assignments, dayStrs), [events, assignments, dayStrs]);
+  const displayAssignments = useMemo(
+    () => withAutomaticUnassigned(events, assignments, dayStrs),
+    [events, assignments, dayStrs]
+  );
+  const spans       = useMemo(
+    () => buildSpans(events, displayAssignments, dayStrs),
+    [events, displayAssignments, dayStrs]
+  );
   const techLayouts = useMemo(() => {
     const m = {};
     RESOURCE_TECHNICIANS.forEach(tech => { m[tech] = layoutTechEvents(spans[tech], dayStrs); });
@@ -97,9 +108,9 @@ export default function ResourceGrid({
   const techBusyDates = useMemo(() => {
     const m = {};
     RESOURCE_TECHNICIANS.forEach(t => { m[t] = new Set(); });
-    assignments.forEach(a => { if (m[a.tech_name]) m[a.tech_name].add(a.date); });
+    displayAssignments.forEach(a => { if (m[a.tech_name]) m[a.tech_name].add(a.date); });
     return m;
-  }, [assignments]);
+  }, [displayAssignments]);
 
   function getRowHeight(ds) {
     let maxLanes = 1;
@@ -149,7 +160,12 @@ export default function ResourceGrid({
   function openJobModal(event) {
     setModal({
       type: 'job',
-      event: { ...event, assignments: assignments.filter(a => String(a.event_id) === String(event.id)) },
+      event: {
+        ...event,
+        assignments: withoutAutomaticUnassigned(
+          assignments.filter(a => String(a.event_id) === String(event.id))
+        ),
+      },
     });
   }
 
@@ -183,10 +199,11 @@ export default function ResourceGrid({
     const techChanged = toTech !== fromTech;
     if (!techChanged && dateOffset === 0) return;
     const evAssignments = assignments.filter(a => String(a.event_id) === String(event.id));
-    const newAssignments = evAssignments.map(a => ({
+    const dragAssignments = withAutomaticUnassigned([event], evAssignments);
+    const newAssignments = withoutAutomaticUnassigned(dragAssignments.map(a => ({
       tech_name: (techChanged && a.tech_name === fromTech) ? toTech : a.tech_name,
       date: format(addDays(parseISO(a.date), dateOffset), 'yyyy-MM-dd'),
-    }));
+    })));
     const newStart = format(addDays(parseISO(event.start_date), dateOffset), 'yyyy-MM-dd');
     const newEnd   = format(addDays(parseISO(event.end_date),   dateOffset), 'yyyy-MM-dd');
     requireEditor(async token => {

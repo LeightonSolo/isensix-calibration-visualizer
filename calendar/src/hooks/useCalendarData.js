@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { CONFIG } from '../config';
+import { withoutAutomaticUnassigned } from '../utils/calendarAssignments.js';
 
 function headers(editorToken) {
   const h = {
@@ -35,7 +36,7 @@ export function useCalendarData() {
         evRes.json(), asRes.json(), teRes.json()
       ]);
       setEvents(ev);
-      setAssignments(as);
+      setAssignments(withoutAutomaticUnassigned(as));
       setTechEvents(te);
     } catch(e) {
       setError('Failed to load calendar data');

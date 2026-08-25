@@ -87,3 +87,52 @@ describe('Job Info API', () => {
     expect(batch).toHaveBeenCalledOnce();
   });
 });
+
+describe('Calendar API', () => {
+  it('does not return legacy Unassigned assignment rows', async () => {
+    const all = vi.fn().mockResolvedValue({ results: [] });
+    const prepare = vi.fn().mockReturnValue({ bind: () => ({ all }), all });
+    const env = { ...baseEnv, DB: { prepare } } as unknown as Env;
+
+    const response = await worker.fetch(apiRequest('/calendar/assignments'), env);
+
+    expect(response.status).toBe(200);
+    expect(prepare.mock.calls[0][0]).toContain("lower(trim(tech_name)) <> 'unassigned'");
+  });
+
+  it('strips Unassigned before replacing an event assignment list', async () => {
+    const bindings: Array<{ sql: string; values: unknown[] }> = [];
+    const run = vi.fn().mockResolvedValue({ success: true });
+    const prepare = vi.fn().mockImplementation((sql: string) => ({
+      bind: (...values: unknown[]) => {
+        bindings.push({ sql, values });
+        return { run };
+      },
+    }));
+    const batch = vi.fn().mockResolvedValue([]);
+    const env = { ...baseEnv, DB: { prepare, batch } } as unknown as Env;
+
+    const response = await worker.fetch(apiRequest('/calendar/events', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Editor-Token': 'test-editor-token' },
+      body: JSON.stringify({
+        id: 42,
+        title: 'Test job',
+        event_type: 'calibration',
+        status: 'ticketed',
+        start_date: '2026-08-24',
+        end_date: '2026-08-24',
+        assignments: [
+          { tech_name: 'Unassigned', date: '2026-08-24' },
+          { tech_name: 'Joey', date: '2026-08-24' },
+        ],
+      }),
+    }), env);
+
+    expect(response.status).toBe(200);
+    expect(batch).toHaveBeenCalledOnce();
+    expect(batch.mock.calls[0][0]).toHaveLength(1);
+    expect(bindings.some(binding => binding.values.includes('Unassigned'))).toBe(false);
+    expect(bindings.some(binding => binding.values.includes('Joey'))).toBe(true);
+  });
+});

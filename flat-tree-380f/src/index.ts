@@ -584,6 +584,7 @@ export default {
       const end   = url.searchParams.get('end');
       let q = `SELECT * FROM event_assignments WHERE 1=1`;
       const b: any[] = [];
+      q += ` AND lower(trim(tech_name)) <> 'unassigned'`;
       if (start) { q += ` AND date >= ?`; b.push(start); }
       if (end)   { q += ` AND date <= ?`; b.push(end); }
       const { results } = await env.DB.prepare(q).bind(...b).all();
@@ -623,11 +624,14 @@ export default {
 
       // Replace assignments
       if (Array.isArray(assignments)) {
+        const technicianAssignments = assignments.filter((assignment: any) =>
+          String(assignment?.tech_name || '').trim().toLowerCase() !== 'unassigned'
+        );
         await env.DB.prepare(
           `DELETE FROM event_assignments WHERE event_id = ?`
         ).bind(eventId).run();
-        if (assignments.length) {
-          await env.DB.batch(assignments.map((a: any) =>
+        if (technicianAssignments.length) {
+          await env.DB.batch(technicianAssignments.map((a: any) =>
             env.DB.prepare(
               `INSERT OR IGNORE INTO event_assignments (event_id, tech_name, date)
               VALUES (?,?,?)`
