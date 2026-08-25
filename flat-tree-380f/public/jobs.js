@@ -3,6 +3,7 @@
 
   const API_HEADERS = { 'X-Api-Key': CONFIG.API_KEY };
   const EDITOR_TOKEN_KEY = 'cal_editor_token';
+  const SOFTWARE_FAMILIES = ['ARMS', 'G2.0', 'G2.1', 'G3.0'];
   const state = {
     jobs: [], stats: null, events: [], assignments: [], filtered: [], view: 'directory',
     sortKey: 'job_name', sortDir: 1, preset: 'all',
@@ -105,6 +106,11 @@
     return normalized === 'guardian' ? 'guardian' : normalized === 'arms' ? 'arms' : normalized === 'mix' ? 'mix' : '';
   }
 
+  function softwareFamily(value) {
+    const prefix = String(value || '').trim().slice(0, 4).toUpperCase();
+    return SOFTWARE_FAMILIES.includes(prefix) ? prefix : '';
+  }
+
   async function loadData() {
     $('load-status').textContent = 'Loading jobs…';
     try {
@@ -162,7 +168,10 @@
     const eventById = new Map(state.events.map(event => [String(event.id), event]));
 
     state.stats.hardware = addSensorsToRows(state.stats.hardware, sensorTotalsByJobField('hardware'));
-    state.stats.software = addSensorsToRows(state.stats.software, sensorTotalsByJobField('server_version'));
+    state.stats.software = aggregateJobCategories(job => {
+      const family = softwareFamily(job.server_version);
+      return family ? [family] : [];
+    });
     state.stats.latest_calibrations_by_month = addSensorsToRows(
       state.stats.latest_calibrations_by_month, sensorTotalsByJobField('last_calibrated'));
 
@@ -251,7 +260,7 @@
 
   function populateFilters() {
     setOptions('hardware-filter', uniqueValues('hardware'), 'All hardware');
-    setOptions('software-filter', uniqueValues('server_version'), 'All software');
+    setOptions('software-filter', SOFTWARE_FAMILIES, 'All software');
     const technicians = [...new Set([...uniqueValues('scheduled_with'), ...uniqueValues('primary_tech')])]
       .sort((a, b) => a.localeCompare(b));
     setOptions('tech-filter', technicians, 'All technicians');
@@ -270,7 +279,7 @@
       const haystack = Object.values(job).join(' ').toLowerCase();
       return (!query || haystack.includes(query))
         && (!hardware || job.hardware === hardware)
-        && (!software || job.server_version === software)
+        && (!software || softwareFamily(job.server_version) === software)
         && (!tech || String(job.scheduled_with || '').toLowerCase().includes(tech) || String(job.primary_tech || '').toLowerCase() === tech)
         && (!jobState || job.state === jobState)
         && (!active || (active === 'active' ? Number(job.active) === 1 : Number(job.active) !== 1));
@@ -486,7 +495,8 @@
     ];
     $('analytics-cards').innerHTML = cards.map(([label, value, detail]) => `<article class="panel analytics-card"><span>${label}</span><strong>${Number(value || 0).toLocaleString()}</strong><small>${detail}</small></article>`).join('');
     barChart('hardware-chart', state.stats.hardware, label => filterFromChart('hardware-filter', label));
-    barChart('software-chart', state.stats.software);
+    barChart('software-chart', state.stats.software,
+      label => filterFromChart('software-filter', label));
     monthChart('month-chart', state.stats.calendar_jobs_by_month);
     technicianChart('tech-chart', state.stats.calendar_jobs_by_tech);
     const byState = Object.values(state.jobs.reduce((acc, job) => {
