@@ -16,7 +16,9 @@ import {
 
 const STYLES = {
   app: {
-    minHeight: '100vh',
+    height: '100dvh',
+    minHeight: 0,
+    overflow: 'hidden',
     background: 'var(--cal-bg)',
     color: 'var(--cal-text)',
     fontFamily: 'Inter, system-ui, sans-serif',

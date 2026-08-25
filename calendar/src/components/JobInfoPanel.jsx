@@ -336,8 +336,8 @@ export default function JobInfoPanel({
           {jobInfo && (
             <a href={`../jobs.html?job=${encodeURIComponent(jobInfo.job_name || selectedEvent.title)}`}
               style={{ marginLeft: 'auto', alignSelf: 'center', color: 'var(--cal-accent)',
-                fontSize: 12, textDecoration: 'none' }}>
-              Open full record
+                fontSize: 12, textDecoration: 'underline' }}>
+              Open in Job Info
             </a>
           )}
         </div>
@@ -346,7 +346,7 @@ export default function JobInfoPanel({
       {/* Content */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '8px 14px 20px' }}>
         {!selectedEvent && (
-          <div style={{ marginTop: 20, fontSize: 12, color: 'var(--cal-text-quieter)',
+          <div style={{ marginTop: 20, fontSize: 14, color: 'var(--cal-text-quieter)',
             textAlign: 'center', lineHeight: 1.8 }}>
             {emptyMessage ? emptyMessage : <>
               Click the top right of a job to lock the panel.<br/>
