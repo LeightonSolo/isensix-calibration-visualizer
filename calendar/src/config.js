@@ -26,6 +26,7 @@ export const CONFIG = {
     calibration: null,       // uses status color
     install:     { bg: 'var(--event-install-bg)', fg: 'var(--event-install-text)', border: 'var(--event-install-border)' },
     upgrade:     { bg: 'var(--event-upgrade-bg)', fg: 'var(--event-upgrade-text)', border: 'var(--event-upgrade-border)' },
+    mapping:     { bg: 'var(--event-mapping-bg)', fg: 'var(--event-mapping-text)', border: 'var(--event-mapping-border)' },
     other:       { bg: 'var(--event-other-bg)', fg: 'var(--event-other-text)', border: 'var(--event-other-border)' },
     pto:         { bg: 'var(--event-pto-bg)', fg: 'var(--event-pto-text)', border: 'var(--event-pto-border)' },
     holiday:     { bg: 'var(--event-holiday-bg)', fg: 'var(--event-holiday-text)', border: 'var(--event-holiday-border)' },
