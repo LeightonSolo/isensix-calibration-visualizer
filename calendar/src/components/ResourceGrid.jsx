@@ -348,7 +348,7 @@ export default function ResourceGrid({
       )}
 
       {/* Action bar */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 10, alignItems: 'center', flexShrink: 0 }}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 6, alignItems: 'center', flexShrink: 0 }}>
         {editorToken && (
           <>
             <button style={btnStyle(true)}
@@ -390,7 +390,7 @@ export default function ResourceGrid({
       </div>
 
       {/* Grid */}
-      <div style={{ flex: 1, overflow: 'auto', border: '0.5px solid var(--cal-border)', borderRadius: 8 }}>
+      <div style={{ flex: 1, overflow: 'auto', border: '0.5px solid var(--cal-border)', borderRadius: 4 }}>
         <table style={{
           borderCollapse: 'collapse', tableLayout: 'fixed',
           width: DATE_W + RESOURCE_TECHNICIANS.length * COL_W,
@@ -404,19 +404,21 @@ export default function ResourceGrid({
           <thead style={{ position: 'sticky', top: 0, zIndex: 4 }}>
             <tr style={{ background: 'var(--cal-header)' }}>
               <th style={{
-                padding: '8px 10px', fontSize: 12, fontWeight: 500, color: 'var(--cal-text-muted)',
+                padding: '8px 4px', fontSize: 12, fontWeight: 500, color: 'var(--cal-text-muted)',
                 textAlign: 'left', borderBottom: '0.5px solid var(--cal-border)',
                 borderRight: '0.5px solid var(--cal-border)',
                 position: 'sticky', left: 0, zIndex: 5, background: 'var(--cal-header)',
               }}>Date</th>
               {RESOURCE_TECHNICIANS.map((tech, i) => {
                 const tc = CONFIG.TECH_COLORS?.[tech] || { bg: 'var(--cal-card)', fg: 'var(--cal-text)', border: 'var(--cal-border)' };
+                const isUnassigned = tech === CONFIG.UNASSIGNED_TECHNICIAN;
                 return (
                   <th key={tech} style={{
                     padding: '8px 10px', fontSize: 13, fontWeight: 600,
                     color: tc.fg, textAlign: 'center',
                     borderBottom: `2px solid ${tc.border}`,
                     borderRight: i < RESOURCE_TECHNICIANS.length - 1 ? '0.5px solid var(--cal-border)' : 'none',
+                    borderLeft: isUnassigned ? `1px solid ${tc.border}` : undefined,
                     background: tc.bg, letterSpacing: '-0.01em',
                   }}>{tech}</th>
                 );
@@ -428,27 +430,35 @@ export default function ResourceGrid({
             {days.map((d, di) => {
               const ds      = format(d, 'yyyy-MM-dd');
               const isToday = ds === today;
+              const isPast  = ds < today;
               const isMon   = isMonday(d);
               const oddWeek = isOddWeek(d);
               const rowH    = getRowHeight(ds);
               const isSep   = monthSeparators.has(ds);
               const weekBg  = isToday
-                ? 'rgba(90,158,47,0.06)'
-                : oddWeek ? 'var(--cal-week-tint)' : 'transparent';
+                ? 'var(--cal-today-bg)'
+                : isPast ? 'var(--cal-past-row-bg)'
+                  : oddWeek ? 'var(--cal-week-tint)' : 'transparent';
 
               return (
                 <tr key={ds} style={{ height: rowH, background: weekBg,
                   borderTop: isMon ? '1px solid var(--cal-border-week)' : undefined }}>
                     <td style={{
-                      padding: '0 8px', fontSize: 12,
-                      color: isToday ? 'var(--cal-success-text)' : isMon ? 'var(--cal-text-soft-alt)' : 'var(--cal-text-secondary)',
+                      padding: '0 4px', fontSize: 12, letterSpacing: '-0.02em',
+                      color: isToday ? 'var(--cal-success-text)'
+                        : isPast ? 'var(--cal-text-quieter)'
+                          : isMon ? 'var(--cal-text-soft-alt)' : 'var(--cal-text-secondary)',
                       fontWeight: isToday || isMon ? 600 : 400,
-                      borderBottom: '0.5px solid var(--cal-row-alt)',
+                      borderBottom: isToday ? '1px solid var(--cal-today-border)' : '0.5px solid var(--cal-row-alt)',
                       borderRight: '0.5px solid var(--cal-border)',
-                      borderTop: isMon ? '1px solid var(--cal-border-week)' : undefined,
-                      boxShadow: isSep ? 'inset 0 2px 0 var(--cal-accent)' : undefined,
+                      borderTop: isToday ? '2px solid var(--cal-today-border)'
+                        : isMon ? '1px solid var(--cal-border-week)' : undefined,
+                      boxShadow: isToday ? 'inset 3px 0 0 var(--cal-today-border)'
+                        : isSep ? 'inset 0 2px 0 var(--cal-accent)' : undefined,
                       position: 'sticky', left: 0, zIndex: 2,
-                      background: isToday ? 'var(--cal-today-bg)' : oddWeek ? 'var(--cal-week-alt)' : 'var(--cal-bg)',
+                      background: isToday ? 'var(--cal-today-bg)'
+                        : isPast ? 'var(--cal-past-row-bg)'
+                          : oddWeek ? 'var(--cal-week-alt)' : 'var(--cal-bg)',
                       whiteSpace: 'nowrap', verticalAlign: 'middle', height: rowH,
                     }}>
                       {isSep && (
@@ -472,6 +482,13 @@ export default function ResourceGrid({
                       const startingHere = activeOnDay.filter(l => l.dates[0] === ds);
                       const isDropTarget = dragOver?.tech === tech && dragOver?.ds === ds;
                       const tc           = CONFIG.TECH_COLORS?.[tech];
+                      const isUnassigned = tech === CONFIG.UNASSIGNED_TECHNICIAN;
+                      const cellBackground = isDropTarget
+                        ? 'rgba(58,123,213,0.15)'
+                        : isToday ? 'var(--cal-today-bg)'
+                          : isUnassigned
+                            ? (isPast ? 'var(--cal-unassigned-column-past-bg)' : 'var(--cal-unassigned-column-bg)')
+                            : isPast ? 'var(--cal-past-row-bg)' : 'transparent';
 
                       return (
                         <td key={tech}
@@ -482,13 +499,15 @@ export default function ResourceGrid({
                           }}
                           style={{
                             position: 'relative', height: rowH,
-                            borderBottom: '0.5px solid var(--cal-row-alt)',
+                            borderBottom: isToday ? '2px solid var(--cal-today-border)' : '0.5px solid var(--cal-row-alt)',
                             borderRight: !isLast ? '0.5px solid var(--cal-row-alt)' : 'none',
-                            borderTop: isMon ? '1px solid var(--cal-border-week)' : undefined,
-                            boxShadow: isSep ? 'inset 0 2px 0 var(--cal-accent)' : undefined,
+                            borderLeft: isUnassigned ? '1px solid var(--tech-unassigned-border)' : undefined,
+                            borderTop: isToday ? '2px solid var(--cal-today-border)'
+                              : isMon ? '1px solid var(--cal-border-week)' : undefined,
+                            boxShadow: !isToday && isSep ? 'inset 0 2px 0 var(--cal-accent)' : undefined,
                             cursor: editorToken && !activeOnDay.length && !techEvs.length ? 'pointer' : 'default',
                             padding: 0, verticalAlign: 'top',
-                            background: isDropTarget ? 'rgba(58,123,213,0.15)' : 'transparent',
+                            background: cellBackground,
                             outline: isDropTarget ? '1.5px dashed var(--cal-accent)' : 'none',
                             outlineOffset: -2,
                           }}>
@@ -518,6 +537,8 @@ export default function ResourceGrid({
                                     fontSize: 12, color: getTechEventColor(te).fg,
                                     fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em',
                                     zIndex: 2,
+                                    opacity: isPast ? 0.5 : 1,
+                                    filter: isPast ? 'saturate(0.35)' : 'none',
                                   }}>
                                   {te.event_type.slice(0, 3).toUpperCase()}
                                 </div>
@@ -537,6 +558,7 @@ export default function ResourceGrid({
                             const showNotes   = l.event.notes && blockH > 30;
                             const isLocked    = String(l.event.id) === String(lockedEventId);
                             const isGhost     = l.event.isGhost;
+                            const isPastEvent = String(l.event.end_date || '') < today;
                             const titleFontSize = eventTitleFontSize(blockH, l.event.title);
                             const statusLabel = isGhost ? 'tentative'
                               : l.event.event_type !== 'calibration'
@@ -590,7 +612,8 @@ export default function ResourceGrid({
                                     : `3px solid ${accentColor}`,
                                   outline: isLocked ? `2px solid ${accentColor}` : 'none',
                                   outlineOffset: 1,
-                                  opacity: isGhost ? 0.6 : 1,
+                                  opacity: isPastEvent ? (isGhost ? 0.32 : 0.52) : isGhost ? 0.6 : 1,
+                                  filter: isPastEvent ? 'saturate(0.35)' : 'none',
                                   display: 'flex', flexDirection: 'column', justifyContent: 'center',
                                   paddingLeft: 3, paddingRight: 3,
                                   overflow: 'hidden',

@@ -3,7 +3,7 @@
   --cal-bg: #0e0e10;
   --cal-panel: #16161a;
   --cal-card: #1a1a22;
-  --cal-row-alt: #1a1a1f;
+  --cal-row-alt: #26262b;
   --cal-row-hover: #1f1f26;
   --cal-header: #111115;
   --cal-input: #1e1e24;
@@ -12,7 +12,11 @@
   --cal-sidebar-header: #0e0e15;
   --cal-week-alt: #0f0f14;
   --cal-week-label: #0a0a0c;
-  --cal-today-bg: #0d1a0d;
+  --cal-today-bg: #18351d;
+  --cal-today-border: #5b9f3b;
+  --cal-past-row-bg: #0b0b0d;
+  --cal-unassigned-column-bg: #1b1b20;
+  --cal-unassigned-column-past-bg: #111114;
   --cal-popover: #1e1e28;
   --cal-menu: #1a1a20;
   --cal-button-addon: #24242b;
@@ -113,9 +117,9 @@
   --tech-matt-bg: #181818;
   --tech-matt-text: #dcffdc;
   --tech-matt-border: #666666;
-  --tech-unassigned-bg: #202025;
-  --tech-unassigned-text: #a4a4ae;
-  --tech-unassigned-border: #555560;
+  --tech-unassigned-bg: #29292f;
+  --tech-unassigned-text: #b6b6c0;
+  --tech-unassigned-border: #686873;
   scrollbar-color: var(--cal-scroll-thumb) var(--cal-header);
   scrollbar-width: thin;
 }
@@ -125,7 +129,7 @@
   --cal-bg: #f4f5f7;
   --cal-panel: #ffffff;
   --cal-card: #ffffff;
-  --cal-row-alt: #f7f8fa;
+  --cal-row-alt: #cccfd6;
   --cal-row-hover: #edf1f5;
   --cal-header: #f1f3f5;
   --cal-input: #ffffff;
@@ -134,7 +138,11 @@
   --cal-sidebar-header: #eef1f5;
   --cal-week-alt: #f7f8fa;
   --cal-week-label: #e9edf2;
-  --cal-today-bg: #edf7e9;
+  --cal-today-bg: #d8efcf;
+  --cal-today-border: #559632;
+  --cal-past-row-bg: #f0f1f3;
+  --cal-unassigned-column-bg: #e8ebee;
+  --cal-unassigned-column-past-bg: #e1e4e8;
   --cal-popover: #ffffff;
   --cal-menu: #ffffff;
   --cal-button-addon: #e8ebef;
@@ -235,9 +243,9 @@
   --tech-matt-bg: #f0f2f0;
   --tech-matt-text: #374a37;
   --tech-matt-border: #b8c0b8;
-  --tech-unassigned-bg: #eef0f3;
-  --tech-unassigned-text: #5f6670;
-  --tech-unassigned-border: #aeb5bf;
+  --tech-unassigned-bg: #d9dde2;
+  --tech-unassigned-text: #4f5761;
+  --tech-unassigned-border: #9098a2;
 }
 
 * {
@@ -281,7 +289,7 @@
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-  padding: 12px 12px 12px 16px;
+  padding: 4px 4px 4px 2px;
 }
 
 .resource-grid {
@@ -293,7 +301,7 @@
 @media (orientation: portrait) {
   .calendar-primary-content {
     flex: 1;
-    padding-right: 16px;
+    padding: 4px 4px 4px 2px;
   }
 
   .resource-grid {
