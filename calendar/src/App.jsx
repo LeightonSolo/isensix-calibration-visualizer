@@ -160,8 +160,8 @@ export default function App() {
 
   // Normalize stored tentative durations, then place ghosts in open technician slots.
   const normalizedTentativeCalendar = useMemo(
-    () => normalizeTentativeCalendar(events, assignments, jobInfoMap),
-    [events, assignments, jobInfoMap]
+    () => normalizeTentativeCalendar(events, assignments, jobInfoMap, techEvents),
+    [events, assignments, jobInfoMap, techEvents]
   );
   const ghostEvents = useMemo(
     () => generateTentativeJobs(

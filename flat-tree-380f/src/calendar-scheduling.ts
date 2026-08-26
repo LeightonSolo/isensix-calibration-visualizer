@@ -3,7 +3,7 @@ const TECHNICIANS = new Set([
   'Dejan',
   'Leighton',
   'Joey',
-  'Kyle',
+  'Brendon',
   'Matt',
   'Fernando',
   'Bissen',
@@ -69,29 +69,68 @@ export function businessDateRange(startDate: string, duration: number) {
   return dates;
 }
 
-function assignmentName(candidate: TentativeCandidate) {
+export function tentativeAssignmentNames(
+  candidate: Pick<TentativeCandidate, 'num_tech' | 'primary_tech'>,
+  historicalNames: string[] = [],
+) {
   const primary = String(candidate.primary_tech || '').trim();
   const canonical = [...TECHNICIANS].find(name => name.toLowerCase() === primary.toLowerCase());
-  return Number(candidate.num_tech) === 1 && canonical ? canonical : 'Unassigned';
+  if (Number(candidate.num_tech) === 1 && canonical) return [canonical];
+
+  const historicalTeam = [...new Set(historicalNames.map(value =>
+    [...TECHNICIANS].find(name => name.toLowerCase() === String(value || '').trim().toLowerCase())
+  ).filter((name): name is string => Boolean(name)))];
+  const expectedTeamSize = Number(candidate.num_tech) || 0;
+  if (historicalTeam.length && (!expectedTeamSize || historicalTeam.length === expectedTeamSize)) {
+    return historicalTeam;
+  }
+  return [];
 }
 
-function reserveDates(busyByTech: Map<string, Set<string>>, techName: string, dates: string[]) {
-  if (!busyByTech.has(techName)) busyByTech.set(techName, new Set());
-  dates.forEach(date => busyByTech.get(techName)!.add(date));
+function reserveDates(busyByTech: Map<string, Set<string>>, techNames: string[], dates: string[]) {
+  techNames.forEach(techName => {
+    if (!busyByTech.has(techName)) busyByTech.set(techName, new Set());
+    dates.forEach(date => busyByTech.get(techName)!.add(date));
+  });
 }
 
 function firstAvailableRange(
   startDate: string,
   duration: number,
-  techName: string,
+  techNames: string[],
   busyByTech: Map<string, Set<string>>,
 ) {
   let start = parseIsoDate(startDate);
   while (true) {
     const dates = businessDateRange(formatIsoDate(start), duration);
-    if (!dates.some(date => busyByTech.get(techName)?.has(date))) return dates;
+    const occupied = techNames.some(techName =>
+      dates.some(date => busyByTech.get(techName)?.has(date))
+    );
+    if (!occupied) return dates;
     start = nextBusinessDay(start);
   }
+}
+
+async function historicalAssignmentNames(db: D1Database, candidate: TentativeCandidate) {
+  const { results } = await db.prepare(`
+    WITH prior_event AS (
+      SELECT e.id
+      FROM calendar_events e
+      WHERE e.job_info_id = ?
+        AND e.event_type = 'calibration'
+        AND lower(trim(e.status)) <> 'tentative'
+        AND abs(julianday(e.end_date) - julianday(?)) < 90
+      ORDER BY abs(julianday(e.end_date) - julianday(?)), e.end_date DESC
+      LIMIT 1
+    )
+    SELECT DISTINCT a.tech_name
+    FROM event_assignments a
+    JOIN prior_event p ON p.id = a.event_id
+    WHERE lower(trim(a.tech_name)) <> 'unassigned'
+    ORDER BY a.tech_name
+  `).bind(candidate.id, candidate.last_calibrated, candidate.last_calibrated)
+    .all<{ tech_name: string }>();
+  return results.map(row => row.tech_name);
 }
 
 export async function reconcileTentativeCalendar(db: D1Database, today = new Date()) {
@@ -130,33 +169,68 @@ export async function reconcileTentativeCalendar(db: D1Database, today = new Dat
   const eligibleResults = results.filter(candidate =>
     tentativeEligibilityDate(candidate.last_calibrated) <= todayIso
   );
-  if (!eligibleResults.length) return { created: 0 };
-
   const busyByTech = new Map<string, Set<string>>();
   const busy = await db.prepare(`
     SELECT tech_name, date FROM event_assignments
     UNION ALL
     SELECT tech_name, date FROM tech_events
   `).all<{ tech_name: string; date: string }>();
-  busy.results.forEach(row => reserveDates(busyByTech, row.tech_name, [row.date]));
+  busy.results.forEach(row => reserveDates(busyByTech, [row.tech_name], [row.date]));
+
+  let assignedExisting = 0;
+  const existingTentatives = await db.prepare(`
+    SELECT
+      e.id AS event_id, e.start_date, j.id, j.job_name, j.customer,
+      j.last_calibrated, j.estimated_days, j.num_tech, j.primary_tech
+    FROM calendar_events e
+    JOIN job_info j ON j.id = e.job_info_id
+    WHERE e.event_type = 'calibration'
+      AND e.status = 'tentative'
+      AND e.source_calibration_date IS NOT NULL
+      AND COALESCE(e.dates_manually_set, 0) = 0
+      AND NOT EXISTS (
+        SELECT 1 FROM event_assignments a WHERE a.event_id = e.id
+      )
+    ORDER BY e.start_date, e.id
+  `).all<TentativeCandidate & { event_id: number; start_date: string }>();
+
+  for (const tentative of existingTentatives.results) {
+    const historicalNames = await historicalAssignmentNames(db, tentative);
+    const techNames = tentativeAssignmentNames(tentative, historicalNames);
+    if (!techNames.length) continue;
+    const dates = businessDateRange(tentative.start_date, Number(tentative.estimated_days) || 1);
+    const allAvailable = techNames.every(techName =>
+      dates.every(date => !busyByTech.get(techName)?.has(date))
+    );
+    if (!allAvailable) continue;
+
+    await db.batch(techNames.flatMap(techName => dates.map(date => db.prepare(`
+      INSERT OR IGNORE INTO event_assignments (event_id, tech_name, date)
+      VALUES (?, ?, ?)
+    `).bind(tentative.event_id, techName, date))));
+    reserveDates(busyByTech, techNames, dates);
+    assignedExisting += 1;
+  }
 
   let created = 0;
   for (const candidate of eligibleResults) {
-    const techName = assignmentName(candidate);
+    const historicalNames = await historicalAssignmentNames(db, candidate);
+    const techNames = tentativeAssignmentNames(candidate, historicalNames);
+    const schedulingNames = techNames.length ? techNames : ['Unassigned'];
     const targetStart = tentativeAnniversaryMonday(candidate.last_calibrated);
     const dates = firstAvailableRange(
       targetStart,
       Number(candidate.estimated_days) || 1,
-      techName,
+      schedulingNames,
       busyByTech,
     );
-    reserveDates(busyByTech, techName, dates);
+    reserveDates(busyByTech, schedulingNames, dates);
 
     const result = await db.prepare(`
       INSERT OR IGNORE INTO calendar_events (
         job_info_id, source_calibration_date, title, event_type, status,
-        customer, start_date, end_date, ticket_id, notes
-      ) VALUES (?, ?, ?, 'calibration', 'tentative', ?, ?, ?, NULL, ?)
+        customer, start_date, end_date, ticket_id, notes, dates_manually_set
+      ) VALUES (?, ?, ?, 'calibration', 'tentative', ?, ?, ?, NULL, ?, 0)
     `).bind(
       candidate.id,
       candidate.last_calibrated,
@@ -169,14 +243,14 @@ export async function reconcileTentativeCalendar(db: D1Database, today = new Dat
 
     if (!result.meta.changes) continue;
     created += 1;
-    if (techName !== 'Unassigned') {
+    if (techNames.length) {
       const eventId = result.meta.last_row_id;
-      await db.batch(dates.map(date => db.prepare(`
+      await db.batch(techNames.flatMap(techName => dates.map(date => db.prepare(`
         INSERT OR IGNORE INTO event_assignments (event_id, tech_name, date)
         VALUES (?, ?, ?)
-      `).bind(eventId, techName, date)));
+      `).bind(eventId, techName, date))));
     }
   }
 
-  return { created };
+  return { created, assigned_existing: assignedExisting };
 }

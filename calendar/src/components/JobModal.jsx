@@ -12,6 +12,7 @@ import {
   withinEventDateRange,
   withoutAutomaticUnassigned,
 } from '../utils/calendarAssignments.js';
+import { notesForStatus } from '../utils/tentativeJobs.js';
 
 const S = {
   overlay: {
@@ -210,7 +211,7 @@ export default function JobModal({
         customer: customer || null,
         start_date: startDate, end_date: endDate,
         ticket_id: ticketId || null,
-        notes: notes || null,
+        notes: notesForStatus(notes || null, status),
         assignments,
       });
       onClose();
@@ -343,7 +344,13 @@ export default function JobModal({
             <label style={S.label}>Status</label>
             <select style={{ ...S.input, color: statusColor.fg,
               borderColor: statusColor.border, background: statusColor.bg }}
-              value={status} onChange={e => setStatus(e.target.value)}>
+              value={status} onChange={e => {
+                const nextStatus = e.target.value;
+                // Keep the textarea controlled: React treats a null value as
+                // uncontrolled and would leave the generated note visible.
+                setNotes(notesForStatus(notes, nextStatus) || '');
+                setStatus(nextStatus);
+              }}>
               {CONFIG.EVENT_STATUSES.map(s =>
                 <option key={s} value={s}
                   style={{ background: 'var(--cal-input)', color: 'var(--cal-text)' }}>

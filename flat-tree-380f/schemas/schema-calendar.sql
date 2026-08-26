@@ -10,6 +10,7 @@ CREATE TABLE calendar_events (
   end_date    TEXT NOT NULL,
   ticket_id   TEXT,
   notes       TEXT,
+  dates_manually_set INTEGER NOT NULL DEFAULT 0 CHECK (dates_manually_set IN (0, 1)),
   created_at  TEXT DEFAULT (datetime('now')),
   updated_at  TEXT DEFAULT (datetime('now'))
 );

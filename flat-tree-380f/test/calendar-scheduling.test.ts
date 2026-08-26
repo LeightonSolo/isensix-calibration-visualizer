@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   businessDateRange,
+  tentativeAssignmentNames,
   tentativeAnniversaryMonday,
   tentativeEligibilityDate,
 } from '../src/calendar-scheduling';
@@ -22,5 +23,16 @@ describe('calendar scheduling dates', () => {
       '2026-08-24',
       '2026-08-25',
     ]);
+  });
+
+  it('keeps one-person primary assignment and accepts complete historical teams', () => {
+    expect(tentativeAssignmentNames({ num_tech: 1, primary_tech: 'dejan' }, ['Matt']))
+      .toEqual(['Dejan']);
+    expect(tentativeAssignmentNames({ num_tech: 2, primary_tech: null }, ['Matt', 'Brendon']))
+      .toEqual(['Matt', 'Brendon']);
+    expect(tentativeAssignmentNames({ num_tech: 3, primary_tech: null }, ['Matt', 'Brendon']))
+      .toEqual([]);
+    expect(tentativeAssignmentNames({ num_tech: 2, primary_tech: null }, ['Kyle', 'Matt']))
+      .toEqual([]);
   });
 });
