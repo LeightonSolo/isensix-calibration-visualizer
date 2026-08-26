@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { CONFIG } from '../config';
 import { format, parseISO } from 'date-fns';
+import { downloadOutlookCalendar } from '../utils/outlookExport.js';
 
 const WORKER_URL = CONFIG.WORKER_URL;
 const API_KEY    = CONFIG.API_KEY;
@@ -174,6 +175,16 @@ export default function JobInfoPanel({
     ? (CONFIG.STATUS_COLORS[selectedEvent.status] || CONFIG.STATUS_COLORS.ticketed)
     : null;
 
+  function exportToOutlook() {
+    if (!selectedEvent || selectedEvent.isGhost || embedded) return;
+    const jobName = jobInfo?.job_name || selectedEvent.title;
+    const jobInfoUrl = new URL(
+      `../jobs.html?job=${encodeURIComponent(jobName)}`,
+      window.location.href,
+    ).href;
+    downloadOutlookCalendar({ event: selectedEvent, jobInfo, assignments, jobInfoUrl });
+  }
+
   function selectTab(nextTab) {
     if (nextTab === 'edit' && jobInfo) {
       setDraft({ ...jobInfo });
@@ -307,7 +318,7 @@ export default function JobInfoPanel({
 
       {/* Tabs */}
       {selectedEvent && (
-        <div style={{ display: 'flex', gap: 6, padding: '8px 14px',
+        <div style={{ display: 'flex', gap: 6, rowGap: 8, flexWrap: 'wrap', padding: '8px 14px',
           borderBottom: '0.5px solid var(--cal-surface-subtle)', flexShrink: 0 }}>
           {tabBtn('summary', 'Summary')}
           {tabBtn('details', 'Full details')}
@@ -318,13 +329,25 @@ export default function JobInfoPanel({
               {saveMessage}
             </span>
           )}
-          {jobInfo && (
-            <a href={`../jobs.html?job=${encodeURIComponent(jobInfo.job_name || selectedEvent.title)}`}
-              style={{ marginLeft: 'auto', alignSelf: 'center', color: 'var(--cal-accent)',
-                fontSize: 12, textDecoration: 'underline' }}>
-              Open in Job Info
-            </a>
-          )}
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+            {!embedded && !selectedEvent.isGhost && (
+              <button type="button" onClick={exportToOutlook} style={{
+                border: '0.5px solid var(--cal-info-border)', borderRadius: 4,
+                background: 'var(--cal-info-bg)', color: 'var(--cal-accent)',
+                padding: '3px 7px', fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap',
+              }} title="Download an Outlook-compatible calendar file">
+                <i className="ti ti-calendar-down" aria-hidden="true" /> Export
+              </button>
+            )}
+            {jobInfo && (
+              <a href={`../jobs.html?job=${encodeURIComponent(jobInfo.job_name || selectedEvent.title)}`}
+                style={{ alignSelf: 'center', border: '0.5px solid var(--cal-info-border)',
+                  borderRadius: 4, background: 'var(--cal-info-bg)', color: 'var(--cal-accent)',
+                  padding: '3px 7px', fontSize: 12, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                <i className="ti ti-external-link" aria-hidden="true" /> Open Job Info
+              </a>
+            )}
+          </div>
         </div>
       )}
 
