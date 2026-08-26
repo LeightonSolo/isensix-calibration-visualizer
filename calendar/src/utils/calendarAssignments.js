@@ -10,6 +10,13 @@ export function withoutAutomaticUnassigned(assignments) {
   return (assignments || []).filter(assignment => !isUnassignedName(assignment?.tech_name));
 }
 
+export function withinEventDateRange(assignments, startDate, endDate) {
+  return (assignments || []).filter(assignment => {
+    const date = String(assignment?.date || '');
+    return date >= startDate && date <= endDate;
+  });
+}
+
 export function withAutomaticUnassigned(events, assignments, visibleDates) {
   const realAssignments = withoutAutomaticUnassigned(assignments);
   const assignedDates = new Set(

@@ -30,6 +30,12 @@ function json(data: unknown, status = 200) {
   return Response.json(data, { status, headers: corsHeaders() });
 }
 
+function isIsoDate(value: unknown): value is string {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(date.valueOf()) && date.toISOString().slice(0, 10) === value;
+}
+
 const JOB_SCHEDULE_CTE = `
   WITH ranked_calendar AS (
     SELECT
@@ -661,6 +667,20 @@ export default {
       const { id, title, event_type, status, customer,
               start_date, end_date, ticket_id, notes, assignments,
               job_info_id, source_calibration_date } = body;
+
+      if (!title || !isIsoDate(start_date) || !isIsoDate(end_date) || start_date > end_date) {
+        return json({ error: 'Calendar events require a title and a valid date range' }, 400);
+      }
+      if (Array.isArray(assignments)) {
+        const invalidAssignment = assignments.find((assignment: any) =>
+          !isIsoDate(assignment?.date)
+          || assignment.date < start_date
+          || assignment.date > end_date
+        );
+        if (invalidAssignment) {
+          return json({ error: 'Assignment dates must fall within the event date range' }, 400);
+        }
+      }
 
       let eventId = id;
       if (id) {

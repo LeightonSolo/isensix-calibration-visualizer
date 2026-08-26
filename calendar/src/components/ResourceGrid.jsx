@@ -5,7 +5,11 @@ import {
   differenceInCalendarDays, getISOWeek,
 } from 'date-fns';
 import { CONFIG } from '../config';
-import { layoutTechEvents } from '../utils/layoutTechEvents';
+import {
+  buildTechSpans,
+  horizontalLaneStyle,
+  layoutTechEvents,
+} from '../utils/layoutTechEvents';
 import JobModal from './JobModal';
 import TechEventModal from './TechEventModal';
 import {
@@ -33,27 +37,6 @@ function eventTitleFontSize(blockHeight, title) {
   const length = String(title || '').length;
   const lengthLimit = length <= 12 ? 20 : length <= 22 ? 17 : length <= 34 ? 15 : 13;
   return Math.min(lengthLimit, Math.max(12, Math.round(10 + blockHeight / 18)));
-}
-
-function buildSpans(events, assignments, dayStrs) {
-  const raw = {};
-  assignments.forEach(a => {
-    if (!dayStrs.includes(a.date)) return;
-    const ev = events.find(e => String(e.id) === String(a.event_id));
-    if (!ev) return;
-    if (!raw[a.tech_name]) raw[a.tech_name] = {};
-    const key = String(ev.id);
-    if (!raw[a.tech_name][key]) raw[a.tech_name][key] = { event: ev, dates: new Set() };
-    raw[a.tech_name][key].dates.add(a.date);
-  });
-  const spans = {};
-  Object.entries(raw).forEach(([tech, evMap]) => {
-    spans[tech] = Object.entries(evMap).map(([, { event, dates }]) => {
-      const sorted = [...dates].sort();
-      return { event, dates: sorted };
-    });
-  });
-  return spans;
 }
 
 export default function ResourceGrid({
@@ -86,7 +69,7 @@ export default function ResourceGrid({
     [events, assignments, dayStrs]
   );
   const spans       = useMemo(
-    () => buildSpans(events, displayAssignments, dayStrs),
+    () => buildTechSpans(events, displayAssignments, dayStrs),
     [events, displayAssignments, dayStrs]
   );
   const techLayouts = useMemo(() => {
@@ -112,14 +95,8 @@ export default function ResourceGrid({
     return m;
   }, [displayAssignments]);
 
-  function getRowHeight(ds) {
-    let maxLanes = 1;
-    RESOURCE_TECHNICIANS.forEach(tech => {
-      const layout = techLayouts[tech] || [];
-      const active = layout.filter(l => l.dates.includes(ds));
-      if (active.length > maxLanes) maxLanes = active.length;
-    });
-    return ROW_H * maxLanes;
+  function getRowHeight() {
+    return ROW_H;
   }
 
   function isOddWeek(d) { return getISOWeek(d) % 2 === 1; }
@@ -551,9 +528,9 @@ export default function ResourceGrid({
                           {!techEvs.length && startingHere.map(l => {
                             const color       = getEventColor(l.event);
                             const totalH      = l.dates.reduce((sum, sds) => sum + getRowHeight(sds), 0) - 6;
-                            const laneH       = totalH / (l.totalLanes || 1);
-                            const blockTop    = l.lane * laneH + 3;
-                            const blockH      = laneH - 2;
+                            const blockTop    = 3;
+                            const blockH      = totalH;
+                            const laneStyle   = horizontalLaneStyle(l.lane, l.totalLanes);
                             const accentColor = l.event.isGhost ? 'var(--cal-text-muted)' : (tc ? tc.fg : color.fg);
                             const showNotes   = l.event.notes && blockH > 30;
                             const isLocked    = String(l.event.id) === String(lockedEventId);
@@ -571,7 +548,7 @@ export default function ResourceGrid({
 
                             return (
                               
-                              <div key={l.event.id}
+                              <div key={`${l.event.id}-${l.dates[0]}`}
                               
                                 onMouseDown={e => handleEventMouseDown(e, l.event, tech, ds)}
                                 onMouseEnter={e => {
@@ -600,8 +577,10 @@ export default function ResourceGrid({
                                //title={`${l.event.title}${l.event.isGhost ? ' (tentative)' : ''}${l.event.ticket_id ? ' #' + l.event.ticket_id : ''}${l.event.notes ? '\n' + l.event.notes : ''}`}
                                 style={{
                                   position: 'absolute',
-                                  top: blockTop, left: 1, right: 1,
+                                  top: blockTop,
+                                  ...laneStyle,
                                   height: blockH,
+                                  boxSizing: 'border-box',
                                   borderRadius: 4,
                                   background: color.bg,
                                   border: isGhost

@@ -136,4 +136,31 @@ describe('Calendar API', () => {
     expect(bindings.some(binding => binding.values.includes('Unassigned'))).toBe(false);
     expect(bindings.some(binding => binding.values.includes('Joey'))).toBe(true);
   });
+
+  it('rejects assignment dates outside the event range before touching D1', async () => {
+    const prepare = vi.fn();
+    const env = { ...baseEnv, DB: { prepare } } as unknown as Env;
+
+    const response = await worker.fetch(apiRequest('/calendar/events', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Editor-Token': 'test-editor-token' },
+      body: JSON.stringify({
+        id: 42,
+        title: 'Cleveland DX',
+        event_type: 'calibration',
+        status: 'confirmed',
+        start_date: '2026-09-08',
+        end_date: '2026-09-09',
+        assignments: [
+          { tech_name: 'Leighton', date: '2026-09-10' },
+        ],
+      }),
+    }), env);
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({
+      error: 'Assignment dates must fall within the event date range',
+    });
+    expect(prepare).not.toHaveBeenCalled();
+  });
 });

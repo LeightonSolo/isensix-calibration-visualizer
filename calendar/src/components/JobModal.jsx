@@ -8,7 +8,10 @@ import {
   shouldUpdateAutofilledCustomer,
 } from '../utils/jobInfoMatch';
 import JobInfoPanel from './JobInfoPanel';
-import { withoutAutomaticUnassigned } from '../utils/calendarAssignments.js';
+import {
+  withinEventDateRange,
+  withoutAutomaticUnassigned,
+} from '../utils/calendarAssignments.js';
 
 const S = {
   overlay: {
@@ -190,10 +193,11 @@ export default function JobModal({
     if (!title.trim() || !startDate || !endDate) return;
     setSaving(true);
     // Build flat assignments array
-    const assignments = [];
+    const selectedAssignments = [];
     Object.entries(techDates).forEach(([tech, dates]) => {
-      dates.forEach(date => assignments.push({ tech_name: tech, date }));
+      dates.forEach(date => selectedAssignments.push({ tech_name: tech, date }));
     });
+    const assignments = withinEventDateRange(selectedAssignments, startDate, endDate);
     try {
       await onSave({
         id: event?.id,
