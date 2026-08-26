@@ -1,4 +1,4 @@
-import { eachDayOfInterval, format, isValid, parseISO } from 'date-fns';
+import { addBusinessDays, eachDayOfInterval, format, isValid, parseISO } from 'date-fns';
 import { CONFIG } from '../config.js';
 
 function isUnassignedName(value) {
@@ -15,6 +15,49 @@ export function withinEventDateRange(assignments, startDate, endDate) {
     const date = String(assignment?.date || '');
     return date >= startDate && date <= endDate;
   });
+}
+
+export function businessDateStrings(startDate, endDate) {
+  const start = parseISO(String(startDate || ''));
+  const end = parseISO(String(endDate || ''));
+  if (!isValid(start) || !isValid(end) || end < start) return [];
+  return eachDayOfInterval({ start, end })
+    .filter(date => date.getDay() !== 0 && date.getDay() !== 6)
+    .map(date => format(date, 'yyyy-MM-dd'));
+}
+
+export function estimatedBusinessEndDate(startDate, estimatedDays) {
+  const start = parseISO(String(startDate || ''));
+  if (!isValid(start)) return startDate;
+  const duration = Math.max(1, Math.ceil(Number(estimatedDays) || 1));
+  return format(addBusinessDays(start, duration - 1), 'yyyy-MM-dd');
+}
+
+export function buildBusyDatesByTech(assignments, techEvents, excludedEventId = null) {
+  const busy = new Map();
+  const reserve = (techName, date) => {
+    if (!techName || !date || isUnassignedName(techName)) return;
+    if (!busy.has(techName)) busy.set(techName, new Set());
+    busy.get(techName).add(date);
+  };
+  (assignments || []).forEach(assignment => {
+    if (excludedEventId !== null
+      && String(assignment.event_id) === String(excludedEventId)) return;
+    reserve(assignment.tech_name, assignment.date);
+  });
+  (techEvents || []).forEach(event => reserve(event.tech_name, event.date));
+  return busy;
+}
+
+export function fillAssignedTechnicians(techDates, startDate, endDate, busyDatesByTech) {
+  const dates = businessDateStrings(startDate, endDate);
+  const next = { ...techDates };
+  Object.entries(techDates || {}).forEach(([techName, assignedDates]) => {
+    if (!(assignedDates instanceof Set) || assignedDates.size === 0) return;
+    const busyDates = busyDatesByTech?.get(techName) || new Set();
+    next[techName] = new Set(dates.filter(date => !busyDates.has(date)));
+  });
+  return next;
 }
 
 export function withAutomaticUnassigned(events, assignments, visibleDates) {

@@ -305,6 +305,9 @@ export default function ResourceGrid({
         <JobModal
           event={modal.event}
           initialDate={modal.initialDate}
+          initialTech={modal.initialTech}
+          calendarAssignments={assignments}
+          techEvents={techEvents}
           jobInfoMap={jobInfoMap}
           serverMeta={serverMeta}
           onSave={(data) => requireEditor(token => onSaveEvent(data, token))}

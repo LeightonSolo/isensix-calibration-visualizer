@@ -145,6 +145,8 @@ export default function JobList({
       {modal && (
         <JobModal
           event={modal.event}
+          calendarAssignments={assignments}
+          techEvents={techEvents}
           jobInfoMap={jobInfoMap}
           serverMeta={serverMeta}
           onSave={(data) => requireEditor(token => onSaveEvent(data, token))}

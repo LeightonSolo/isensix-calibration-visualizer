@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  buildBusyDatesByTech,
+  estimatedBusinessEndDate,
+  fillAssignedTechnicians,
   withinEventDateRange,
   withAutomaticUnassigned,
   withoutAutomaticUnassigned,
@@ -54,4 +57,40 @@ test('removes technician assignments outside the edited event range', () => {
     assignments[0],
     assignments[1],
   ]);
+});
+
+test('calculates an estimated end date in business days', () => {
+  assert.equal(estimatedBusinessEndDate('2026-09-11', 3), '2026-09-15');
+  assert.equal(estimatedBusinessEndDate('2026-09-14', null), '2026-09-14');
+});
+
+test('fills assigned technicians across a new range except job and PTO conflicts', () => {
+  const busy = buildBusyDatesByTech([
+    { event_id: 10, tech_name: 'Daniel', date: '2026-09-15' },
+    { event_id: 42, tech_name: 'Daniel', date: '2026-09-16' },
+  ], [
+    { tech_name: 'Daniel', date: '2026-09-17', event_type: 'pto' },
+  ], 42);
+  const filled = fillAssignedTechnicians(
+    { Daniel: new Set(['2026-09-14']) },
+    '2026-09-14',
+    '2026-09-18',
+    busy,
+  );
+
+  assert.deepEqual([...filled.Daniel], [
+    '2026-09-14',
+    '2026-09-16',
+    '2026-09-18',
+  ]);
+});
+
+test('does not reassign a technician that was manually cleared', () => {
+  const filled = fillAssignedTechnicians(
+    { Daniel: new Set() },
+    '2026-09-14',
+    '2026-09-18',
+    new Map(),
+  );
+  assert.deepEqual([...filled.Daniel], []);
 });

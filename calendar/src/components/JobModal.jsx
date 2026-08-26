@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { format, eachDayOfInterval, parseISO } from 'date-fns';
 import { CONFIG } from '../config';
 import {
@@ -9,6 +9,9 @@ import {
 } from '../utils/jobInfoMatch';
 import JobInfoPanel from './JobInfoPanel';
 import {
+  buildBusyDatesByTech,
+  estimatedBusinessEndDate,
+  fillAssignedTechnicians,
   withinEventDateRange,
   withoutAutomaticUnassigned,
 } from '../utils/calendarAssignments.js';
@@ -110,7 +113,8 @@ const S = {
 };
 
 export default function JobModal({
-  event, initialDate, onSave, onDelete, onClose,
+  event, initialDate, initialTech, onSave, onDelete, onClose,
+  calendarAssignments = [], techEvents = [],
   jobInfoMap = {}, serverMeta = {},
 }) {
   const isNew = !event?.id;
@@ -133,12 +137,14 @@ export default function JobModal({
 
   // Tech assignments: { techName: Set of date strings }
   const [techDates, setTechDates] = useState(() => {
-    if (!event?.assignments) return {};
     const map = {};
-    withoutAutomaticUnassigned(event.assignments).forEach(a => {
+    withoutAutomaticUnassigned(event?.assignments || []).forEach(a => {
       if (!map[a.tech_name]) map[a.tech_name] = new Set();
       map[a.tech_name].add(a.date);
     });
+    if (!event?.assignments?.length && CONFIG.TECHNICIANS.includes(initialTech)) {
+      map[initialTech] = new Set([startDate]);
+    }
     return map;
   });
 
@@ -149,6 +155,10 @@ export default function JobModal({
     ? Object.values(jobInfoMap).find(job => String(job.id) === String(event.job_info_id))
     : null;
   const matchedJobInfo = findJobInfoMatch(jobInfoMap, title) || linkedJobInfo;
+  const busyDatesByTech = useMemo(
+    () => buildBusyDatesByTech(calendarAssignments, techEvents, event?.id ?? null),
+    [calendarAssignments, techEvents, event?.id]
+  );
 
   useEffect(() => {
     function closeJobOptions(event) {
@@ -188,6 +198,21 @@ export default function JobModal({
       next[tech] = allSelected ? new Set() : new Set(dayStrs);
       return next;
     });
+  }
+
+  function autofillAssignedTechs(nextStartDate, nextEndDate) {
+    setTechDates(previous => fillAssignedTechnicians(
+      previous,
+      nextStartDate,
+      nextEndDate,
+      busyDatesByTech,
+    ));
+  }
+
+  function updateDateRange(nextStartDate, nextEndDate) {
+    setStartDate(nextStartDate);
+    setEndDate(nextEndDate);
+    autofillAssignedTechs(nextStartDate, nextEndDate);
   }
 
   async function handleSave() {
@@ -265,6 +290,10 @@ export default function JobModal({
 
   function selectJobName(jobName) {
     handleTitleChange(jobName, true);
+    const selectedJob = findJobInfoMatch(jobInfoMap, jobName);
+    const nextEndDate = estimatedBusinessEndDate(startDate, selectedJob?.estimated_days);
+    setEndDate(nextEndDate);
+    autofillAssignedTechs(startDate, nextEndDate);
     setJobOptionsMode(null);
   }
 
@@ -386,15 +415,20 @@ export default function JobModal({
             <label style={S.label}>Start date *</label>
             <input style={S.input} type="date" value={startDate}
               onChange={e => {
-                setStartDate(e.target.value);
-                if (e.target.value > endDate) setEndDate(e.target.value);
+                const nextStartDate = e.target.value;
+                if (!/^\d{4}-\d{2}-\d{2}$/.test(nextStartDate)) return;
+                const nextEndDate = nextStartDate > endDate ? nextStartDate : endDate;
+                updateDateRange(nextStartDate, nextEndDate);
               }}/>
           </div>
           <div style={S.col}>
             <label style={S.label}>End date *</label>
             <input style={S.input} type="date" value={endDate}
               min={startDate}
-              onChange={e => setEndDate(e.target.value)}/>
+              onChange={e => {
+                if (!/^\d{4}-\d{2}-\d{2}$/.test(e.target.value)) return;
+                updateDateRange(startDate, e.target.value);
+              }}/>
           </div>
         </div>
 

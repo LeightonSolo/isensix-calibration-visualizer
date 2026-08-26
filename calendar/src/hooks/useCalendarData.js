@@ -18,12 +18,10 @@ export function useCalendarData() {
   const [loading,     setLoading]     = useState(false);
   const [error,       setError]       = useState(null);
 
-  const load = useCallback(async (startDate, endDate) => {
+  const load = useCallback(async (_startDate, _endDate) => {
     setLoading(true);
     setError(null);
     try {
-      const start = startDate.toISOString().slice(0, 10);
-      const end   = endDate.toISOString().slice(0, 10);
       const [evRes, asRes, teRes] = await Promise.all([
         // Calendar events and assignments stay global so the Job List and
         // six-month tentative projections use the exact authoritative rows,
@@ -32,7 +30,9 @@ export function useCalendarData() {
           { headers: headers() }),
         fetch(`${CONFIG.WORKER_URL}/calendar/assignments`,
           { headers: headers() }),
-        fetch(`${CONFIG.WORKER_URL}/calendar/tech-events?start=${start}&end=${end}`,
+        // Keep technician time off global too so date edits can avoid PTO even
+        // when an event is outside the currently visible grid window.
+        fetch(`${CONFIG.WORKER_URL}/calendar/tech-events`,
           { headers: headers() }),
       ]);
       const [ev, as, te] = await Promise.all([
