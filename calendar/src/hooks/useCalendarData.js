@@ -25,9 +25,12 @@ export function useCalendarData() {
       const start = startDate.toISOString().slice(0, 10);
       const end   = endDate.toISOString().slice(0, 10);
       const [evRes, asRes, teRes] = await Promise.all([
-        fetch(`${CONFIG.WORKER_URL}/calendar/events?start=${start}&end=${end}`,
+        // Calendar events and assignments stay global so the Job List and
+        // six-month tentative projections use the exact authoritative rows,
+        // even when their dates are outside the visible grid window.
+        fetch(`${CONFIG.WORKER_URL}/calendar/events`,
           { headers: headers() }),
-        fetch(`${CONFIG.WORKER_URL}/calendar/assignments?start=${start}&end=${end}`,
+        fetch(`${CONFIG.WORKER_URL}/calendar/assignments`,
           { headers: headers() }),
         fetch(`${CONFIG.WORKER_URL}/calendar/tech-events?start=${start}&end=${end}`,
           { headers: headers() }),

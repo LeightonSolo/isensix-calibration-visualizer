@@ -8,12 +8,8 @@ const API_KEY    = CONFIG.API_KEY;
 const EDIT_SECTIONS = [
   { title: 'Scheduling', fields: [
     { key: 'primary_tech', label: 'Primary tech', type: 'select', options: ['', ...CONFIG.TECHNICIANS] },
-    { key: 'status', label: 'Job status', type: 'select', options: ['', 'Unscheduled', 'Scheduled', 'In Progress', 'Complete', 'On Hold'] },
     { key: 'num_tech', label: '# technicians', type: 'number', min: 0 },
     { key: 'estimated_days', label: 'Estimated days', type: 'number', min: 1 },
-    { key: 'scheduled_start_date', label: 'Scheduled start', type: 'date' },
-    { key: 'scheduled_end_date', label: 'Scheduled end', type: 'date' },
-    { key: 'scheduled_with', label: 'Scheduled with' },
   ]},
   { title: 'Location', fields: [
     { key: 'site_address', label: 'Main site address' },
@@ -198,17 +194,6 @@ export default function JobInfoPanel({
 
   async function saveJobInfo(token) {
     if (!jobInfo || !draft || !selectedEvent) return;
-    const start = draft.scheduled_start_date || null;
-    const end = draft.scheduled_end_date || null;
-    if (Boolean(start) !== Boolean(end)) {
-      setSaveMessage('Enter both scheduled dates, or clear both.');
-      return;
-    }
-    if (start && end && start > end) {
-      setSaveMessage('Scheduled end cannot be before the start.');
-      return;
-    }
-
     const updates = {};
     EDIT_SECTIONS.flatMap(section => section.fields).forEach(field => {
       const value = draft[field.key];
@@ -364,13 +349,12 @@ export default function JobInfoPanel({
             event={selectedEvent}
             jobInfo={jobInfo}
             techs={eventTechs}
-            assignments={assignments}
             serverMeta={serverMeta}
           />
         )}
 
         {selectedEvent && !loading && tab === 'details' && (
-          <DetailsTab jobInfo={jobInfo} event={selectedEvent} serverMeta={serverMeta} />
+          <DetailsTab jobInfo={jobInfo} event={selectedEvent} techs={eventTechs} serverMeta={serverMeta} />
         )}
 
         {selectedEvent && !loading && tab === 'edit' && jobInfo && draft && (
@@ -466,9 +450,7 @@ function JobInfoEditForm({ draft, setDraft, saving, saveMessage, onSave, onCance
   );
 }
 
-function SummaryTab({ event, jobInfo, techs, assignments, serverMeta }) {
-  const statusColor = CONFIG.STATUS_COLORS[event.status] || CONFIG.STATUS_COLORS.ticketed;
-
+function SummaryTab({ event, jobInfo, techs, serverMeta }) {
   return (
     <>
       {/* Dates */}
@@ -507,20 +489,6 @@ function SummaryTab({ event, jobInfo, techs, assignments, serverMeta }) {
       {jobInfo && (
         <>
           <Divider/>
-
-          {jobInfo.scheduled_start_date && (
-            <>
-              <Label>Job Info schedule</Label>
-              <Value>{formatDateRange(jobInfo.scheduled_start_date, jobInfo.scheduled_end_date)}</Value>
-            </>
-          )}
-
-          {jobInfo.scheduled_with && (
-            <>
-              <Label>Scheduled with</Label>
-              <Value>{jobInfo.scheduled_with}</Value>
-            </>
-          )}
 
           {jobInfo.servers && (
             <>
@@ -650,7 +618,7 @@ function SummaryTab({ event, jobInfo, techs, assignments, serverMeta }) {
   );
 }
 
-function DetailsTab({ jobInfo, event, serverMeta }) {
+function DetailsTab({ jobInfo, event, techs, serverMeta }) {
   if (!jobInfo) return (
     <div style={{ fontSize: 12, color: 'var(--cal-text-faint)', fontStyle: 'italic', marginTop: 16 }}>
       No job info found for "{event.title}".<br/><br/>
@@ -666,10 +634,10 @@ function DetailsTab({ jobInfo, event, serverMeta }) {
     <>
       {row('Customer',        jobInfo.customer)}
       {row('Job name',        jobInfo.job_name)}
-      {row('Status',          jobInfo.status)}
+      {row('Calendar status', event.status)}
       {row('Primary tech',    jobInfo.primary_tech)}
-      {row('Scheduled with',  jobInfo.scheduled_with)}
-      {row('Scheduled dates', formatDateRange(jobInfo.scheduled_start_date, jobInfo.scheduled_end_date))}
+      {row('Scheduled with',  techs?.join(', '))}
+      {row('Scheduled dates', formatDateRange(event.start_date, event.end_date))}
       {row('Est. days',       jobInfo.estimated_days)}
 
       <Divider/>

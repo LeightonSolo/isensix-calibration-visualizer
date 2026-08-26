@@ -1,4 +1,5 @@
 import { previewCmsSync, syncCmsInventory } from './cms-sync';
+import { reconcileTentativeCalendar } from './calendar-scheduling';
 
 export interface Env {
   DB: D1Database;
@@ -28,6 +29,69 @@ function normalizeMinute(dt: string | null | undefined) {
 function json(data: unknown, status = 200) {
   return Response.json(data, { status, headers: corsHeaders() });
 }
+
+const JOB_SCHEDULE_CTE = `
+  WITH ranked_calendar AS (
+    SELECT
+      e.*,
+      ROW_NUMBER() OVER (
+        PARTITION BY e.job_info_id
+        ORDER BY
+          CASE WHEN e.end_date >= date('now') THEN 0 ELSE 1 END,
+          CASE WHEN e.end_date >= date('now') THEN e.start_date END ASC,
+          CASE WHEN e.end_date < date('now') THEN e.end_date END DESC,
+          e.id DESC
+      ) AS schedule_rank
+    FROM calendar_events e
+    WHERE e.event_type = 'calibration'
+      AND e.job_info_id IS NOT NULL
+  ),
+  schedule_assignments AS (
+    SELECT event_id, group_concat(tech_name, ', ') AS scheduled_with
+    FROM (
+      SELECT DISTINCT event_id, tech_name
+      FROM event_assignments
+      WHERE lower(trim(tech_name)) <> 'unassigned'
+      ORDER BY event_id, tech_name
+    )
+    GROUP BY event_id
+  )
+`;
+
+const TENTATIVE_ASSIGNMENT_SQL = `
+  CASE WHEN j.num_tech = 1 THEN
+    CASE lower(trim(COALESCE(j.primary_tech, '')))
+      WHEN 'daniel' THEN 'Daniel'
+      WHEN 'dejan' THEN 'Dejan'
+      WHEN 'leighton' THEN 'Leighton'
+      WHEN 'joey' THEN 'Joey'
+      WHEN 'kyle' THEN 'Kyle'
+      WHEN 'matt' THEN 'Matt'
+      WHEN 'fernando' THEN 'Fernando'
+      WHEN 'bissen' THEN 'Bissen'
+      ELSE 'Unassigned'
+    END
+  ELSE 'Unassigned' END
+`;
+
+const JOB_INFO_COLUMNS = `
+  j.id, j.customer, j.job_name, j.servers, j.sensors, j.meters, j.o2,
+  j.server_version, j.hardware, j.num_tech, j.active, j.estimated_days,
+  j.site_address, j.offsites, j.main_contact, j.other_contacts, j.contact_notes,
+  j.vpn_works, j.airport_info, j.emerald_aisle, j.prev_hotel,
+  j.hotel_comments, j.restaurants, j.report, j.credentials, j.comments,
+  j.other_notes, j.primary_tech, j.updated_at, j.last_calibrated,
+  e.id AS calendar_event_id,
+  e.status AS status,
+  e.start_date AS scheduled_start_date,
+  e.end_date AS scheduled_end_date,
+  COALESCE(
+    a.scheduled_with,
+    CASE WHEN e.status = 'tentative' THEN
+      ${TENTATIVE_ASSIGNMENT_SQL}
+    END
+  ) AS scheduled_with
+`;
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -77,6 +141,15 @@ export default {
         SELECT * FROM cms_sync_runs ORDER BY id DESC LIMIT 1
       `).first();
       return json(result || {});
+    }
+
+    // POST /admin/calendar-sync - materialize newly eligible tentative jobs.
+    if (request.method === 'POST' && pathname === '/admin/calendar-sync') {
+      const editorKey = request.headers.get('X-Editor-Token');
+      if (editorKey !== env.EDITOR_TOKEN) {
+        return json({ error: 'Forbidden' }, 403);
+      }
+      return json(await reconcileTentativeCalendar(env.DB));
     }
 
     // GET /servers
@@ -292,9 +365,15 @@ export default {
 
     // GET /jobinfo/all
     if (request.method === 'GET' && pathname === '/jobinfo/all') {
-      const { results } = await env.DB.prepare(
-        `SELECT * FROM job_info ORDER BY job_name`
-      ).all();
+      const { results } = await env.DB.prepare(`
+        ${JOB_SCHEDULE_CTE}
+        SELECT ${JOB_INFO_COLUMNS}
+        FROM job_info j
+        LEFT JOIN ranked_calendar e
+          ON e.job_info_id = j.id AND e.schedule_rank = 1
+        LEFT JOIN schedule_assignments a ON a.event_id = e.id
+        ORDER BY j.job_name
+      `).all();
       return json(results);
     }
 
@@ -302,14 +381,29 @@ export default {
     // stay on the individual record endpoint.
     if (request.method === 'GET' && pathname === '/jobinfo/summary') {
       const { results } = await env.DB.prepare(`
+        ${JOB_SCHEDULE_CTE}
         SELECT
-          id, customer, job_name, servers, sensors, meters, o2,
-          server_version, hardware, num_tech, active, status,
-          estimated_days, scheduled_start_date, scheduled_end_date,
-          scheduled_with, site_address, vpn_works, airport_info, prev_hotel,
-          primary_tech, last_calibrated, updated_at, main_contact, other_contacts, contact_notes, emerald_aisle, prev_hotel, hotel_comments, restaurants
-        FROM job_info
-        ORDER BY job_name
+          j.id, j.customer, j.job_name, j.servers, j.sensors, j.meters, j.o2,
+          j.server_version, j.hardware, j.num_tech, j.active, j.estimated_days,
+          j.site_address, j.vpn_works, j.airport_info, j.prev_hotel,
+          j.primary_tech, j.last_calibrated, j.updated_at, j.main_contact,
+          j.other_contacts, j.contact_notes, j.emerald_aisle, j.hotel_comments,
+          j.restaurants,
+          e.id AS calendar_event_id,
+          e.status AS status,
+          e.start_date AS scheduled_start_date,
+          e.end_date AS scheduled_end_date,
+          COALESCE(
+            a.scheduled_with,
+            CASE WHEN e.status = 'tentative' THEN
+              ${TENTATIVE_ASSIGNMENT_SQL}
+            END
+          ) AS scheduled_with
+        FROM job_info j
+        LEFT JOIN ranked_calendar e
+          ON e.job_info_id = j.id AND e.schedule_rank = 1
+        LEFT JOIN schedule_assignments a ON a.event_id = e.id
+        ORDER BY j.job_name
       `).all();
       return json(results);
     }
@@ -353,7 +447,7 @@ export default {
           SELECT substr(e.start_date, 1, 7) AS label, COUNT(*) AS value,
             COALESCE(SUM(COALESCE(j.sensors, 0)), 0) AS sensor_value
           FROM calendar_events e
-          LEFT JOIN job_info j ON lower(trim(j.job_name)) = lower(trim(e.title))
+          LEFT JOIN job_info j ON j.id = e.job_info_id
           WHERE e.event_type = 'calibration'
           GROUP BY label ORDER BY label
         `),
@@ -368,7 +462,7 @@ export default {
             COALESCE(SUM(COALESCE(j.sensors, 0)), 0) AS sensor_value
           FROM tech_jobs t
           JOIN calendar_events e ON e.id = t.event_id
-          LEFT JOIN job_info j ON lower(trim(j.job_name)) = lower(trim(e.title))
+          LEFT JOIN job_info j ON j.id = e.job_info_id
           GROUP BY t.tech_name ORDER BY value DESC, label
         `),
       ]);
@@ -387,9 +481,15 @@ export default {
     if (request.method === 'GET' && pathname.startsWith('/jobinfo/')) {
       const job_name = decodeURIComponent(pathname.split('/').pop() || '');
       if (!job_name) return new Response('Missing job name', { status: 400 });
-      const result = await env.DB.prepare(
-        `SELECT * FROM job_info WHERE job_name = ?`
-      ).bind(job_name).first();
+      const result = await env.DB.prepare(`
+        ${JOB_SCHEDULE_CTE}
+        SELECT ${JOB_INFO_COLUMNS}
+        FROM job_info j
+        LEFT JOIN ranked_calendar e
+          ON e.job_info_id = j.id AND e.schedule_rank = 1
+        LEFT JOIN schedule_assignments a ON a.event_id = e.id
+        WHERE j.job_name = ?
+      `).bind(job_name).first();
       return json(result || {});
     }
 
@@ -407,11 +507,7 @@ export default {
         return json({ error: 'Missing job name' }, 400);
       }
 
-      const hasScheduledStart = Object.prototype.hasOwnProperty.call(body, 'scheduled_start_date');
-      const hasScheduledEnd = Object.prototype.hasOwnProperty.call(body, 'scheduled_end_date');
       const hasLastCalibrated = Object.prototype.hasOwnProperty.call(body, 'last_calibrated');
-      const scheduledStartDate = body.scheduled_start_date ?? null;
-      const scheduledEndDate = body.scheduled_end_date ?? null;
 
       const isIsoDate = (value: unknown): value is string => {
         if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
@@ -419,22 +515,6 @@ export default {
         return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
       };
 
-      if (hasScheduledStart !== hasScheduledEnd) {
-        return json({ error: 'Scheduled start and end dates must be provided together' }, 400);
-      }
-      if (hasScheduledStart && hasScheduledEnd) {
-        const hasStartValue = scheduledStartDate !== null && scheduledStartDate !== '';
-        const hasEndValue = scheduledEndDate !== null && scheduledEndDate !== '';
-        if (hasStartValue !== hasEndValue) {
-          return json({ error: 'Scheduled start and end dates must both be set or both be empty' }, 400);
-        }
-        if (hasStartValue && (!isIsoDate(scheduledStartDate) || !isIsoDate(scheduledEndDate))) {
-          return json({ error: 'Scheduled dates must use YYYY-MM-DD format' }, 400);
-        }
-        if (hasStartValue && scheduledStartDate > scheduledEndDate) {
-          return json({ error: 'Scheduled end date cannot be before the start date' }, 400);
-        }
-      }
       if (body.last_calibrated !== null && body.last_calibrated !== undefined
         && body.last_calibrated !== '' && !isIsoDate(body.last_calibrated)) {
         return json({ error: 'Last calibrated must use YYYY-MM-DD format' }, 400);
@@ -452,11 +532,7 @@ export default {
           hardware,
           report,
           num_tech,
-          status,
           estimated_days,
-          scheduled_start_date,
-          scheduled_end_date,
-          scheduled_with,
           site_address,
           offsites,
           comments,
@@ -476,7 +552,7 @@ export default {
           last_calibrated
         )
         VALUES (
-          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(job_name) DO UPDATE SET
           customer         = excluded.customer,
           job_name         = excluded.job_name,
@@ -488,17 +564,7 @@ export default {
           hardware         = excluded.hardware,
           report           = excluded.report,
           num_tech         = excluded.num_tech,
-          status           = excluded.status,
           estimated_days   = excluded.estimated_days,
-          scheduled_start_date = CASE
-            WHEN ? THEN excluded.scheduled_start_date
-            ELSE job_info.scheduled_start_date
-          END,
-          scheduled_end_date = CASE
-            WHEN ? THEN excluded.scheduled_end_date
-            ELSE job_info.scheduled_end_date
-          END,
-          scheduled_with   = excluded.scheduled_with,
           site_address     = excluded.site_address,
           offsites         = excluded.offsites,
           comments         = excluded.comments,
@@ -531,11 +597,7 @@ export default {
         body.hardware ?? null,
         body.report ?? null,
         body.num_tech ?? null,
-        body.status ?? 'Unscheduled',
         body.estimated_days ?? null,
-        scheduledStartDate || null,
-        scheduledEndDate || null,
-        body.scheduled_with ?? null,
         body.site_address ?? null,
         body.offsites ?? null,
         body.comments ?? null,
@@ -553,8 +615,6 @@ export default {
         body.other_notes ?? null,
         body.active ?? 1,
         body.last_calibrated || null,
-        hasScheduledStart ? 1 : 0,
-        hasScheduledEnd ? 1 : 0,
         hasLastCalibrated ? 1 : 0
       ).run();
 
@@ -599,25 +659,28 @@ export default {
       }
       const body = await request.json() as Record<string, any>;
       const { id, title, event_type, status, customer,
-              start_date, end_date, ticket_id, notes, assignments } = body;
+              start_date, end_date, ticket_id, notes, assignments,
+              job_info_id, source_calibration_date } = body;
 
       let eventId = id;
       if (id) {
         await env.DB.prepare(`
           UPDATE calendar_events SET
-            title=?, event_type=?, status=?, customer=?,
+            job_info_id=?, title=?, event_type=?, status=?, customer=?,
             start_date=?, end_date=?, ticket_id=?, notes=?,
             updated_at=datetime('now')
-          WHERE id=?
-        `).bind(title, event_type, status, customer ?? null,
+            WHERE id=?
+        `).bind(job_info_id ?? null, title, event_type, status, customer ?? null,
                 start_date, end_date, ticket_id ?? null,
                 notes ?? null, id).run();
       } else {
         const result = await env.DB.prepare(`
           INSERT INTO calendar_events
-            (title, event_type, status, customer, start_date, end_date, ticket_id, notes)
-          VALUES (?,?,?,?,?,?,?,?)
-        `).bind(title, event_type, status ?? 'ticketed', customer ?? null,
+            (job_info_id, source_calibration_date, title, event_type, status,
+             customer, start_date, end_date, ticket_id, notes)
+          VALUES (?,?,?,?,?,?,?,?,?,?)
+        `).bind(job_info_id ?? null, source_calibration_date ?? null,
+                title, event_type, status ?? 'ticketed', customer ?? null,
                 start_date, end_date, ticket_id ?? null, notes ?? null).run();
         eventId = result.meta.last_row_id;
       }
@@ -725,6 +788,9 @@ export default {
     env: Env,
     ctx: ExecutionContext,
   ): Promise<void> {
-    ctx.waitUntil(syncCmsInventory(env));
+    ctx.waitUntil(Promise.all([
+      syncCmsInventory(env),
+      reconcileTentativeCalendar(env.DB),
+    ]).then(() => undefined));
   },
 };

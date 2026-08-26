@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS job_info (
   servers       TEXT,
   sensors       INTEGER,
   num_tech      INTEGER,
+  estimated_days INTEGER,
   site_address  TEXT,
   offsites      TEXT,
   comments      TEXT,
@@ -26,8 +27,6 @@ CREATE TABLE IF NOT EXISTS job_info (
   restaurants   TEXT,
   other_notes   TEXT,
   active        INTEGER DEFAULT 1,
-  scheduled_start_date TEXT,
-  scheduled_end_date TEXT,
-  scheduled_with  TEXT,
+  last_calibrated TEXT,
   updated_at    TEXT DEFAULT (datetime('now'))
 );

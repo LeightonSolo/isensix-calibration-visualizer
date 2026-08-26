@@ -141,7 +141,10 @@ export default function JobModal({
   const [saving, setSaving] = useState(false);
   const jobNames = getJobInfoNames(jobInfoMap);
   const visibleJobNames = filterJobInfoNames(jobNames, title, jobOptionsMode === 'all');
-  const matchedJobInfo = findJobInfoMatch(jobInfoMap, title);
+  const linkedJobInfo = event?.job_info_id
+    ? Object.values(jobInfoMap).find(job => String(job.id) === String(event.job_info_id))
+    : null;
+  const matchedJobInfo = findJobInfoMatch(jobInfoMap, title) || linkedJobInfo;
 
   useEffect(() => {
     function closeJobOptions(event) {
@@ -195,6 +198,10 @@ export default function JobModal({
       await onSave({
         id: event?.id,
         isGhost: Boolean(event?.isGhost),
+        job_info_id: matchedJobInfo?.id ?? event?.job_info_id ?? null,
+        source_calibration_date: event?.source_calibration_date
+          ?? event?.sourceJobInfo?.last_calibrated
+          ?? null,
         title, event_type: eventType, status,
         customer: customer || null,
         start_date: startDate, end_date: endDate,

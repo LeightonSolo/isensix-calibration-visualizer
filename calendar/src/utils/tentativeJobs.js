@@ -1,6 +1,8 @@
 import {
   addBusinessDays,
   addDays,
+  addMonths,
+  addYears,
   differenceInCalendarDays,
   format,
   isValid,
@@ -44,6 +46,14 @@ function jobsByName(jobInfoMap) {
   );
 }
 
+function jobsById(jobInfoMap) {
+  return new Map(
+    Object.values(jobInfoMap || {})
+      .filter(job => job?.id !== null && job?.id !== undefined)
+      .map(job => [String(job.id), job])
+  );
+}
+
 function assignmentNames(job) {
   const primary = String(job.primary_tech || '').trim();
   const canonicalPrimary = CONFIG.TECHNICIANS.find(
@@ -80,10 +90,12 @@ function firstAvailableSlot(targetStart, duration, techNames, busyByTech) {
 
 export function normalizeTentativeCalendar(events, assignments, jobInfoMap) {
   const jobLookup = jobsByName(jobInfoMap);
+  const jobIdLookup = jobsById(jobInfoMap);
   const tentativeIds = new Set();
   const normalizedEvents = (events || []).map(event => {
     if (event.isGhost || normalizedName(event.status) !== 'tentative') return event;
-    const job = jobLookup.get(normalizedName(event.title));
+    const job = jobIdLookup.get(String(event.job_info_id))
+      || jobLookup.get(normalizedName(event.title));
     const start = parseISO(String(event.start_date || ''));
     if (!job || !isValid(start)) return event;
 
@@ -105,7 +117,8 @@ export function normalizeTentativeCalendar(events, assignments, jobInfoMap) {
   const normalizedTentativeAssignments = normalizedEvents.flatMap(event => {
     const id = String(event.id);
     if (!tentativeIds.has(id)) return [];
-    const job = jobLookup.get(normalizedName(event.title));
+    const job = jobIdLookup.get(String(event.job_info_id))
+      || jobLookup.get(normalizedName(event.title));
     const existing = assignmentsByEvent.get(id) || [];
     const techNames = [...new Set(existing.map(a => a.tech_name).filter(Boolean))];
     const assignedTechs = techNames.length ? techNames : assignmentNames(job);
@@ -128,7 +141,6 @@ export function generateTentativeJobs(
   realAssignments = [],
   techEvents = []
 ) {
-  const currentYear = now.getFullYear();
   const jobs = Object.values(jobInfoMap || {});
   const busyByTech = new Map();
 
@@ -145,13 +157,14 @@ export function generateTentativeJobs(
     if (!job?.job_name || !activeJob(job) || !job.last_calibrated) return [];
 
     const lastCalibrated = parseISO(String(job.last_calibrated));
-    if (!isValid(lastCalibrated) || lastCalibrated.getFullYear() >= currentYear) return [];
+    if (!isValid(lastCalibrated) || now < addMonths(lastCalibrated, 6)) return [];
 
-    const anniversary = new Date(currentYear, lastCalibrated.getMonth(), lastCalibrated.getDate());
+    const anniversary = addYears(lastCalibrated, 1);
     const targetStart = mondayOnOrBefore(anniversary);
     const hasConflict = (realEvents || []).some(event =>
       !event.isGhost &&
-      normalizedName(event.title) === normalizedName(job.job_name) &&
+      (String(event.job_info_id || '') === String(job.id || '')
+        || normalizedName(event.title) === normalizedName(job.job_name)) &&
       isValid(parseISO(String(event.start_date || ''))) &&
       Math.abs(differenceInCalendarDays(parseISO(event.start_date), targetStart)) < CONFLICT_WINDOW_DAYS
     );
@@ -175,6 +188,8 @@ export function generateTentativeJobs(
 
     return {
       id: ghostId,
+      job_info_id: job.id ?? null,
+      source_calibration_date: job.last_calibrated,
       title: job.job_name,
       event_type: 'calibration',
       status: 'tentative',

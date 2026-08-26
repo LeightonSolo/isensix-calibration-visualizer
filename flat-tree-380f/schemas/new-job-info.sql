@@ -17,11 +17,7 @@ CREATE TABLE job_info (
   -- Scheduling
   num_tech         INTEGER,
   active           INTEGER DEFAULT 1,
-  status           TEXT DEFAULT 'Unscheduled',
   estimated_days   INTEGER,
-  scheduled_start_date TEXT,
-  scheduled_end_date TEXT,
-  scheduled_with   TEXT,
 
   -- Location
   site_address     TEXT,

@@ -21,7 +21,7 @@ test('projects active prior-year jobs onto the Monday of the completion week', (
       primary_tech: 'Daniel',
     },
     Inactive: { id: 11, job_name: 'Inactive', active: 0, last_calibrated: '2025-09-01' },
-    Completed: { id: 12, job_name: 'Completed', active: 1, last_calibrated: '2026-02-01' },
+    Recent: { id: 12, job_name: 'Recent', active: 1, last_calibrated: '2026-05-01' },
   };
 
   const projected = generateTentativeJobs(jobs, [], now);
@@ -32,6 +32,17 @@ test('projects active prior-year jobs onto the Monday of the completion week', (
   assert.equal(projected[0].status, 'tentative');
   assert.equal(projected[0].ghostAssignments.length, 5);
   assert.deepEqual([...new Set(projected[0].ghostAssignments.map(a => a.tech_name))], ['Daniel']);
+  assert.equal(projected[0].job_info_id, 10);
+  assert.equal(projected[0].source_calibration_date, '2025-08-21');
+});
+
+test('a job becomes tentative exactly six months after its last calibration', () => {
+  const jobs = {
+    Alpha: { id: 13, job_name: 'Alpha', active: 1, last_calibrated: '2026-02-28' },
+  };
+
+  assert.equal(generateTentativeJobs(jobs, [], new Date(2026, 7, 27, 12)).length, 0);
+  assert.equal(generateTentativeJobs(jobs, [], new Date(2026, 7, 28, 12)).length, 1);
 });
 
 test('uses primary technician for one-person jobs and Unassigned otherwise', () => {

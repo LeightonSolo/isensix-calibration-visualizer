@@ -49,7 +49,7 @@ describe('Job Info API', () => {
     expect(run).toHaveBeenCalledOnce();
   });
 
-  it('returns projected summary rows without sensitive fields', async () => {
+  it('returns calendar-derived summary rows without long-form fields', async () => {
     const all = vi.fn().mockResolvedValue({ results: [{ id: 1, job_name: 'Alpha' }] });
     const prepare = vi.fn().mockReturnValue({ all });
     const env = { ...baseEnv, DB: { prepare } } as unknown as Env;
@@ -60,8 +60,9 @@ describe('Job Info API', () => {
     const sql = prepare.mock.calls[0][0] as string;
     expect(sql).toContain('last_calibrated');
     expect(sql).toContain('prev_hotel');
+    expect(sql).toContain('e.status AS status');
+    expect(sql).toContain('e.start_date AS scheduled_start_date');
     expect(sql).not.toContain('credentials');
-    expect(sql).not.toContain('main_contact');
   });
 
   it('returns analytics result sets with stable names', async () => {

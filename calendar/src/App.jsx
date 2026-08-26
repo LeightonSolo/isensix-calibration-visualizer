@@ -188,6 +188,9 @@ export default function App() {
 
   // Derived panel event: locked takes priority over hovered
   const panelEvent = lockedEvent || hoveredEvent;
+  const panelJobInfo = panelEvent?.job_info_id
+    ? Object.values(jobInfoMap).find(job => String(job.id) === String(panelEvent.job_info_id))
+    : undefined;
 
   function requireEditor(action) {
     if (editorToken) { action(editorToken); return; }
@@ -376,6 +379,7 @@ export default function App() {
         <JobInfoPanel
           selectedEvent={panelEvent}
           assignments={allAssignments}
+          jobInfoOverride={panelJobInfo}
           locked={!!lockedEvent}
           serverMeta={serverMeta}
           editorToken={editorToken}

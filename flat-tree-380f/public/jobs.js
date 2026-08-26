@@ -15,6 +15,7 @@
   const columns = {
     planning: [
       ['job_name', 'Job'], ['servers', 'Servers'], ['last_calibrated', 'Last calibrated'],
+      ['status', 'Calendar status'], ['scheduled_start_date', 'Scheduled start'], ['scheduled_end_date', 'Scheduled end'],
       ['sensors', 'Sensors'], ['num_tech', 'Techs'], ['o2', 'O₂'], ['primary_tech', 'Primary tech'], ['main_contact', 'Main contact'], ['other_contacts', 'Other contacts'],
       ['contact_notes', 'Contact notes'], ['scheduled_with', 'Scheduled with'], ['hardware', 'Hardware'], ['location', 'Location'],
     ],
@@ -30,7 +31,9 @@
     ],
     all: [
       ['job_name', 'Job'], ['customer', 'Customer'], ['servers', 'Servers'],
-      ['last_calibrated', 'Last calibrated'], ['sensors', 'Sensors'], ['num_tech', 'Techs'], ['meters', 'Meters'],
+      ['last_calibrated', 'Last calibrated'], ['status', 'Calendar status'],
+      ['scheduled_start_date', 'Scheduled start'], ['scheduled_end_date', 'Scheduled end'],
+      ['sensors', 'Sensors'], ['num_tech', 'Techs'], ['meters', 'Meters'],
       ['o2', 'O₂'], ['scheduled_with', 'Scheduled with'],
       ['primary_tech', 'Primary tech'], ['hardware', 'Hardware'], ['server_version', 'Software'],
       ['location', 'Location'], ['site_address', 'Address'], ['vpn_works', 'VPN'],
@@ -43,16 +46,18 @@
     ['Overview', [
       ['customer', 'Customer'], ['job_name', 'Job name', 'text', true],
       ['last_calibrated', 'Last calibrated', 'date'], ['active', 'Active record', 'checkbox'],
-      ['status', 'Status'], ['primary_tech', 'Primary technician', 'tech'],
+      ['primary_tech', 'Primary technician', 'tech'],
     ]],
     ['Equipment', [
       ['servers', 'Servers'], ['sensors', 'Sensor count', 'number'], ['meters', 'Meters needed'],
       ['o2', 'O₂ sensors', 'number'], ['server_version', 'Software version'], ['hardware', 'Hardware', 'hardware'],
     ]],
     ['Planning', [
+      ['status', 'Calendar status', 'readonly'],
+      ['scheduled_start_date', 'Scheduled start', 'readonly'],
+      ['scheduled_end_date', 'Scheduled end', 'readonly'],
+      ['scheduled_with', 'Scheduled with', 'readonly', true],
       ['num_tech', 'Technicians needed', 'number'], ['estimated_days', 'Estimated days', 'number'],
-      ['scheduled_start_date', 'Scheduled start', 'date'], ['scheduled_end_date', 'Scheduled end', 'date'],
-      ['scheduled_with', 'Scheduled with', 'text', true],
     ]],
     ['Location', [
       ['site_address', 'Main site address', 'textarea', true], ['offsites', 'Offsites', 'textarea', true],
@@ -523,6 +528,7 @@
     const value = job[key] ?? '';
     const disabledName = key === 'job_name' && !isNew ? ' data-locked-name="true"' : '';
     if (kind === 'checkbox') return `<div class="field field-check ${full ? 'full' : ''}"><input id="field-${key}" name="${key}" type="checkbox" ${Number(value) === 1 ? 'checked' : ''}><label for="field-${key}">${label}</label></div>`;
+    if (kind === 'readonly') return `<div class="field ${full ? 'full' : ''}"><label>${label}</label><div class="field-readonly">${escapeHtml(text(value))}</div><small>Managed from the calendar</small></div>`;
     let control;
     if (kind === 'textarea') control = `<textarea id="field-${key}" name="${key}" rows="3">${escapeHtml(value)}</textarea>`;
     else if (kind === 'tech') control = `<input id="field-${key}" name="${key}" list="tech-options" value="${escapeHtml(value)}">`;
@@ -566,7 +572,7 @@
   }
 
   function openNewJob() {
-    state.selected = { active: 1, status: 'Unscheduled' };
+    state.selected = { active: 1 };
     $('drawer-title').textContent = 'New job';
     openDrawer();
     renderForm(state.selected, true);
@@ -608,6 +614,7 @@
   function formPayload() {
     const payload = {};
     formSections.forEach(([, fields]) => fields.forEach(([key, , kind]) => {
+      if (kind === 'readonly') return;
       const control = $(`field-${key}`);
       if (!control) return;
       if (kind === 'checkbox') payload[key] = control.checked ? 1 : 0;
@@ -623,8 +630,6 @@
     requireEditor(async () => {
       const payload = formPayload();
       if (!payload.job_name) { showDrawerMessage('Job name is required.'); return; }
-      if (Boolean(payload.scheduled_start_date) !== Boolean(payload.scheduled_end_date)) { showDrawerMessage('Scheduled start and end dates must both be set or both be empty.'); return; }
-      if (payload.scheduled_start_date && payload.scheduled_start_date > payload.scheduled_end_date) { showDrawerMessage('Scheduled end cannot be before the start date.'); return; }
       $('save-btn').disabled = true; $('save-status').textContent = 'Saving…'; $('drawer-message').hidden = true;
       try {
         await api('/jobinfo', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Editor-Token': editorToken() }, body: JSON.stringify(payload) });
