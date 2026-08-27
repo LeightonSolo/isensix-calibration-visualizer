@@ -286,33 +286,59 @@ export default function JobInfoPanel({
             {emptyMessage || 'Hover or click a job to see details'}
           </div>
         ) : (
-          <>
-            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--cal-text)',
-              lineHeight: 1.3, marginBottom: 4 }}>
-              {selectedEvent.title}
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--cal-text)',
+                lineHeight: 1.3, marginBottom: 4, overflowWrap: 'anywhere' }}>
+                {selectedEvent.title}
+              </div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {selectedEvent.ticket_id && (
+                  <span style={{ fontSize: 12, color: 'var(--cal-text-secondary)',
+                    fontFamily: 'JetBrains Mono, monospace' }}>
+                    #{selectedEvent.ticket_id}
+                  </span>
+                )}
+                {statusColor && (
+                  <span style={{
+                    fontSize: 12, fontWeight: 600, textTransform: 'uppercase',
+                    color: statusColor.fg, letterSpacing: '0.04em',
+                  }}>
+                    {selectedEvent.status || 'unconfirmed'}
+                  </span>
+                )}
+                {selectedEvent.isGhost && (
+                  <span style={{ fontSize: 12, color: 'var(--cal-warning)', fontStyle: 'italic' }}>
+                    tentative
+                  </span>
+                )}
+              </div>
             </div>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              {selectedEvent.ticket_id && (
-                <span style={{ fontSize: 12, color: 'var(--cal-text-secondary)',
-                  fontFamily: 'JetBrains Mono, monospace' }}>
-                  #{selectedEvent.ticket_id}
-                </span>
-              )}
-              {statusColor && (
-                <span style={{
-                  fontSize: 12, fontWeight: 600, textTransform: 'uppercase',
-                  color: statusColor.fg, letterSpacing: '0.04em',
-                }}>
-                  {selectedEvent.status || 'unconfirmed'}
-                </span>
-              )}
-              {selectedEvent.isGhost && (
-                <span style={{ fontSize: 12, color: 'var(--cal-warning)', fontStyle: 'italic' }}>
-                  tentative
-                </span>
-              )}
-            </div>
-          </>
+            {((!embedded && !selectedEvent.isGhost) || jobInfo) && (
+              <div style={{ marginLeft: 'auto', display: 'flex', flexDirection: 'column',
+                alignItems: 'stretch', gap: 5, flexShrink: 0 }}>
+                {!embedded && !selectedEvent.isGhost && (
+                  <button type="button" onClick={exportToOutlook} style={{
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 4,
+                    border: '0.5px solid var(--cal-info-border)', borderRadius: 4,
+                    background: 'var(--cal-info-bg)', color: 'var(--cal-accent)',
+                    padding: '3px 7px', fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap',
+                  }} title="Download an Outlook-compatible calendar file">
+                    <i className="ti ti-calendar-down" aria-hidden="true" /> Export
+                  </button>
+                )}
+                {jobInfo && (
+                  <a href={`../jobs.html?job=${encodeURIComponent(jobInfo.job_name || selectedEvent.title)}`}
+                    style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 4,
+                      border: '0.5px solid var(--cal-info-border)', borderRadius: 4,
+                      background: 'var(--cal-info-bg)', color: 'var(--cal-accent)',
+                      padding: '3px 7px', fontSize: 12, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                    <i className="ti ti-external-link" aria-hidden="true" /> Open Job Info
+                  </a>
+                )}
+              </div>
+            )}
+          </div>
         )}
       </div>
 
@@ -329,25 +355,6 @@ export default function JobInfoPanel({
               {saveMessage}
             </span>
           )}
-          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-            {!embedded && !selectedEvent.isGhost && (
-              <button type="button" onClick={exportToOutlook} style={{
-                border: '0.5px solid var(--cal-info-border)', borderRadius: 4,
-                background: 'var(--cal-info-bg)', color: 'var(--cal-accent)',
-                padding: '3px 7px', fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap',
-              }} title="Download an Outlook-compatible calendar file">
-                <i className="ti ti-calendar-down" aria-hidden="true" /> Export
-              </button>
-            )}
-            {jobInfo && (
-              <a href={`../jobs.html?job=${encodeURIComponent(jobInfo.job_name || selectedEvent.title)}`}
-                style={{ alignSelf: 'center', border: '0.5px solid var(--cal-info-border)',
-                  borderRadius: 4, background: 'var(--cal-info-bg)', color: 'var(--cal-accent)',
-                  padding: '3px 7px', fontSize: 12, textDecoration: 'none', whiteSpace: 'nowrap' }}>
-                <i className="ti ti-external-link" aria-hidden="true" /> Open Job Info
-              </a>
-            )}
-          </div>
         </div>
       )}
 
