@@ -14,7 +14,8 @@ test('builds an Outlook all-day event with job and contact information', () => {
     jobInfo: {
       job_name: 'LifeSouth', site_address: '4039 Newberry Rd, Gainesville, FL 32607',
       credentials: 'Vendormate', main_contact: 'Teresa Broderick', other_contacts: 'Eugene',
-      contact_notes: 'Call on arrival', sensors: 419,
+      contact_notes: 'Call on arrival', sensors: 419, o2: 2, hardware: 'ARMS',
+      servers: '431, 072, legacy', prev_hotel: 'Hyatt Place Gainesville Downtown',
     },
     assignments: [
       ...['2026-09-21', '2026-09-22', '2026-09-23', '2026-09-24', '2026-09-25']
@@ -32,18 +33,56 @@ test('builds an Outlook all-day event with job and contact information', () => {
   assert.match(unfolded, /Bissen: 9\/21\/2026 - 9\/25\/2026/);
   assert.doesNotMatch(unfolded, /Matt:/);
   assert.match(unfolded, /Credentials needed: Vendormate/);
+  assert.match(unfolded, /Status: Confirmed/);
   assert.match(unfolded, /Main contact: Teresa Broderick/);
   assert.match(unfolded, /Other contacts: Eugene/);
   assert.match(unfolded, /Contact notes: Call on arrival/);
   assert.match(unfolded, /UID:calendar-event-42@isensix.com/);
   assert.match(unfolded, /STATUS:CONFIRMED/);
   assert.match(unfolded, /X-ALT-DESC;FMTTYPE=text\/html:<html>/);
-  assert.match(unfolded, /background:#1f4e78;color:#ffffff/);
+  assert.match(unfolded, /background:#334e68;color:#ffffff/);
   assert.match(unfolded, /font-weight:700[^>]*>Main contact<\/td>/);
   assert.match(unfolded, />Teresa Broderick<\/td>/);
   assert.match(unfolded, />Credentials needed<\/td>/);
   assert.match(unfolded, />Vendormate<\/td>/);
+  assert.match(unfolded, /class="label-cell alert/);
+  assert.match(unfolded, />O2 sensors<\/td><td class="value-cell alert/);
+  assert.match(unfolded, /class="label-cell hardware-arms/);
+  assert.match(unfolded, /class="label-cell tech-bissen/);
+  assert.match(unfolded, /prefers-color-scheme:dark/);
+  assert.match(unfolded, /href="https:\/\/www\.google\.com\/maps\/search\/\?api=1&amp;query=4039%20Newberry/);
+  assert.match(unfolded, /query=Hyatt%20Place%20Gainesville%20Downtown/);
+  assert.match(unfolded, /href="https:\/\/ics1\.ca\.isensix\.com:7431"[^>]*>431<\/a>/);
+  assert.match(unfolded, /href="https:\/\/ics1\.ca\.isensix\.com:7072"[^>]*>072<\/a>/);
+  assert.match(unfolded, /, legacy<\/td>/);
+  assert.match(unfolded, />Confirmed<\/td>/);
   assert.match(unfolded, />Open Job Info<\/a>/);
+});
+
+test('uses Guardian blue and does not flag blank or None credentials or zero O2', () => {
+  const content = buildOutlookCalendar({
+    event,
+    jobInfo: { credentials: 'None', o2: '0', hardware: 'Guardian' },
+    now: new Date('2026-08-26T15:30:00Z'),
+  }).replace(/\r\n[ \t]/g, '');
+  assert.match(content, /class="label-cell hardware-guardian/);
+  assert.doesNotMatch(content, /class="label-cell alert/);
+});
+
+test('only links previous hotels when the text contains a recognized hotel chain', () => {
+  for (const prev_hotel of ['local', 'Several throughout']) {
+    const content = buildOutlookCalendar({
+      event, jobInfo: { prev_hotel }, now: new Date('2026-08-26T15:30:00Z'),
+    }).replace(/\r\n[ \t]/g, '');
+    assert.match(content, new RegExp(`>${prev_hotel}<\\/td>`, 'i'));
+    assert.doesNotMatch(content, /google\.com\/maps/);
+  }
+
+  const branded = buildOutlookCalendar({
+    event, jobInfo: { prev_hotel: 'Multiple Marriott options nearby' },
+    now: new Date('2026-08-26T15:30:00Z'),
+  }).replace(/\r\n[ \t]/g, '');
+  assert.match(branded, /google\.com\/maps[^>]+>Multiple Marriott options nearby<\/a>/);
 });
 
 test('folds long UTF-8 content to at most 75 bytes per physical line', () => {
