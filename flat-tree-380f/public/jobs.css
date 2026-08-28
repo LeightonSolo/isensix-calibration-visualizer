@@ -126,8 +126,8 @@ html[data-theme="light"] #jobs-table tbody tr.inactive-job:hover td:first-child 
 .field textarea:disabled { min-height:1.45em; overflow:hidden; resize:none; padding-top:0; padding-bottom:0; }
 .field.has-tone label { color:var(--tone-fg); }
 .field.has-tone input:disabled, .field.has-tone select:disabled, .field.has-tone textarea:disabled { padding-left:7px; border-color:var(--tone-border); background:var(--tone-bg); color:var(--tone-fg); font-weight:600; }
-.tone-alert, .tone-arms { --tone-bg:#46191b; --tone-fg:#ffb1b5; --tone-border:#a64b50; }
-.tone-guardian { --tone-bg:#142f52; --tone-fg:#a9ccff; --tone-border:#527fb5; }
+.tone-alert, .tone-arms { --tone-bg:#46191bc7; --tone-fg:#ffb1b5; --tone-border:#a64b50; }
+.tone-guardian { --tone-bg:#142f52a6; --tone-fg:#a9ccff; --tone-border:#527fb5; }
 .tone-mix { --tone-bg:#35234b; --tone-fg:#d8b9ff; --tone-border:#8262a6; }
 .tone-tech-leighton { --tone-bg:#172752; --tone-fg:#a9c2ff; --tone-border:#4c68a5; }
 .tone-tech-fernando { --tone-bg:#163b18; --tone-fg:#9fe296; --tone-border:#477c44; }
