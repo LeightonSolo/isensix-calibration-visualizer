@@ -48,35 +48,35 @@
       ['job_name', 'Job name', 'text', 'wide'], ['customer', 'Customer'],
       ['last_calibrated', 'Last calibrated', 'date'], ['active', 'Active record', 'checkbox'],
       ['primary_tech', 'Primary technician', 'tech'],
-    ], 'compact'],
+    ], 'compact', 'overview'],
     ['Equipment', [
       ['servers', 'Servers'], ['sensors', 'Sensor count', 'number'], ['meters', 'Meters needed'],
       ['o2', 'O₂ sensors', 'number'], ['server_version', 'Software version'], ['hardware', 'Hardware', 'hardware'],
-    ], 'compact'],
+    ], 'compact', 'equipment'],
     ['Planning', [
       ['status', 'Calendar status', 'readonly'],
       ['scheduled_start_date', 'Scheduled start', 'readonly'],
       ['scheduled_end_date', 'Scheduled end', 'readonly'],
       ['scheduled_with', 'Scheduled with', 'readonly'],
       ['num_tech', 'Technicians needed', 'number'], ['estimated_days', 'Estimated days', 'number'],
-    ], 'compact'],
+    ], 'compact', 'planning'],
     ['Location', [
       ['site_address', 'Main site address', 'textarea'], ['offsites', 'Offsites', 'textarea'],
-    ]],
+    ], '', 'location'],
     ['Contacts', [
       ['main_contact', 'Main contact', 'textarea'], ['other_contacts', 'Other contacts', 'textarea'],
       ['contact_notes', 'Contact notes', 'textarea', true],
-    ]],
+    ], '', 'contacts'],
     ['Travel and access', [
       ['vpn_works', 'VPN works?'], ['airport_info', 'Airport information'],
       ['emerald_aisle', 'Emerald Aisle'], ['prev_hotel', 'Previous hotel'],
       ['hotel_comments', 'Hotel comments', 'textarea'], ['restaurants', 'Restaurants and attractions', 'textarea'],
       ['credentials', 'Credentials'],
-    ]],
+    ], '', 'travel'],
     ['Documentation and notes', [
       ['report', 'Report information', 'textarea'], ['comments', 'Comments', 'textarea'],
       ['other_notes', 'Other notes', 'textarea', true],
-    ]],
+    ], '', 'notes'],
   ];
 
   const $ = id => document.getElementById(id);
@@ -84,6 +84,44 @@
   const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, char => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;',
   })[char]);
+
+  function technicianTone(value) {
+    const technician = CONFIG.TECHNICIANS.find(name => name.toLowerCase() === String(value ?? '').trim().toLowerCase());
+    return technician ? `tone-tech-${technician.toLowerCase().replace(/[^a-z0-9]+/g, '-')}` : '';
+  }
+
+  function fieldTone(key, value) {
+    const normalized = String(value ?? '').trim().toLowerCase();
+    if (key === 'o2' && Number.parseFloat(normalized.replaceAll(',', '')) > 0) return 'tone-alert';
+    if (key === 'credentials' && normalized && normalized !== 'none') return 'tone-alert';
+    if (key === 'hardware') {
+      if (normalized.includes('mix') || (normalized.includes('arms') && normalized.includes('guardian'))) return 'tone-mix';
+      if (normalized.includes('arms')) return 'tone-arms';
+      if (normalized.includes('guardian')) return 'tone-guardian';
+    }
+    if (key === 'primary_tech') return technicianTone(value);
+    return '';
+  }
+
+  function splitTechnicians(value) {
+    const raw = String(value ?? '').trim();
+    return raw ? raw.split(/[,;\n/&]+/).map(part => part.trim()).filter(Boolean) : [];
+  }
+
+  function scheduledTechniciansHtml(value) {
+    const technicians = splitTechnicians(value);
+    if (!technicians.length) return escapeHtml(text(value));
+    return technicians.map(name => {
+      const tone = technicianTone(name);
+      return `<span class="tech-chip ${tone}">${escapeHtml(name)}</span>`;
+    }).join('');
+  }
+
+  function tableTechniciansHtml(value) {
+    const technicians = splitTechnicians(value);
+    if (!technicians.length) return escapeHtml(text(value));
+    return technicians.map(name => `<span class="table-tech-name ${technicianTone(name)}">${escapeHtml(name)}</span>`).join('<span class="table-tech-separator">, </span>');
+  }
 
   async function api(path, options = {}) {
     const response = await fetch(`${CONFIG.WORKER_URL}${path}`, {
@@ -108,8 +146,7 @@
   }
 
   function hardwareClass(value) {
-    const normalized = String(value || '').toLowerCase();
-    return normalized === 'guardian' ? 'guardian' : normalized === 'arms' ? 'arms' : normalized === 'mix' ? 'mix' : '';
+    return fieldTone('hardware', value);
   }
 
   function softwareFamily(value) {
@@ -343,8 +380,16 @@
       `<th data-sort="${key}"${presetWidths ? ` style="width:${presetWidths[index]}px"` : ''}><span>${escapeHtml(label)}${state.sortKey === key ? (state.sortDir === 1 ? ' ↑' : ' ↓') : ''}</span><span class="column-resizer" aria-hidden="true"></span></th>`).join('');
     $('jobs-table-body').innerHTML = state.filtered.map(job => `<tr class="${Number(job.active) === 1 ? '' : 'inactive-job'}" data-job="${escapeHtml(job.job_name)}">${selectedColumns.map(([key]) => {
       const value = job[key];
-      if (key === 'hardware') return `<td><span class="badge ${hardwareClass(value)}">${escapeHtml(text(value))}</span></td>`;
-      if (key === 'o2' && Number(value) > 0) return `<td><span style="background: #e03e3e;color:var(--text-primary);padding:1px 3px;border-radius:var(--radius-sm);">${escapeHtml(value)}</span></td>`;
+      if (key === 'hardware') {
+        const tone = hardwareClass(value);
+        return `<td class="${tone ? `table-tone ${tone}` : ''}" title="${escapeHtml(text(value))}">${escapeHtml(text(value))}</td>`;
+      }
+      if (key === 'o2' && Number(value) > 0) return `<td class="table-tone tone-alert" title="${escapeHtml(text(value))}">${escapeHtml(value)}</td>`;
+      if (key === 'primary_tech') {
+        const tone = technicianTone(value);
+        return `<td class="${tone ? `table-tone ${tone}` : ''}" title="${escapeHtml(text(value))}">${escapeHtml(text(value))}</td>`;
+      }
+      if (key === 'scheduled_with') return `<td class="table-technicians" title="${escapeHtml(text(value))}">${tableTechniciansHtml(value)}</td>`;
       const cls = `${key === 'job_name' ? 'job-name' : ''} ${key === 'servers' ? 'mono' : ''}`.trim();
       const bar = metricBar(key, value);
       if (bar && bar.level !== null) return `<td class="${cls} data-bar" style="--data-level:${bar.level.toFixed(3)};--data-bar-color:${bar.color}" title="${escapeHtml(text(value))}"><span>${escapeHtml(text(value))}</span></td>`;
@@ -529,18 +574,20 @@
     const value = job[key] ?? '';
     const disabledName = key === 'job_name' && !isNew ? ' data-locked-name="true"' : '';
     const spanClass = span === true ? 'full' : span === 'normal' ? '' : span;
+    const tone = fieldTone(key, value);
+    const toneClass = tone ? `has-tone ${tone}` : '';
     if (kind === 'checkbox') return `<div class="field field-check ${spanClass}"><input id="field-${key}" name="${key}" type="checkbox" ${Number(value) === 1 ? 'checked' : ''}><label for="field-${key}">${label}</label></div>`;
-    if (kind === 'readonly') return `<div class="field ${spanClass}"><label>${label}</label><div class="field-readonly">${escapeHtml(text(value))}</div><small>Managed from the calendar</small></div>`;
+    if (kind === 'readonly') return `<div class="field ${spanClass}"><label>${label}</label><div class="field-readonly${key === 'scheduled_with' ? ' tech-list' : ''}">${key === 'scheduled_with' ? scheduledTechniciansHtml(value) : escapeHtml(text(value))}</div><small>Managed from the calendar</small></div>`;
     let control;
     if (kind === 'textarea') control = `<textarea id="field-${key}" name="${key}" rows="3">${escapeHtml(value)}</textarea>`;
     else if (kind === 'tech') control = `<input id="field-${key}" name="${key}" list="tech-options" value="${escapeHtml(value)}">`;
     else if (kind === 'hardware') control = `<input id="field-${key}" name="${key}" list="hardware-options" value="${escapeHtml(value)}">`;
     else control = `<input id="field-${key}" name="${key}" type="${kind}" value="${escapeHtml(value)}"${kind === 'number' ? ' min="0"' : ''}${disabledName}>`;
-    return `<div class="field ${spanClass}"><label for="field-${key}">${label}</label>${control}</div>`;
+    return `<div class="field ${spanClass} ${toneClass}"><label for="field-${key}">${label}</label>${control}</div>`;
   }
 
   function renderForm(job, isNew = false) {
-    $('job-form-content').innerHTML = formSections.map(([title, fields, layout = '']) => `<section class="drawer-section"><h3>${title}</h3><div class="form-grid ${layout}">${fields.map(field => fieldHtml(field, job, isNew)).join('')}</div></section>`).join('')
+    $('job-form-content').innerHTML = formSections.map(([title, fields, layout = '', tone = 'overview']) => `<section class="drawer-section section-${tone}"><h3>${title}</h3><div class="form-grid ${layout}">${fields.map(field => fieldHtml(field, job, isNew)).join('')}</div></section>`).join('')
       + `<datalist id="tech-options">${CONFIG.TECHNICIANS.filter(Boolean).map(v => `<option value="${escapeHtml(v)}">`).join('')}</datalist><datalist id="hardware-options"><option value="Guardian"><option value="ARMS"><option value="Mix"></datalist>`;
     setEditing(isNew);
     state.dirty = false;
