@@ -118,6 +118,7 @@ html[data-theme="light"] #jobs-table tbody tr.inactive-job:hover td:first-child 
 .field input, .field select, .field textarea { width:100%; background:var(--bg-input); border:1px solid var(--border); border-radius:var(--radius-sm); color:var(--text-primary); font:12px var(--font-sans); padding:2px 8px; }
 .field textarea { resize:vertical; min-height:64px; line-height:1.45; }
 .field input:disabled, .field select:disabled, .field textarea:disabled { border-color:transparent; background:transparent; color:var(--text-secondary); opacity:1; padding-left:0; }
+.field textarea:disabled { min-height:1.45em; overflow:hidden; resize:none; padding-top:0; padding-bottom:0; }
 .field-readonly { min-height:29px; padding:6px 0; color:var(--text-secondary); font-size:12px; }
 .field small { color:var(--text-muted); font-size:10px; }
 .field-check { display:flex; align-items:center; gap:8px; padding-top:17px; }

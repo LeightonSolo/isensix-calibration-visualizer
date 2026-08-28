@@ -71,7 +71,7 @@
       ['vpn_works', 'VPN works?'], ['airport_info', 'Airport information'],
       ['emerald_aisle', 'Emerald Aisle'], ['prev_hotel', 'Previous hotel'],
       ['hotel_comments', 'Hotel comments', 'textarea'], ['restaurants', 'Restaurants and attractions', 'textarea'],
-      ['credentials', 'Credentials', 'textarea', true],
+      ['credentials', 'Credentials'],
     ]],
     ['Documentation and notes', [
       ['report', 'Report information', 'textarea'], ['comments', 'Comments', 'textarea'],
@@ -547,11 +547,25 @@
     $('job-form').addEventListener('input', () => { state.dirty = true; }, { once: true });
   }
 
+  function sizeReadOnlyTextareas() {
+    if (state.editing) return;
+    $('job-form').querySelectorAll('textarea:disabled').forEach(control => {
+      control.rows = 1;
+      control.style.height = '';
+      control.style.height = `${control.scrollHeight + 2}px`;
+    });
+  }
+
   function setEditing(editing) {
     state.editing = editing;
     $('job-form').querySelectorAll('input, textarea, select').forEach(control => {
       control.disabled = !editing || (editing && control.dataset.lockedName === 'true');
+      if (control.tagName === 'TEXTAREA') {
+        control.rows = editing ? 3 : 1;
+        control.style.height = '';
+      }
     });
+    sizeReadOnlyTextareas();
     $('edit-btn').hidden = editing;
     $('save-btn').hidden = !editing;
     $('cancel-btn').textContent = editing ? 'Cancel edits' : 'Close';
@@ -707,6 +721,7 @@
   $('editor-cancel').addEventListener('click', () => { state.pendingAction = null; $('editor-dialog').close(); });
   $('editor-dialog').addEventListener('close', () => { if (!editorToken()) state.pendingAction = null; });
   document.addEventListener('keydown', event => { if (event.key === 'Escape' && $('job-drawer').classList.contains('open')) closeDrawer(); });
+  window.addEventListener('resize', () => requestAnimationFrame(sizeReadOnlyTextareas));
   window.addEventListener('beforeunload', event => { if (state.editing && state.dirty) event.preventDefault(); });
 
   updateEditorButton();
