@@ -35,7 +35,7 @@
       ['last_calibrated', 'Last calibrated'], ['status', 'Calendar status'],
       ['scheduled_start_date', 'Scheduled start'], ['scheduled_end_date', 'Scheduled end'],
       ['sensors', 'Sensors'], ['num_tech', 'Techs'], ['meters', 'Meters'],
-      ['o2', 'O₂'], ['comments', 'Comments'], ['scheduled_with', 'Scheduled with'],
+      ['o2', 'O₂'], ['scheduled_with', 'Scheduled with'],
       ['primary_tech', 'Primary tech'], ['hardware', 'Hardware'], ['server_version', 'Software'],
       ['location', 'Location'], ['site_address', 'Address'], ['vpn_works', 'VPN'],
       ['airport_info', 'Airport'], ['emerald_aisle', 'Emerald Aisle'], ['main_contact', 'Main contact'], ['other_contacts', 'Other contacts'], ['contact_notes', 'Contact notes'],
