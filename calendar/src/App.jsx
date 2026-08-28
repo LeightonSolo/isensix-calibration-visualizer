@@ -1,3 +1,4 @@
+/** Coordinates the calendar app shell, navigation, data loading, projections, editor access, and active views. */
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   addMonths, subMonths, format, startOfWeek, endOfWeek,

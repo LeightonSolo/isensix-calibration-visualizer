@@ -1,3 +1,4 @@
+/** Provides searchable list and administration views for calibration jobs and technician events. */
 import { useState, useMemo } from 'react';
 import { format, parseISO, isPast, isFuture, isToday } from 'date-fns';
 import { CONFIG } from '../config';

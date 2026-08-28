@@ -1,3 +1,4 @@
+/** Creates and edits technician PTO, holiday, office, jury-duty, software, and other schedule events. */
 import { useState } from 'react';
 import { format, eachDayOfInterval, parseISO, isWeekend } from 'date-fns';
 import { CONFIG } from '../config';

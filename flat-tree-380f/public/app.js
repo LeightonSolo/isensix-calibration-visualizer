@@ -1,4 +1,5 @@
 /* ─── State ─────────────────────────────────────────────── */
+/** Runs the calibration dashboard, including sensor loading, analysis, filtering, exceptions, and Job Info editing. */
 let servers    = JSON.parse(localStorage.getItem('cal_servers') || '[]');
 let thresholds = JSON.parse(localStorage.getItem('cal_thresholds') || 'null')
                  || { ...CONFIG.DEFAULT_THRESHOLDS };

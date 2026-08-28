@@ -1,3 +1,4 @@
+/** Renders the technician-by-date schedule grid with job spans, time off, conflicts, and event interactions. */
 import { useState, useMemo, useRef } from 'react';
 import {
   format, eachDayOfInterval, startOfWeek, endOfWeek,

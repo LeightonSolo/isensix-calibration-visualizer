@@ -1,3 +1,4 @@
+/** Displays, edits, links, and exports the Job Info record associated with the selected calendar event. */
 import { useState, useEffect, useRef } from 'react';
 import { CONFIG } from '../config';
 import { format, parseISO } from 'date-fns';

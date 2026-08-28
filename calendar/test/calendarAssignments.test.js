@@ -1,3 +1,4 @@
+/** Tests business-day assignment filling, conflict handling, range trimming, and automatic Unassigned coverage. */
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {

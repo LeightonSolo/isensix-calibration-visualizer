@@ -1,3 +1,4 @@
+/** Loads calendar data from the Worker and exposes authenticated event, assignment, and tech-event mutations. */
 import { useState, useCallback } from 'react';
 import { CONFIG } from '../config';
 import { withoutAutomaticUnassigned } from '../utils/calendarAssignments.js';

@@ -1,3 +1,4 @@
+/** Tests Job Info title matching, name sorting/filtering, and safe customer autofill replacement. */
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {

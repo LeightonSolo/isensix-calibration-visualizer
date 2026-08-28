@@ -1,3 +1,4 @@
+/** Reconciles D1 tentative annual jobs and technician assignments from calibration history and availability. */
 const TECHNICIANS = new Set([
   'Daniel',
   'Dejan',

@@ -1,3 +1,4 @@
+/** Implements the Cloudflare Worker API for calibrations, servers, exceptions, Job Info, calendar data, and scheduled syncs. */
 import { previewCmsSync, syncCmsInventory } from './cms-sync';
 import { reconcileTentativeCalendar } from './calendar-scheduling';
 

@@ -1,3 +1,4 @@
+/** Creates and edits calendar jobs, including Job Info autofill, date ranges, and technician assignments. */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { format, eachDayOfInterval, parseISO } from 'date-fns';
 import { CONFIG } from '../config';

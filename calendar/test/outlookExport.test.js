@@ -1,3 +1,4 @@
+/** Tests Outlook ICS content, HTML styling and links, filenames, all-day dates, and UTF-8 line folding. */
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildOutlookCalendar, outlookCalendarFilename } from '../src/utils/outlookExport.js';

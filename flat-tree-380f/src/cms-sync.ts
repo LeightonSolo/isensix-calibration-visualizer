@@ -1,3 +1,4 @@
+/** Fetches and normalizes CMS inventory, previews Job Info changes, and synchronizes CMS-owned D1 fields. */
 const CMS_BASE_URL = 'https://cms2.isensix.com:3331';
 
 type CmsSensorSummary = {

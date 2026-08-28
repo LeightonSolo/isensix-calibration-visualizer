@@ -1,3 +1,4 @@
+/** Tests CMS inventory normalization, equipment derivation, supplier mapping, and read-only Job Info previews. */
 import { describe, expect, it, vi } from 'vitest';
 import { buildJobInfoPreview, normalizeCmsInventoryRow, normalizeSupplierName } from '../src/cms-sync';
 

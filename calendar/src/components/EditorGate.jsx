@@ -1,3 +1,4 @@
+/** Renders the editor-password dialog and returns an authorized token to the requested calendar action. */
 import { useState } from 'react';
 import { CONFIG } from '../config';
 
@@ -6,7 +7,7 @@ export default function EditorGate({ onUnlock }) {
   const [error, setError] = useState(false);
 
   function attempt() {
-    // We don't verify the token locally — the Worker will reject bad tokens.
+    // We don't verify the token locally, the Worker will reject bad tokens.
     // Just store it and let the first write attempt fail if wrong.
     if (!input.trim()) return;
     sessionStorage.setItem(CONFIG.EDITOR_TOKEN_KEY, input.trim());

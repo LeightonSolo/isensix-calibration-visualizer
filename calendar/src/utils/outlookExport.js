@@ -1,3 +1,4 @@
+/** Builds and downloads Outlook-compatible ICS events with styled Job Info, map, hotel, and server links. */
 const STATUS_PREFIXES = {
   tentative: '(Tentative)', ticketed: '(Ticketed)', confirmed: '(C)', booked: '(B)',
 };

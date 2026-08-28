@@ -1,3 +1,4 @@
+/** Tests schedule-span geometry and lane allocation for adjacent, overlapping, and out-of-range events. */
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {

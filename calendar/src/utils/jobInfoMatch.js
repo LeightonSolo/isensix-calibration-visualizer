@@ -1,3 +1,4 @@
+/** Matches calendar titles to Job Info records and supports job-name autocomplete behavior. */
 export function findJobInfoMatch(jobInfoMap, title) {
   const normalizedTitle = title?.trim().toLocaleLowerCase();
   if (!normalizedTitle) return null;

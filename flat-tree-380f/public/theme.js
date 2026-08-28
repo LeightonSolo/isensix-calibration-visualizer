@@ -1,3 +1,4 @@
+/** Applies and synchronizes the persisted light or dark theme across static Isensix pages. */
 (function () {
   'use strict';
 

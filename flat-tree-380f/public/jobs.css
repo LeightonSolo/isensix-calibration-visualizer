@@ -110,10 +110,12 @@ html[data-theme="light"] #jobs-table tbody tr.inactive-job:hover td:first-child 
 .drawer-section { padding:13px 0 5px; border-bottom:1px solid var(--border-light); }
 .drawer-section h3 { margin-bottom:9px; color:var(--text-secondary); font-size:11px; text-transform:uppercase; letter-spacing:.06em; }
 .form-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px 12px; }
+.form-grid.compact { grid-template-columns:repeat(3,minmax(0,1fr)); }
 .field { min-width:0; }
+.field.wide { grid-column:span 2; }
 .field.full { grid-column:1/-1; }
-.field label { display:block; color:var(--text-muted); font-size:12px; font-weight:600; margin-bottom:3px; }
-.field input, .field select, .field textarea { width:100%; background:var(--bg-input); border:1px solid var(--border); border-radius:var(--radius-sm); color:var(--text-primary); font:12px var(--font-sans); padding:6px 8px; }
+.field label { display:block; color:var(--text-muted); font-size:13px; font-weight:600; margin-bottom:1px; }
+.field input, .field select, .field textarea { width:100%; background:var(--bg-input); border:1px solid var(--border); border-radius:var(--radius-sm); color:var(--text-primary); font:12px var(--font-sans); padding:2px 8px; }
 .field textarea { resize:vertical; min-height:64px; line-height:1.45; }
 .field input:disabled, .field select:disabled, .field textarea:disabled { border-color:transparent; background:transparent; color:var(--text-secondary); opacity:1; padding-left:0; }
 .field-readonly { min-height:29px; padding:6px 0; color:var(--text-secondary); font-size:12px; }
@@ -130,4 +132,5 @@ html[data-theme="light"] #jobs-table tbody tr.inactive-job:hover td:first-child 
 .editor-dialog input { width:100%; background:var(--bg-input); border:1px solid var(--border); border-radius:var(--radius-sm); color:var(--text-primary); padding:7px 9px; }
 .dialog-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:14px; }
 @media (max-width:1000px) { .analytics-cards{grid-template-columns:repeat(3,1fr)} .jobs-heading{align-items:flex-start;flex-direction:column} }
-@media (max-width:700px) { #jobs-app{padding:12px} .jobs-navbar{align-items:flex-start;gap:10px;flex-direction:column}.jobs-nav-links{flex-wrap:wrap}.jobs-search{min-width:100%}.analytics-cards{grid-template-columns:repeat(2,1fr)}.analytics-grid{grid-template-columns:1fr}.analytics-wide{grid-column:auto}.form-grid{grid-template-columns:1fr}.field.full{grid-column:auto}.tech-breakdown-row{grid-template-columns:1fr}.tech-measures{grid-template-columns:1fr}.tech-measure{grid-template-columns:64px 1fr minmax(95px,auto)} }
+@media (max-width:700px) { #jobs-app{padding:12px} .jobs-navbar{align-items:flex-start;gap:10px;flex-direction:column}.jobs-nav-links{flex-wrap:wrap}.jobs-search{min-width:100%}.analytics-cards{grid-template-columns:repeat(2,1fr)}.analytics-grid{grid-template-columns:1fr}.analytics-wide{grid-column:auto}.form-grid,.form-grid.compact{grid-template-columns:repeat(2,minmax(0,1fr))}.field.wide,.field.full{grid-column:1/-1}.tech-breakdown-row{grid-template-columns:1fr}.tech-measures{grid-template-columns:1fr}.tech-measure{grid-template-columns:64px 1fr minmax(95px,auto)} }
+@media (max-width:480px) { .form-grid,.form-grid.compact{grid-template-columns:1fr}.field.wide,.field.full{grid-column:auto} }

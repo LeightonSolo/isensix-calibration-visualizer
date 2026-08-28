@@ -1,3 +1,4 @@
+/** Defines shared Worker access, rolling-window defaults, thresholds, and sensor colors for the static dashboard. */
 const CONFIG = {
   WORKER_URL: 'https://flat-tree-380f.leightonsolo.workers.dev',
   API_KEY: 'U87iy7VynFYLJUDnfUYBJHnRKbRiQO3Z',

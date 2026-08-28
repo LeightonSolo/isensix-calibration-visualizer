@@ -1,3 +1,4 @@
+/** Tests Worker authorization, Job Info routes, calendar APIs, and request validation with mocked D1 bindings. */
 import { describe, expect, it, vi } from 'vitest';
 import worker from '../src/index';
 

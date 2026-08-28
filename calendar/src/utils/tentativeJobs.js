@@ -1,3 +1,4 @@
+/** Projects tentative annual jobs, restores historical teams, avoids conflicts, and materializes chosen events. */
 import {
   addBusinessDays,
   addDays,

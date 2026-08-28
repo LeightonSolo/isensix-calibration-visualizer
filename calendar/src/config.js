@@ -1,3 +1,4 @@
+/** Defines calendar API settings, technicians, event types, and semantic color mappings. */
 export const CONFIG = {
   WORKER_URL: 'https://flat-tree-380f.leightonsolo.workers.dev',
   API_KEY: 'U87iy7VynFYLJUDnfUYBJHnRKbRiQO3Z',

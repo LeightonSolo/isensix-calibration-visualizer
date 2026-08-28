@@ -1,3 +1,4 @@
+/** Tests tentative-job eligibility, placement, technician history, conflict avoidance, and materialization. */
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {

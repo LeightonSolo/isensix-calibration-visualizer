@@ -1,4 +1,6 @@
 /**
+ * Calculates vertical spans and horizontal lanes for overlapping technician schedule blocks.
+ *
  * Assign overlapping event spans to visual lanes.
  *
  * Lane counts are scoped to each connected overlap group. An overlap later in

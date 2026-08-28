@@ -1,3 +1,4 @@
+/** Builds business-day assignments, conflict maps, and derived Unassigned coverage for calendar events. */
 import { addBusinessDays, eachDayOfInterval, format, isValid, parseISO } from 'date-fns';
 import { CONFIG } from '../config.js';
 

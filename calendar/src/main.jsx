@@ -1,3 +1,4 @@
+/** Boots the React calendar application and mounts its root component and global styles. */
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
