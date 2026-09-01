@@ -177,20 +177,28 @@ export default {
     // POST /servers — upsert a server record
     if (request.method === 'POST' && pathname === '/servers') {
       const body = await request.json() as Record<string, any>;
-      const { server, version, hostname, notes, customer } = body;
+      const { server, version, hostname, calibration_path, notes, customer } = body;
       if (!server || !version) {
         return new Response('Missing server or version', { status: 400 });
       }
+      const allowedCalibrationPaths = new Set([
+        '/arms2/calsensor.php',
+        '/arms/calsensor.php',
+      ]);
+      if (calibration_path != null && !allowedCalibrationPaths.has(calibration_path)) {
+        return new Response('Invalid calibration path', { status: 400 });
+      }
       await env.DB.prepare(`
-        INSERT INTO servers (server, version, hostname, notes, customer)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO servers (server, version, hostname, calibration_path, notes, customer)
+        VALUES (?, ?, ?, ?, ?, ?)
         ON CONFLICT(server) DO UPDATE SET
           version    = excluded.version,
           hostname   = excluded.hostname,
+          calibration_path = excluded.calibration_path,
           notes      = excluded.notes,
           customer   = excluded.customer,
           updated_at = datetime('now')
-      `).bind(server, version, hostname ?? null, notes ?? null, customer ?? null).run();
+      `).bind(server, version, hostname ?? null, calibration_path ?? null, notes ?? null, customer ?? null).run();
       return json({ ok: true });
     }
 

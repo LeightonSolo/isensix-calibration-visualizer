@@ -926,31 +926,82 @@ async function loadServerMeta() {
 }
 
 const VERSION_PATHS = {
-  'G3.0': '/guardian/calibration/calsensor.php',
-  'G2.1': '/arms2/calibration/calsensor.php',
-  'G2.0': '/arms2/calsensor.php',
-  'ARMS': '/arms/admin/index.php?mode=11&',
+  '3.0': '/guardian/calibration/calsensor.php',
+  '2.1': '/arms2/calibration/calsensor.php',
+  '2.0': '/arms2/calsensor.php',
+  'ARMS': '/arms/admin/index.php?mode=11',
 };
 
 const VERSION_PORTS = {
-  'G3.0': (server) => `7${server}`,
-  'G2.1': (server) => `7${server}`,
-  'G2.0': (server) => `7${server}`,
+  '3.0': (server) => `7${server}`,
+  '2.1': (server) => `7${server}`,
+  '2.0': (server) => `7${server}`,
   'ARMS': (server) => `7${server}`,
   // if port format ever differs by version, handle it here
 };
 
+const G2_CALIBRATION_PATHS = new Set([
+  '/arms2/calsensor.php',
+  '/arms/calsensor.php',
+]);
+
+const DEFAULT_TUNNEL_HOSTNAME = 'ics1.ca.isensix.com';
+const TUNNEL_HOSTNAMES = new Set([
+  DEFAULT_TUNNEL_HOSTNAME,
+  'ics3.isensix.com',
+]);
+
+function normalizeHostname(hostname) {
+  return String(hostname || '')
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .split(/[/:?#]/)[0];
+}
+
+function tunnelHostname(hostname) {
+  const normalized = normalizeHostname(hostname);
+  return TUNNEL_HOSTNAMES.has(normalized)
+    ? normalized
+    : DEFAULT_TUNNEL_HOSTNAME;
+}
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
+
+function normalizeServerVersion(version) {
+  const normalized = String(version || '3.0').trim().toUpperCase();
+  if (normalized === 'ARMS') return 'ARMS';
+  if (/^G?3(?:\.|$)/.test(normalized)) return '3.0';
+  if (/^G?2\.1(?:\.|$)/.test(normalized)) return '2.1';
+  if (/^G?2(?:\.0)?(?:\.|$)/.test(normalized)) return '2.0';
+  return '3.0';
+}
+
+function calibrationPath(meta, version) {
+  if (version === '2.0' && G2_CALIBRATION_PATHS.has(meta.calibration_path)) {
+    return meta.calibration_path;
+  }
+  return VERSION_PATHS[version];
+}
+
 function sensorUrl(sensor_id, server) {
   const meta = serverMeta[server];
-  if (!meta || !meta.hostname) return null;
-  const version = meta.version || '3.0';
-  const path = VERSION_PATHS[version] || VERSION_PATHS['3.0'];
-  const port = `7${server}`;
-  if(version === "ARMS"){
-    return `https://${meta.hostname}:${port}${path}&id=${sensor_id}`;
-  }else{
-    return `https://${meta.hostname}:${port}${path}?id=${sensor_id}`;
-  }
+  if (!meta) return null;
+  const version = normalizeServerVersion(meta.version);
+  const path = calibrationPath(meta, version);
+  const portForVersion = VERSION_PORTS[version];
+  const port = portForVersion(server);
+  const hostname = tunnelHostname(meta.hostname);
+  const separator = path.includes('?') ? '&' : '?';
+
+  return `https://${hostname}:${port}${path}${separator}id=${encodeURIComponent(sensor_id)}`;
 }
 
 async function renderServerConfig() {
@@ -967,41 +1018,179 @@ async function renderServerConfig() {
       <span class="badge server-version-header">Version</span>
       <span class="server-customer">Customer</span>
       <span class="server-notes">Notes</span>
-      <span class="server-hostname">Hostname</span>
+      <span class="server-hostname">Tunnel</span>
+      <span class="server-calibration-path">Calibration page</span>
       <span class="server-actions">Actions</span>
     </div>
 
-    ${Object.values(serverMeta).map(r => `
-      <div class="threshold-row">
-        <span class="threshold-type">${r.server}</span>
-        <span class="badge">v${r.version}</span>
-        <span class="server-customer">${r.customer || '<span class="muted">No customer</span>'}</span>
-        <span class="server-notes">${r.notes || '—'}</span>
-        <span class="server-hostname">${r.hostname || '—'}</span>
-        <button class="danger" onclick="deleteServerConfig('${r.server}')">Remove</button>
-      </div>
-    `).join('')}
+    ${Object.values(serverMeta).map(r => {
+      const configuredHostname = normalizeHostname(r.hostname);
+      const usedFallback = !TUNNEL_HOSTNAMES.has(configuredHostname);
+      return `
+        <div class="threshold-row">
+          <span class="threshold-type">${r.server}</span>
+          <span class="badge">v${r.version}</span>
+          <span class="server-customer">${r.customer || '<span class="muted">No customer</span>'}</span>
+          <span class="server-notes">${r.notes || '—'}</span>
+          <span class="server-hostname">
+            ${tunnelHostname(r.hostname)}${usedFallback ? ' <span class="muted">(fallback)</span>' : ''}
+          </span>
+          <span class="server-calibration-path">${calibrationPath(r, normalizeServerVersion(r.version))}</span>
+          <span class="server-actions">
+            <button onclick="editServerConfig('${r.server}')">Edit</button>
+            <button class="danger" onclick="deleteServerConfig('${r.server}')">Remove</button>
+          </span>
+        </div>
+      `;
+    }).join('')}
   `;
+}
+
+function updateCalibrationPathAvailability(
+  versionId = 'sc-version',
+  pathId = 'sc-calibration-path'
+) {
+  const version = document.getElementById(versionId).value;
+  const pathSelect = document.getElementById(pathId);
+  pathSelect.disabled = version !== '2.0';
+  if (pathSelect.disabled) pathSelect.value = '';
+}
+
+function editServerConfig(server) {
+  const meta = serverMeta[server];
+  if (!meta) return;
+
+  closeServerEditModal();
+  const version = normalizeServerVersion(meta.version);
+  const hostname = tunnelHostname(meta.hostname);
+  const selectedPath = G2_CALIBRATION_PATHS.has(meta.calibration_path)
+    ? meta.calibration_path
+    : '';
+  const modal = document.createElement('div');
+  modal.id = 'server-edit-modal';
+  modal.className = 'server-edit-overlay';
+  modal.dataset.server = server;
+  modal.setAttribute('role', 'dialog');
+  modal.setAttribute('aria-modal', 'true');
+  modal.setAttribute('aria-labelledby', 'server-edit-title');
+  modal.innerHTML = `
+    <form class="server-edit-dialog" onsubmit="event.preventDefault();saveEditedServerConfig()">
+      <div class="server-edit-heading">
+        <div>
+          <div id="server-edit-title" class="server-edit-title">Edit server ${escapeHtml(server)}</div>
+          <div class="muted">Update this server's link and display settings.</div>
+        </div>
+        <button type="button" class="server-edit-close" onclick="closeServerEditModal()" aria-label="Close">&times;</button>
+      </div>
+      <div class="server-edit-grid">
+        <label>Server ID
+          <input id="edit-server-id" value="${escapeHtml(server)}" disabled>
+        </label>
+        <label>Version
+          <select id="edit-server-version" onchange="updateCalibrationPathAvailability('edit-server-version','edit-server-calibration-path')">
+            <option value="3.0"${version === '3.0' ? ' selected' : ''}>G3.0</option>
+            <option value="2.1"${version === '2.1' ? ' selected' : ''}>G2.1</option>
+            <option value="2.0"${version === '2.0' ? ' selected' : ''}>G2.0</option>
+            <option value="ARMS"${version === 'ARMS' ? ' selected' : ''}>ARMS</option>
+          </select>
+        </label>
+        <label>Tunnel
+          <select id="edit-server-hostname">
+            <option value="ics1.ca.isensix.com"${hostname === 'ics1.ca.isensix.com' ? ' selected' : ''}>ics1.ca.isensix.com</option>
+            <option value="ics3.isensix.com"${hostname === 'ics3.isensix.com' ? ' selected' : ''}>ics3.isensix.com</option>
+          </select>
+        </label>
+        <label>Calibration page
+          <select id="edit-server-calibration-path">
+            <option value=""${selectedPath === '' ? ' selected' : ''}>Automatic by version</option>
+            <option value="/arms2/calsensor.php"${selectedPath === '/arms2/calsensor.php' ? ' selected' : ''}>/arms2/calsensor.php</option>
+            <option value="/arms/calsensor.php"${selectedPath === '/arms/calsensor.php' ? ' selected' : ''}>/arms/calsensor.php</option>
+          </select>
+        </label>
+        <label class="server-edit-wide">Customer
+          <input id="edit-server-customer" value="${escapeHtml(meta.customer || '')}">
+        </label>
+        <label class="server-edit-wide">Notes
+          <textarea id="edit-server-notes" rows="3">${escapeHtml(meta.notes || '')}</textarea>
+        </label>
+      </div>
+      <div class="server-edit-buttons">
+        <button type="button" onclick="closeServerEditModal()">Cancel</button>
+        <button type="submit" class="primary">Update server</button>
+      </div>
+    </form>`;
+
+  modal.addEventListener('click', event => {
+    if (event.target === modal) closeServerEditModal();
+  });
+  modal.addEventListener('keydown', event => {
+    if (event.key === 'Escape') closeServerEditModal();
+  });
+  document.body.appendChild(modal);
+  updateCalibrationPathAvailability('edit-server-version', 'edit-server-calibration-path');
+  document.getElementById('edit-server-customer').focus();
+}
+
+function resetServerConfigForm() {
+  document.getElementById('sc-server').value = '';
+  document.getElementById('sc-version').value = '3.0';
+  document.getElementById('sc-hostname').value = DEFAULT_TUNNEL_HOSTNAME;
+  updateCalibrationPathAvailability();
+  document.getElementById('sc-customer').value = '';
+  document.getElementById('sc-notes').value = '';
+}
+
+function closeServerEditModal() {
+  document.getElementById('server-edit-modal')?.remove();
+}
+
+async function saveEditedServerConfig() {
+  const modal = document.getElementById('server-edit-modal');
+  if (!modal) return;
+
+  const server = modal.dataset.server;
+  const version = document.getElementById('edit-server-version').value;
+  const hostname = document.getElementById('edit-server-hostname').value;
+  const calibration_path = document.getElementById('edit-server-calibration-path').value || null;
+  const customer = document.getElementById('edit-server-customer').value.trim() || null;
+  const notes = document.getElementById('edit-server-notes').value.trim();
+
+  const response = await fetch(`${CONFIG.WORKER_URL}/servers`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Api-Key': CONFIG.API_KEY },
+    body: JSON.stringify({ server, version, hostname, calibration_path, notes, customer })
+  });
+  if (!response.ok) {
+    alert(`Could not save server: ${await response.text()}`);
+    return;
+  }
+
+  closeServerEditModal();
+  await loadServerMeta();
+  renderServerConfig();
+  renderTable();
 }
 
 async function saveServerConfig() {
   const server   = document.getElementById('sc-server').value.trim();
   const version  = document.getElementById('sc-version').value;
   const hostname = document.getElementById('sc-hostname').value.trim();
+  const calibration_path = document.getElementById('sc-calibration-path').value || null;
   const customer = document.getElementById('sc-customer').value.trim() || null;
   const notes    = document.getElementById('sc-notes').value.trim();
   if (!server || !hostname) return;
 
-  await fetch(`${CONFIG.WORKER_URL}/servers`, {
+  const response = await fetch(`${CONFIG.WORKER_URL}/servers`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-Api-Key': CONFIG.API_KEY },
-    body: JSON.stringify({ server, version, hostname, notes, customer })
+    body: JSON.stringify({ server, version, hostname, calibration_path, notes, customer })
   });
+  if (!response.ok) {
+    alert(`Could not save server: ${await response.text()}`);
+    return;
+  }
 
-  document.getElementById('sc-server').value   = '';
-  document.getElementById('sc-hostname').value = 'ics1.ca.isensix.com';
-  document.getElementById('sc-customer').value = '';
-  document.getElementById('sc-notes').value    = '';
+  resetServerConfigForm();
 
   await loadServerMeta();
   renderServerConfig();
@@ -1009,10 +1198,17 @@ async function saveServerConfig() {
 }
 
 async function deleteServerConfig(server) {
-  await fetch(`${CONFIG.WORKER_URL}/servers/${server}`, {
+  const response = await fetch(`${CONFIG.WORKER_URL}/servers/${server}`, {
     method: 'DELETE',
     headers: { 'X-Api-Key': CONFIG.API_KEY }
   });
+  if (!response.ok) {
+    alert(`Could not remove server: ${await response.text()}`);
+    return;
+  }
+  if (document.getElementById('server-edit-modal')?.dataset.server === server) {
+    closeServerEditModal();
+  }
   await loadServerMeta();
   renderServerConfig();
   renderTable();

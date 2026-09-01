@@ -121,22 +121,30 @@
 
         <details>
              <div class="settings-description"> 
-            The data below determines the calibration links to the sensors based on server version, and tunnel to use based on hostname (ics1 or ics3).</div>
+            The data below determines the calibration links to the sensors based on server version, selected Isensix tunnel, and any server-specific calibration page.</div>
             <summary>Servers</summary>
 
            <div id="server-config-list"></div>
             <div style="display:flex;gap:8px;margin-top:12px;align-items:center;flex-wrap:wrap;">
             <input id="sc-server"   type="text" placeholder="Server ID (e.g. 005)" style="width:100px;"/>
-            <select id="sc-version" style="width:90px;">
+            <select id="sc-version" style="width:90px;" onchange="updateCalibrationPathAvailability()">
                 <option value="3.0">G3.0</option>
                 <option value="2.1">G2.1</option>
                 <option value="2.0">G2.0</option>
                 <option value="ARMS">ARMS</option>
             </select>
-            <input id="sc-hostname" type="text" placeholder="Hostname" style="width:200px;" value="ics1.ca.isensix.com"/>
+            <select id="sc-hostname" style="width:200px;">
+                <option value="ics1.ca.isensix.com">ics1.ca.isensix.com</option>
+                <option value="ics3.isensix.com">ics3.isensix.com</option>
+            </select>
+            <select id="sc-calibration-path" style="width:210px;" title="Only overrides the calibration page for G2.0 servers" disabled>
+                <option value="">Calibration page: automatic</option>
+                <option value="/arms2/calsensor.php">/arms2/calsensor.php</option>
+                <option value="/arms/calsensor.php">/arms/calsensor.php</option>
+            </select>
             <input id="sc-customer" type="text" placeholder="Customer name" style="width:160px;"/>
             <input id="sc-notes"    type="text" placeholder="Notes (optional)" style="width:130px;"/>
-            <button onclick="saveServerConfig()">Save</button>
+            <button id="sc-save" onclick="saveServerConfig()">Save</button>
           </div>
         </details>
 

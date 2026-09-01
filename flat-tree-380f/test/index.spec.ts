@@ -90,6 +90,53 @@ describe('Job Info API', () => {
   });
 });
 
+describe('Servers API', () => {
+  it('stores an allowed per-server calibration path', async () => {
+    let sql = '';
+    let bindings: unknown[] = [];
+    const run = vi.fn().mockResolvedValue({ success: true });
+    const prepare = vi.fn().mockImplementation((statement: string) => {
+      sql = statement;
+      return { bind: (...values: unknown[]) => { bindings = values; return { run }; } };
+    });
+    const env = { ...baseEnv, DB: { prepare } } as unknown as Env;
+
+    const response = await worker.fetch(apiRequest('/servers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        server: '123',
+        version: '2.0',
+        hostname: 'ics1.ca.isensix.com',
+        calibration_path: '/arms/calsensor.php',
+      }),
+    }), env);
+
+    expect(response.status).toBe(200);
+    expect(sql).toContain('calibration_path');
+    expect(bindings).toContain('/arms/calsensor.php');
+    expect(run).toHaveBeenCalledOnce();
+  });
+
+  it('rejects an arbitrary calibration path', async () => {
+    const prepare = vi.fn();
+    const env = { ...baseEnv, DB: { prepare } } as unknown as Env;
+
+    const response = await worker.fetch(apiRequest('/servers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        server: '123',
+        version: '2.0',
+        calibration_path: '/unexpected/page.php',
+      }),
+    }), env);
+
+    expect(response.status).toBe(400);
+    expect(prepare).not.toHaveBeenCalled();
+  });
+});
+
 describe('Calendar API', () => {
   it('does not return legacy Unassigned assignment rows', async () => {
     const all = vi.fn().mockResolvedValue({ results: [] });

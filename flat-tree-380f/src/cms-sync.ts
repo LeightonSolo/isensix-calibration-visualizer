@@ -394,11 +394,10 @@ export async function syncCmsInventory(env: CmsSyncEnv): Promise<CmsSyncResult> 
 
     const serverStatements = rows.map(row => env.DB.prepare(`
       UPDATE servers SET
-        hostname = COALESCE(?, hostname),
         version = COALESCE(?, version),
         updated_at = datetime('now')
       WHERE CAST(server AS TEXT) = ?
-    `).bind(row.hostname, row.serverVersion, row.customerId));
+    `).bind(row.serverVersion, row.customerId));
     await runBatches(env.DB, serverStatements);
 
     const preview = await buildJobInfoPreview(env.DB, rows);
