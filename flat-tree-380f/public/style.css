@@ -7,7 +7,7 @@
   --bg-row-alt:    #1a1a1f;
   --bg-row-hover:  #1f1f26;
   --bg-input:      #1e1e24;
-  --bg-tag:        #1e1e28;
+  --bg-tag:        #0445a0;
   --bg-metric:     #1a1a22;
   --bg-failure:    rgba(220, 0, 0, 0.1);
   --bg-failure-hover: rgba(250, 0, 0, 0.2);
@@ -52,7 +52,7 @@
   --bg-row-alt:    #f7f8fa;
   --bg-row-hover:  #edf1f5;
   --bg-input:      #ffffff;
-  --bg-tag:        #eef1f5;
+  --bg-tag:        #1459ad;
   --bg-metric:     #ffffff;
   --bg-failure:    #fdecec;
   --bg-failure-hover: #f9dada;
@@ -295,6 +295,7 @@ button.danger { color: var(--accent-red); }
   border-radius: var(--radius-md);
   padding: 4px 10px;
   font-size: 12px;
+  color: #fff;
 }
 .server-tag .remove-btn {
   background: none;
@@ -514,7 +515,7 @@ button.danger { color: var(--accent-red); }
 .tab-btn.tab-check { background-color: var(--bg-tab-check); }
 .tab-btn.active {
   background: var(--accent-blue);
-  color: var(--text-primary);
+  color: #fff;
   border-color: var(--border-strong);
 }
 .tab-btn.right{
