@@ -24,6 +24,11 @@
       <span id="customer-display" style="font-size:16px;color:var(--text-muted);margin-left:20px;"></span>
     </div>
 
+    <div class="nav-status" aria-live="polite">
+      <span id="status-msg"></span>
+      <span id="latest-cal-msg"></span>
+    </div>
+
     <div class="nav-links">
       <button class="nav-btn active" data-page="dashboard" aria-current="page">
         <i class="ti ti-layout-dashboard"></i>
@@ -53,8 +58,7 @@
     <!-- <button id="threshold-btn" onclick="toggleSettings()" title="Configure failure thresholds"><i class="ti ti-adjustments-horizontal"></i> Thresholds</button> -->
     <!-- <button id="server-config-btn" onclick="toggleServerConfig()" title="Configure servers"><i class="ti ti-server-2"></i> All Servers</button> -->
     <button id="settings-btn" onclick="toggleSettings()"><i class="ti ti-settings"></i> Settings</button>
-    <span id="status-msg"></span>
-    <span id="latest-cal-msg"></span>
+    <div id="server-tags"></div>
     <div class="calibration-actions" aria-label="Calibration tools">
       <button class="nav-btn" data-page="resources">
         <i class="ti ti-books"></i> Resources
@@ -85,9 +89,6 @@
 </div>-->
 
 <div id="dashboard-page">
-  <!-- Server tags -->
-  <div id="server-tags"></div>
-
     <div id="settings-panel" class="panel" style="display:none;">
         <div class="close-button">
             <button onclick="toggleSettings()" style="background:none;border:none;color:var(--text-muted);font-size:23px;padding:0;line-height:0;cursor:pointer;" title="Close">×</button>

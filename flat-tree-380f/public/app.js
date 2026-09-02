@@ -194,7 +194,7 @@ function setStatus(primaryText, timeString) {
     return;
   }
   //if we have both, build formatted string
-  container.innerHTML = `${primaryText} total sensors — <span id="time-display">updated ${timeString}</span>`;
+  container.innerHTML = `${primaryText} total sensors, <span id="time-display">updated ${timeString}</span>`;
 }
 
 /* ─── Server tags ───────────────────────────────────────── */
@@ -208,7 +208,7 @@ function renderServerTags() {
     <span class="server-tag">
       <i class="ti ti-server-2" style="font-size:13px;"></i>
       Server ${s}
-      <button class="remove-btn" onclick="removeServer('${s}')" aria-label="Remove server ${s}">×</button>
+      <button class="remove-btn" onclick="removeServer('${s}')" title="Remove server ${s}" aria-label="Remove server ${s}">×</button>
     </span>`).join('');
 }
 
@@ -416,11 +416,12 @@ function updateLatestCalibration() {
   const el = document.getElementById('latest-cal-msg');
   if (!el) return;
   const calibrated = allSensors.filter(s => s.calibrated_at);
-  if (!calibrated.length) { el.textContent = ''; return; }
+  if (!calibrated.length) { el.textContent = ''; el.removeAttribute('title'); return; }
   const latest = calibrated.reduce((a, b) =>
     a.calibrated_at > b.calibrated_at ? a : b
   );
-  el.textContent = ` Latest Calibration: ${latest.sensor_name || '#' + latest.sensor_id} (${fmtDate(latest.calibrated_at)})`;
+  el.textContent = ` Last Calibration: ${latest.sensor_name || '#' + latest.sensor_id} (${fmtDate(latest.calibrated_at)})`;
+  el.title = el.textContent.trim();
 }
 
 let hasCelebratedCompletion = false;
