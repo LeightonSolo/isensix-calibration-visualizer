@@ -440,6 +440,18 @@ button.danger { color: var(--accent-red); }
   border-radius: var(--radius-lg);
   padding: 10px 10px;
 }
+.metric-card[data-tab] {
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+.metric-card[data-tab]:hover {
+  border-color: var(--accent-blue);
+  transform: translateY(-1px);
+}
+.metric-card[data-tab]:focus-visible {
+  outline: 2px solid var(--accent-blue);
+  outline-offset: 2px;
+}
 .metric-label {
   font-size: 13px;
   color: var(--text-secondary);

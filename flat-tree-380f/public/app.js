@@ -461,12 +461,12 @@ function renderMetrics() {
 
 
   document.getElementById('metrics').innerHTML = `
-    <div class="metric-card">
+    <div class="metric-card" data-tab="all" role="button" tabindex="0" aria-label="Open All Sensors tab">
       <div class="metric-label">Enabled Sensors</div>
       <div class="metric-value" title="Total enabled sensors across all added servers">${total}</div>
       <div class="metric-sub">${servers.length} server${servers.length !== 1 ? 's' : ''}</div>
     </div>
-    <div class="metric-card">
+    <div class="metric-card" data-tab="calibrated" role="button" tabindex="0" aria-label="Open Calibrated tab">
   <div class="metric-label">Calibrated (${CONFIG.ROLLING_DAYS}d)</div>
   <div class="metric-value green">${cal}</div>
   <div style="margin-top:3px; padding-top:3px; display:flex; justify-content: center; gap:10px; font-size:13px; color:var(--text-secondary);">
@@ -474,27 +474,27 @@ function renderMetrics() {
     <span>Yesterday: <span style="color:var(--text-primary); font-weight:500;">${calYesterday}</span></span>
   </div>
 </div>
-    <div class="metric-card">
+    <div class="metric-card" data-tab="left" role="button" tabindex="0" aria-label="Open Sensors left tab">
       <div class="metric-label">Remaining</div>
       <div class="metric-value blue">${left}</div>
       <div class="metric-sub">not yet calibrated</div>
     </div>
-    <div class="metric-card">
+    <div class="metric-card" data-tab="failures" role="button" tabindex="0" aria-label="Open Failures tab">
       <div class="metric-label">Failures</div>
       <div class="metric-value red">${fail}</div>
       <div class="metric-sub">offset exceeded</div>
     </div>
-    <div class="metric-card">
+    <div class="metric-card" data-tab="check" role="button" tabindex="0" aria-label="Open In CHECK tab">
       <div class="metric-label">In CHECK</div>
       <div class="metric-value" style="color:white);">${check}</div>
       <div class="metric-sub">sensors with errors</div>
     </div>
-    <div class="metric-card">
+    <div class="metric-card" data-tab="exceptions" role="button" tabindex="0" aria-label="Open Exceptions tab">
       <div class="metric-label">Exceptions</div>
       <div class="metric-value orange" style="color:var(--accent-orange);">${excepted}</div>
       <div class="metric-sub">this year</div>
     </div>
-    <div id="donut-card" class="metric-card donut-card">
+    <div id="donut-card" class="metric-card donut-card" data-tab="calibrated" role="button" tabindex="0" aria-label="Open Calibrated tab">
       <svg width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="Progress ${pct}%">
         <circle cx="32" cy="32" r="${r}" fill="none" stroke="${track}" stroke-width="7"/>
         <circle cx="32" cy="32" r="${r}" fill="none" stroke="var(--accent-green)" stroke-width="7"
@@ -1891,6 +1891,19 @@ serverInput.addEventListener('input', function() {
 
 document.querySelectorAll('.tab-btn').forEach(btn =>
   btn.addEventListener('click', () => switchTab(btn.dataset.tab)));
+
+const metrics = document.getElementById('metrics');
+metrics.addEventListener('click', e => {
+  const card = e.target.closest('.metric-card[data-tab]');
+  if (card) switchTab(card.dataset.tab);
+});
+metrics.addEventListener('keydown', e => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const card = e.target.closest('.metric-card[data-tab]');
+  if (!card) return;
+  e.preventDefault();
+  switchTab(card.dataset.tab);
+});
 
 renderServerTags();
 if (servers.length > 0) loadData();
