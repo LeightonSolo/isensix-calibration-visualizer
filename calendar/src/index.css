@@ -12,8 +12,8 @@
   --cal-sidebar-header: #0e0e15;
   --cal-week-alt: #151519;
   --cal-week-label: #0a0a0c;
-  --cal-today-bg: #18351d;
-  --cal-today-border: #5b9f3b;
+  --cal-today-bg: #22272c;
+  --cal-today-border: #adb7c4b4;
   --cal-past-row-bg: #0b0b0d;
   --cal-unassigned-column-bg: #1b1b20;
   --cal-unassigned-column-past-bg: #111114;
@@ -138,8 +138,8 @@
   --cal-sidebar-header: #eef1f5;
   --cal-week-alt: #f7f8fa;
   --cal-week-label: #e9edf2;
-  --cal-today-bg: #d8efcf;
-  --cal-today-border: #559632;
+  --cal-today-bg: #d1d5df;
+  --cal-today-border: #495360;
   --cal-past-row-bg: #f0f1f3;
   --cal-unassigned-column-bg: #e8ebee;
   --cal-unassigned-column-past-bg: #e1e4e8;
