@@ -926,7 +926,15 @@ window.addEventListener('beforeprint', getCanvasDataForPrint);
 window.addEventListener('afterprint',  restoreCanvasAfterPrint);
 
 /* ─── Auto-refresh ────────────────────────────────────────── */
-setInterval(loadData, CONFIG.ROLLING_DAYS ? 5 * 60 * 1000 : 5 * 60 * 1000);
+const AUTO_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
+const AUTO_REFRESH_MAX_RUNTIME_MS = 8 * 60 * 60 * 1000;
+const autoRefreshInterval = setInterval(() => {
+  if (document.visibilityState === 'visible') loadData();
+}, AUTO_REFRESH_INTERVAL_MS);
+setTimeout(() => {
+  clearInterval(autoRefreshInterval);
+  setStatus('Auto-refresh stopped after 8 hours');
+}, AUTO_REFRESH_MAX_RUNTIME_MS);
 
 /* ─── Init ────────────────────────────────────────────────── */
 PERSIST_FIELDS.forEach(id => {

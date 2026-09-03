@@ -21,3 +21,6 @@ CREATE TABLE IF NOT EXISTS calibrations (
   captured_at TEXT DEFAULT (datetime('now')),
   UNIQUE(sensor_id)
 );
+
+CREATE INDEX IF NOT EXISTS idx_calibrations_server_calibrated_at
+  ON calibrations(server, calibrated_at DESC);

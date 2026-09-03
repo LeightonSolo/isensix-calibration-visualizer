@@ -24,3 +24,6 @@ CREATE TABLE IF NOT EXISTS calibrations_new (
 INSERT INTO calibrations_new SELECT * FROM calibrations;
 DROP TABLE calibrations;
 ALTER TABLE calibrations_new RENAME TO calibrations;
+
+CREATE INDEX IF NOT EXISTS idx_calibrations_server_calibrated_at
+  ON calibrations(server, calibrated_at DESC);

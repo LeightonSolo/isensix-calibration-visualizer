@@ -370,7 +370,10 @@ export default {
     if (request.method === 'GET' && pathname === '/calibrations') {
       const server = url.searchParams.get('server');
       const since  = url.searchParams.get('since');
-      const limit  = parseInt(url.searchParams.get('limit') ?? '1000');
+      const requestedLimit = Number(url.searchParams.get('limit') ?? '1000');
+      const limit = Number.isInteger(requestedLimit)
+        ? Math.min(Math.max(requestedLimit, 1), 1000)
+        : 1000;
 
       let query = `SELECT * FROM calibrations WHERE 1=1`;
       const bindings: any[] = [];

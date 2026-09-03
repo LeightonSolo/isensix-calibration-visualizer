@@ -7,6 +7,22 @@ const read = file => fs.readFileSync(path.join(root, 'schemas', file), 'utf8');
 const db = new DatabaseSync(':memory:');
 
 db.exec(read('remote-backup.sql'));
+db.exec(read('add_calibrations_server_calibrated_at_index.sql'));
+
+const calibrationPlan = db.prepare(`
+  EXPLAIN QUERY PLAN
+  SELECT * FROM calibrations
+  WHERE 1 = 1
+    AND server = ?
+  ORDER BY calibrated_at DESC
+  LIMIT ?
+`).all('005', 1000);
+if (!calibrationPlan.some(row =>
+  row.detail.includes('USING INDEX idx_calibrations_server_calibrated_at')
+)) {
+  throw new Error(`Calibration query did not use its index: ${JSON.stringify(calibrationPlan)}`);
+}
+
 db.exec(read('calendar_job_info_authority.sql'));
 
 const linked = db.prepare(`

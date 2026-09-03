@@ -137,6 +137,48 @@ describe('Servers API', () => {
   });
 });
 
+describe('Calibrations API', () => {
+  it('uses the server-first query shape and clamps oversized limits', async () => {
+    let sql = '';
+    let bindings: unknown[] = [];
+    const all = vi.fn().mockResolvedValue({ results: [] });
+    const prepare = vi.fn().mockImplementation((statement: string) => {
+      sql = statement;
+      return {
+        bind: (...values: unknown[]) => {
+          bindings = values;
+          return { all };
+        },
+      };
+    });
+    const env = { ...baseEnv, DB: { prepare } } as unknown as Env;
+
+    const response = await worker.fetch(apiRequest('/calibrations?server=123&limit=999999'), env);
+
+    expect(response.status).toBe(200);
+    expect(sql).toContain('AND server = ?');
+    expect(sql).toContain('ORDER BY calibrated_at DESC LIMIT ?');
+    expect(bindings).toEqual(['123', 1000]);
+    expect(all).toHaveBeenCalledOnce();
+  });
+
+  it('falls back to the safe default for an invalid limit', async () => {
+    let bindings: unknown[] = [];
+    const all = vi.fn().mockResolvedValue({ results: [] });
+    const prepare = vi.fn().mockReturnValue({
+      bind: (...values: unknown[]) => {
+        bindings = values;
+        return { all };
+      },
+    });
+    const env = { ...baseEnv, DB: { prepare } } as unknown as Env;
+
+    await worker.fetch(apiRequest('/calibrations?server=123&limit=not-a-number'), env);
+
+    expect(bindings).toEqual(['123', 1000]);
+  });
+});
+
 describe('Calendar API', () => {
   it('does not return legacy Unassigned assignment rows', async () => {
     const all = vi.fn().mockResolvedValue({ results: [] });

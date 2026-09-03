@@ -1420,21 +1420,52 @@ async function removeException(id) {
 }
 
 
+const AUTO_REFRESH_INTERVAL_MS = 3 * 60 * 1000;
+const AUTO_REFRESH_MAX_RUNTIME_MS = 8 * 60 * 60 * 1000;
 let autoRefreshInterval = null;
+let autoRefreshTimeout = null;
+
+function stopAutoRefresh(expired = false) {
+  clearInterval(autoRefreshInterval);
+  clearTimeout(autoRefreshTimeout);
+  autoRefreshInterval = null;
+  autoRefreshTimeout = null;
+
+  const btn = document.getElementById('auto-refresh-btn');
+  btn.textContent = '⏱ Auto-refresh: Off';
+  btn.classList.remove('active');
+  btn.title = expired
+    ? 'Stopped automatically after 8 hours'
+    : 'Reload every 3 minutes (automatically stops after 8 hours)';
+}
 
 function toggleAutoRefresh() {
-  const btn = document.getElementById('auto-refresh-btn');
   if (autoRefreshInterval) {
-    clearInterval(autoRefreshInterval);
-    autoRefreshInterval = null;
-    btn.textContent = '⏱ Auto-refresh: Off';
-    btn.classList.remove('active');
+    stopAutoRefresh();
   } else {
-    autoRefreshInterval = setInterval(loadData, 3 * 60 * 1000);
+    const btn = document.getElementById('auto-refresh-btn');
+    autoRefreshInterval = setInterval(() => {
+      if (document.visibilityState === 'visible') loadData();
+    }, AUTO_REFRESH_INTERVAL_MS);
+    autoRefreshTimeout = setTimeout(
+      () => stopAutoRefresh(true),
+      AUTO_REFRESH_MAX_RUNTIME_MS,
+    );
     btn.textContent = '⏱ Auto-refresh: On';
     btn.classList.add('active');
+    btn.title = 'Reload every 3 minutes; automatically stops after 8 hours';
   }
 }
+
+document.addEventListener('visibilitychange', () => {
+  if (
+    document.visibilityState === 'visible' &&
+    autoRefreshInterval &&
+    (!lastUpdated || Date.now() - lastUpdated >= AUTO_REFRESH_INTERVAL_MS)
+  ) {
+    loadData();
+  }
+});
 
 
 
