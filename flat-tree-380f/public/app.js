@@ -18,6 +18,26 @@ let checkSort  = { col: null,    dir:  1 };
 let excSort    = { col: null,    dir:  1 };
 let activeServerOverview = null;
 let serverOverviewReturnFocus = null;
+const serverOverviewSorts = {
+  zones:      { key: 'remaining', dir: -1 },
+  types:      { key: 'remaining', dir: -1 },
+  calibrated: { key: 'calibrated_at', dir: -1 },
+  remaining:  { key: 'zone', dir: 1 },
+  failures:   { key: 'calibrated_at', dir: -1 },
+  check:      { key: 'zone', dir: 1 },
+  exceptions: { key: 'zone', dir: 1 },
+};
+const serverOverviewColumnKeys = {
+  'CP Addr': 'cp_address',
+  Sensor: 'sensor_name',
+  Zone: 'zone',
+  Type: 'sensor_type',
+  Calibrated: 'calibrated_at',
+  Offset: 'new_offset',
+  Time: 'calibrated_at',
+  Quality: 'quality',
+  Reason: 'reason',
+};
 
 const savedRollingDays = localStorage.getItem("rollingDays");
 
@@ -241,7 +261,48 @@ function overviewSensorName(sensor) {
     : label;
 }
 
-function buildServerOverviewTable(title, rows, columns, emptyText, modifier = '', rowClass = () => '') {
+function compareServerOverviewValues(a, b) {
+  const aEmpty = a === null || a === undefined || a === '';
+  const bEmpty = b === null || b === undefined || b === '';
+  if (aEmpty !== bEmpty) return aEmpty ? 1 : -1;
+  if (aEmpty) return 0;
+  if (typeof a === 'number' && typeof b === 'number') return a - b;
+  return String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: 'base' });
+}
+
+function sortServerOverviewRows(rows, sectionKey, columns) {
+  const sort = serverOverviewSorts[sectionKey];
+  if (!sort) return [...rows];
+  const column = columns.find(candidate => candidate.key === sort.key);
+  if (!column) return [...rows];
+  const numericKeys = new Set(['total', 'calibrated', 'exceptions', 'remaining', 'failures', 'new_offset']);
+  const valueFor = row => {
+    const value = column.sortValue ? column.sortValue(row) : row[column.key];
+    if (!numericKeys.has(column.key) || value === null || value === undefined || value === '') return value;
+    const numericValue = Number(value);
+    return Number.isFinite(numericValue) ? numericValue : value;
+  };
+
+  return [...rows].sort((a, b) => {
+    const aValue = valueFor(a);
+    const bValue = valueFor(b);
+    const aEmpty = aValue === null || aValue === undefined || aValue === '';
+    const bEmpty = bValue === null || bValue === undefined || bValue === '';
+    if (aEmpty !== bEmpty) return aEmpty ? 1 : -1;
+    const primary = compareServerOverviewValues(aValue, bValue);
+    if (primary) return primary * sort.dir;
+    return String(a.zone || a.label || '').localeCompare(String(b.zone || b.label || ''), undefined, { numeric: true, sensitivity: 'base' })
+      || String(a.sensor_name || '').localeCompare(String(b.sensor_name || ''), undefined, { numeric: true, sensitivity: 'base' });
+  });
+}
+
+function buildServerOverviewTable(sectionKey, title, rows, columns, emptyText, modifier = '', rowClass = () => '') {
+  const sortableColumns = columns.map(column => ({
+    ...column,
+    key: column.key || serverOverviewColumnKeys[column.label],
+  }));
+  const sort = serverOverviewSorts[sectionKey];
+  const sortedRows = sortServerOverviewRows(rows, sectionKey, sortableColumns);
   return `
     <section class="server-overview-card ${modifier}">
       <div class="server-overview-card-heading">
@@ -251,8 +312,12 @@ function buildServerOverviewTable(title, rows, columns, emptyText, modifier = ''
       <div class="server-overview-table-wrap">
         ${rows.length ? `
           <table class="server-overview-table">
-            <thead><tr>${columns.map(column => `<th>${escapeHtml(column.label)}</th>`).join('')}</tr></thead>
-            <tbody>${rows.map(row => `<tr class="${escapeHtml(rowClass(row))}">${columns.map(column => `<td>${column.render(row)}</td>`).join('')}</tr>`).join('')}</tbody>
+            <thead><tr>${sortableColumns.map(column => {
+              const active = sort?.key === column.key;
+              const direction = active ? (sort.dir === 1 ? 'ascending' : 'descending') : 'none';
+              return `<th aria-sort="${direction}"><button type="button" class="server-overview-sort${active ? ' is-active' : ''}" data-overview-section="${escapeHtml(sectionKey)}" data-overview-sort="${escapeHtml(column.key)}" title="Sort by ${escapeHtml(column.label)}">${escapeHtml(column.label)}<span aria-hidden="true">${active ? (sort.dir === 1 ? '&#9650;' : '&#9660;') : ''}</span></button></th>`;
+            }).join('')}</tr></thead>
+            <tbody>${sortedRows.map(row => `<tr class="${escapeHtml(rowClass(row))}">${sortableColumns.map(column => `<td>${column.render(row)}</td>`).join('')}</tr>`).join('')}</tbody>
           </table>` : `<div class="server-overview-empty">${escapeHtml(emptyText)}</div>`}
       </div>
     </section>`;
@@ -288,7 +353,10 @@ function renderServerOverview(server) {
   const check = enabled.filter(sensor => sensor.quality && sensor.quality.toUpperCase() !== 'GOOD');
   const exceptions = allExceptions
     .filter(exception => String(exception.server) === String(server) && exception.year === CURRENT_YEAR)
-    .sort((a, b) => String(a.sensor_name || '').localeCompare(String(b.sensor_name || '')));
+    .map(exception => ({
+      ...exception,
+      cp_address: all.find(sensor => String(sensor.sensor_id) === String(exception.sensor_id))?.cp_address || '',
+    }));
   const latest = all.filter(sensor => sensor.calibrated_at)
     .sort((a, b) => new Date(b.calibrated_at) - new Date(a.calibrated_at))[0];
   const today = new Date();
@@ -304,7 +372,10 @@ function renderServerOverview(server) {
   const zones = groupServerOverviewRows(enabled, 'zone');
   const types = groupServerOverviewRows(enabled, 'sensor_type');
 
-  title.textContent = `Server ${server} overview`;
+  const tunnelUrl = serverTunnelUrl(server);
+  title.innerHTML = tunnelUrl
+    ? `Server <a class="server-overview-title-link" href="${escapeHtml(tunnelUrl)}" target="_blank" rel="noopener" title="Open Server ${escapeHtml(server)}">${escapeHtml(server)}</a> overview`
+    : `Server ${escapeHtml(server)} overview`;
   body.innerHTML = `
     <div class="server-overview-meta">
       <span><strong>${escapeHtml(meta.customer || 'Customer not assigned')}</strong></span>
@@ -325,28 +396,27 @@ function renderServerOverview(server) {
     </div>
 
     <div class="server-overview-grid">
-      ${buildServerOverviewTable('Zone breakdown', zones, [
-        { label: 'Zone', render: row => escapeHtml(row.label) },
-        { label: 'Sensors', render: row => row.total },
-        { label: 'Cal.', render: row => `<span class="green-val">${row.calibrated}</span>` },
-        { label: 'Exc.', render: row => row.exceptions ? `<span class="orange-val">${row.exceptions}</span>` : '0' },
-        { label: 'Left', render: row => row.remaining ? `<span class="orange-val">${row.remaining}</span>` : '0' },
-        { label: 'Fail', render: row => row.failures ? `<span class="fail-val">${row.failures}</span>` : '0' },
+      ${buildServerOverviewTable('zones', 'Zone breakdown', zones, [
+        { label: 'Zone', key: 'label', render: row => escapeHtml(row.label) },
+        { label: 'Sensors', key: 'total', render: row => row.total },
+        { label: 'Cal.', key: 'calibrated', render: row => `<span class="green-val">${row.calibrated}</span>` },
+        { label: 'Exc.', key: 'exceptions', render: row => row.exceptions ? `<span class="orange-val">${row.exceptions}</span>` : '0' },
+        { label: 'Left', key: 'remaining', render: row => row.remaining ? `<span class="orange-val">${row.remaining}</span>` : '0' },
+        { label: 'Fail', key: 'failures', render: row => row.failures ? `<span class="fail-val">${row.failures}</span>` : '0' },
       ], 'No enabled sensors have zone information.', 'overview-breakdown',
         row => row.remaining === 0 ? 'overview-done-row' : '')}
 
-      ${buildServerOverviewTable('Type breakdown', types, [
-        { label: 'Type', render: row => escapeHtml(row.label) },
-        { label: 'Sensors', render: row => row.total },
-        { label: 'Cal.', render: row => `<span class="green-val">${row.calibrated}</span>` },
-        { label: 'Exc.', render: row => row.exceptions ? `<span class="orange-val">${row.exceptions}</span>` : '0' },
-        { label: 'Left', render: row => row.remaining ? `<span class="orange-val">${row.remaining}</span>` : '0' },
-        { label: 'Fail', render: row => row.failures ? `<span class="fail-val">${row.failures}</span>` : '0' },
+      ${buildServerOverviewTable('types', 'Type breakdown', types, [
+        { label: 'Type', key: 'label', render: row => escapeHtml(row.label) },
+        { label: 'Sensors', key: 'total', render: row => row.total },
+        { label: 'Cal.', key: 'calibrated', render: row => `<span class="green-val">${row.calibrated}</span>` },
+        { label: 'Exc.', key: 'exceptions', render: row => row.exceptions ? `<span class="orange-val">${row.exceptions}</span>` : '0' },
+        { label: 'Left', key: 'remaining', render: row => row.remaining ? `<span class="orange-val">${row.remaining}</span>` : '0' },
+        { label: 'Fail', key: 'failures', render: row => row.failures ? `<span class="fail-val">${row.failures}</span>` : '0' },
       ], 'No enabled sensors have type information.', 'overview-breakdown',
         row => row.remaining === 0 ? 'overview-done-row' : '')}
 
-      ${buildServerOverviewTable(`Calibrated in the last ${CONFIG.ROLLING_DAYS} days`, calibrated
-        .sort((a, b) => new Date(b.calibrated_at) - new Date(a.calibrated_at)), [
+      ${buildServerOverviewTable('calibrated', `Calibrated in the last ${CONFIG.ROLLING_DAYS} days`, calibrated, [
         { label: 'CP Addr', render: sensor => `<span class="mono">${escapeHtml(sensor.cp_address || '—')}</span>` },
         { label: 'Sensor', render: overviewSensorName },
         { label: 'Zone', render: sensor => escapeHtml(sensor.zone || '—') },
@@ -354,14 +424,14 @@ function renderServerOverview(server) {
         { label: 'Calibrated', render: sensor => formatOverviewDate(sensor.calibrated_at) },
       ], 'No sensors calibrated in the current window.', 'overview-calibrated')}
 
-      ${remaining.length ? buildServerOverviewTable('Sensors remaining', remaining, [
+      ${remaining.length ? buildServerOverviewTable('remaining', 'Sensors remaining', remaining, [
         { label: 'CP Addr', render: sensor => `<span class="mono">${escapeHtml(sensor.cp_address || '—')}</span>` },
         { label: 'Sensor', render: overviewSensorName },
         { label: 'Zone', render: sensor => escapeHtml(sensor.zone || '—') },
         { label: 'Type', render: sensor => escapeHtml(sensor.sensor_type || '—') },
       ], 'No enabled sensors left to calibrate.', 'overview-remaining') : ''}
 
-      ${failures.length ? buildServerOverviewTable('Failed sensors', failures, [
+      ${failures.length ? buildServerOverviewTable('failures', 'Failed sensors', failures, [
         { label: 'CP Addr', render: sensor => `<span class="mono">${escapeHtml(sensor.cp_address || '—')}</span>` },
         { label: 'Sensor', render: overviewSensorName },
         { label: 'Zone', render: sensor => escapeHtml(sensor.zone || '—') },
@@ -370,18 +440,15 @@ function renderServerOverview(server) {
         { label: 'Time', render: sensor => formatOverviewDate(sensor.calibrated_at) },
       ], 'No sensors exceed their offset threshold.', 'overview-failures') : ''}
 
-      ${check.length ? buildServerOverviewTable('Enabled sensors in CHECK', check, [
+      ${check.length ? buildServerOverviewTable('check', 'Enabled sensors in CHECK', check, [
         { label: 'CP Addr', render: sensor => `<span class="mono">${escapeHtml(sensor.cp_address || '—')}</span>` },
         { label: 'Sensor', render: overviewSensorName },
         { label: 'Zone', render: sensor => escapeHtml(sensor.zone || '—') },
         { label: 'Quality', render: sensor => qualBadge(sensor.quality) },
       ], 'No enabled sensors are in CHECK.', 'overview-check') : ''}
 
-      ${exceptions.length ? buildServerOverviewTable(`Exceptions ${CURRENT_YEAR}`, exceptions, [
-        { label: 'CP Addr', render: exception => {
-          const sensor = all.find(row => String(row.sensor_id) === String(exception.sensor_id));
-          return `<span class="mono">${escapeHtml(sensor?.cp_address || '—')}</span>`;
-        } },
+      ${exceptions.length ? buildServerOverviewTable('exceptions', `Exceptions ${CURRENT_YEAR}`, exceptions, [
+        { label: 'CP Addr', render: exception => `<span class="mono">${escapeHtml(exception.cp_address || '—')}</span>` },
         { label: 'Sensor', render: exception => escapeHtml(exception.sensor_name || `Sensor ${exception.sensor_id}`) },
         { label: 'Zone', render: exception => escapeHtml(exception.zone || '—') },
         { label: 'Reason', render: exception => escapeHtml(exception.reason || '—') },
@@ -408,6 +475,23 @@ function closeServerOverview() {
   document.body.classList.remove('server-overview-open');
   serverOverviewReturnFocus?.focus?.();
   serverOverviewReturnFocus = null;
+}
+
+function sortServerOverviewTable(sectionKey, key) {
+  const sort = serverOverviewSorts[sectionKey];
+  if (!sort || !key) return;
+  if (sort.key === key) sort.dir *= -1;
+  else {
+    sort.key = key;
+    sort.dir = 1;
+  }
+  if (activeServerOverview) {
+    renderServerOverview(activeServerOverview);
+    requestAnimationFrame(() => {
+      document.querySelector(`[data-overview-section="${sectionKey}"][data-overview-sort="${key}"]`)
+        ?.focus({ preventScroll: true });
+    });
+  }
 }
 
 function addServer() {
@@ -1190,6 +1274,16 @@ function calibrationPath(meta, version) {
     return meta.calibration_path;
   }
   return VERSION_PATHS[version];
+}
+
+function serverTunnelUrl(server) {
+  const serverId = String(server || '').trim();
+  if (!/^\d{3}$/.test(serverId)) return null;
+  const meta = serverMeta[serverId] || {};
+  const version = normalizeServerVersion(meta.version);
+  const portForVersion = VERSION_PORTS[version];
+  if (!portForVersion) return null;
+  return `https://${tunnelHostname(meta.hostname)}:${portForVersion(serverId)}`;
 }
 
 function sensorUrl(sensor_id, server) {
@@ -2151,6 +2245,11 @@ serverTags.addEventListener('click', event => {
 const serverOverviewModal = document.getElementById('server-overview-modal');
 document.getElementById('server-overview-close')?.addEventListener('click', closeServerOverview);
 serverOverviewModal?.addEventListener('click', event => {
+  const sortButton = event.target.closest('[data-overview-sort]');
+  if (sortButton) {
+    sortServerOverviewTable(sortButton.dataset.overviewSection, sortButton.dataset.overviewSort);
+    return;
+  }
   if (event.target === serverOverviewModal) closeServerOverview();
 });
 document.addEventListener('keydown', event => {
