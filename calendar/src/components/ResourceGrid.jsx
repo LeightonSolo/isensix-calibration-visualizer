@@ -435,7 +435,7 @@ export default function ResourceGrid({
                       borderTop: isToday ? '2px solid var(--cal-today-border)'
                         : isMon ? '1px solid var(--cal-border-week)' : undefined,
                       boxShadow: isToday ? 'inset 3px 0 0 var(--cal-today-border)'
-                        : isSep ? 'inset 0 2px 0 var(--cal-accent)' : undefined,
+                        : isSep ? 'inset 0 2px 0 var(--cal-menu-text)' : undefined,
                       position: 'sticky', left: 0, zIndex: 2,
                       background: isToday ? 'var(--cal-today-bg)'
                         : isPast ? 'var(--cal-past-row-bg)'
@@ -445,7 +445,7 @@ export default function ResourceGrid({
                       {isSep && (
                         <div style={{
                           fontSize: 11, fontWeight: 500, lineHeight: 1.2,
-                          color: 'var(--cal-accent)', letterSpacing: '0.01em',
+                          color: 'var(--cal-menu-text)', letterSpacing: '0.01em',
                           textTransform: 'uppercase',
                         }}>{format(d, 'MMM yyyy')}</div>
                       )}
@@ -485,7 +485,7 @@ export default function ResourceGrid({
                             borderLeft: isUnassigned ? '1px solid var(--tech-unassigned-border)' : undefined,
                             borderTop: isToday ? '2px solid var(--cal-today-border)'
                               : isMon ? '1px solid var(--cal-border-week)' : undefined,
-                            boxShadow: !isToday && isSep ? 'inset 0 2px 0 var(--cal-accent)' : undefined,
+                            boxShadow: !isToday && isSep ? 'inset 0 2px 0 var(--cal-menu-text)' : undefined,
                             cursor: editorToken && !activeOnDay.length && !techEvs.length ? 'pointer' : 'default',
                             padding: 0, verticalAlign: 'top',
                             background: cellBackground,
