@@ -130,6 +130,19 @@ function getActiveSensors() {
   );
 }
 
+function getDisabledCalibratedSensors() {
+  return allSensors.filter(s =>
+    s.status?.toUpperCase() === 'DISABLED' &&
+    isCalibrated(s) &&
+    !isExcepted(s)
+  );
+}
+
+function getDisabledCalibrationTooltip(count) {
+  if (!count) return '';
+  return `Includes ${count} sensor${count === 1 ? '' : 's'} calibrated within the last ${CONFIG.ROLLING_DAYS} days that ${count === 1 ? 'is' : 'are'} now disabled.`;
+}
+
 const CURRENT_YEAR = new Date().getFullYear();
 
 function isExcepted(s) {
@@ -713,14 +726,21 @@ let hasCelebratedCompletion = false;
 
 /* ─── Metrics ───────────────────────────────────────────── */
 function renderMetrics() {
-  const sensors = getActiveSensors(); 
+  const sensors = allSensors.filter(s =>
+    (!s.status || s.status.toUpperCase() !== 'DISABLED') && !isExcepted(s)
+  );
   const total = sensors.length; //total enabled sensors
-  const cal   = sensors.filter(isCalibrated).length; //total calibrated sensors
-  const left  = total - cal;
+  const enabledCalibrated = sensors.filter(isCalibrated);
+  const disabledCalibrated = getDisabledCalibratedSensors();
+  const calibratedSensors = [...enabledCalibrated, ...disabledCalibrated];
+  const cal   = calibratedSensors.length; // includes sensors calibrated in-window that are now disabled
+  const left  = total - enabledCalibrated.length;
   const fail  = sensors.filter(isFailed).length;
-  const pct   = total > 0 ? Math.round((cal / total) * 100) : 0;
+  const pct   = total > 0 ? Math.round((enabledCalibrated.length / total) * 100) : 0;
   const r = 26, circ = 2 * Math.PI * r, dash = (pct / 100) * circ;
   const track = 'var(--border)';
+  const calibrationTooltip = getDisabledCalibrationTooltip(disabledCalibrated.length);
+  const calibrationTooltipAttr = calibrationTooltip ? ` title="${calibrationTooltip}"` : '';
   const excepted = allSensors.filter(isExcepted).length;
   const check = allSensors.filter(s =>   //sensors in check
     s.status?.toUpperCase() === 'ENABLED' &&
@@ -732,11 +752,11 @@ function renderMetrics() {
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
 
-  const calToday = sensors.filter(s =>
+  const calToday = calibratedSensors.filter(s =>
     s.calibrated_at && new Date(s.calibrated_at) >= today
   ).length;
 
-  const calYesterday = sensors.filter(s => {
+  const calYesterday = calibratedSensors.filter(s => {
     if (!s.calibrated_at) return false;
     const d = new Date(s.calibrated_at);
     return d >= yesterday && d < today;
@@ -751,7 +771,7 @@ function renderMetrics() {
       <div class="metric-value" title="Total enabled sensors across all added servers">${total}</div>
       <div class="metric-sub">${servers.length} server${servers.length !== 1 ? 's' : ''}</div>
     </div>
-    <div class="metric-card" data-tab="calibrated" role="button" tabindex="0" aria-label="Open Calibrated tab">
+    <div class="metric-card" data-tab="calibrated" role="button" tabindex="0"${calibrationTooltipAttr} aria-label="Open Calibrated tab${calibrationTooltip ? `. ${calibrationTooltip}` : ''}">
   <div class="metric-label">Calibrated (${CONFIG.ROLLING_DAYS}d)</div>
   <div class="metric-value green">${cal}</div>
   <div style="margin-top:3px; padding-top:3px; display:flex; justify-content: center; gap:10px; font-size:13px; color:var(--text-secondary);">
@@ -1086,6 +1106,8 @@ function renderTable() {
   const title = document.getElementById('panel-title');
   const count = document.getElementById('panel-count');
   const area  = document.getElementById('table-area');
+  const panelHeader = title.closest('.panel-hdr');
+  panelHeader?.removeAttribute('title');
 
   // sync filter bar visibility with current tab on every render
   const showFilter = ['left','calibrated','failures','all'].includes(currentTab);
@@ -1128,7 +1150,9 @@ function renderTable() {
   return;
   }
 
-  let rows = getActiveSensors();
+  let rows = currentTab === 'calibrated'
+    ? allSensors.filter(s => isCalibrated(s) && !isExcepted(s))
+    : getActiveSensors();
   if (currentTab === 'left')        rows = rows.filter(s => !isCalibrated(s));
   else if (currentTab === 'calibrated') rows = rows.filter(isCalibrated);
   else if (currentTab === 'failures')   rows = rows.filter(isFailed);
@@ -1150,6 +1174,17 @@ function renderTable() {
   };
   title.textContent = labels[currentTab] || '';
   count.textContent = `${rows.length} sensor${rows.length !== 1 ? 's' : ''}`;
+
+  if (currentTab === 'calibrated') {
+    const disabledCalibratedCount = rows.filter(s =>
+      s.status?.toUpperCase() === 'DISABLED'
+    ).length;
+    const calibrationTooltip = getDisabledCalibrationTooltip(disabledCalibratedCount);
+    if (calibrationTooltip) {
+      count.textContent += ` · ${disabledCalibratedCount} now disabled`;
+      if (panelHeader) panelHeader.title = calibrationTooltip;
+    }
+  }
 
   if (!rows.length) {
     area.innerHTML = `<div style="padding:2.5rem;text-align:center;color:var(--text-muted);font-size:13px;">

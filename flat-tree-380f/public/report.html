@@ -150,6 +150,15 @@
     .red    { color: var(--red); }
     .yellow { color: var(--yellow); }
     .muted  { color: var(--text-muted); }
+    .calibration-disclaimer {
+      padding: 7px 12px;
+      border: 0.5px solid rgba(196,122,26,0.45);
+      border-radius: var(--radius);
+      background: rgba(196,122,26,0.1);
+      color: var(--orange);
+      font-size: 11px;
+      text-align: center;
+    }
 
     /* ─── Section ───────────────────────────────────────── */
     .section {
@@ -340,6 +349,7 @@
 
   <!-- Stats bar -->
   <div id="stats-bar"></div>
+  <div id="calibration-disclaimer" class="calibration-disclaimer" hidden></div>
 
   <!-- Sections -->
   <div id="section-calibrated"></div>
@@ -657,7 +667,9 @@ function renderReport() {
   const enabled  = allSensors.filter(isEnabled);
   const disabled = allSensors.filter(s => !isEnabled(s));
 
-  const calibrated = enabled.filter(s => isCalibrated(s) && !isExcepted(s));
+  const enabledCalibrated = enabled.filter(s => isCalibrated(s) && !isExcepted(s));
+  const disabledCalibrated = disabled.filter(s => isCalibrated(s) && !isExcepted(s));
+  const calibrated = [...enabledCalibrated, ...disabledCalibrated];
   const excepted   = enabled.filter(isExcepted);
   const failures   = enabled.filter(isFailed);
   const inCheck    = enabled.filter(isInCheck);
@@ -684,7 +696,7 @@ function renderReport() {
 
   // Stats
   const pct = enabled.length > 0
-    ? Math.round(((calibrated.length + excepted.length) / enabled.length) * 100)
+    ? Math.round(((enabledCalibrated.length + excepted.length) / enabled.length) * 100)
     : 0;
   document.getElementById('stats-bar').innerHTML = `
     <div class="stat-pill">
@@ -719,6 +731,13 @@ function renderReport() {
       <span class="stat-pill-label">Complete</span>
       <span class="stat-pill-value ${pct===100?'green':'orange'}">${pct}%</span>
     </div>`;
+
+  const disclaimer = document.getElementById('calibration-disclaimer');
+  const disabledCalibratedCount = disabledCalibrated.length;
+  disclaimer.hidden = disabledCalibratedCount === 0;
+  disclaimer.textContent = disabledCalibratedCount
+    ? `${disabledCalibratedCount} sensor${disabledCalibratedCount === 1 ? '' : 's'} included in the calibrated count ${disabledCalibratedCount === 1 ? 'is' : 'are'} currently disabled.`
+    : '';
 
   // Sections
   buildSection(

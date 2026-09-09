@@ -218,6 +218,15 @@
       color: var(--text-muted);
       margin-top: 4px;
     }
+    .calibration-disclaimer {
+      padding: 8px 12px;
+      border: 0.5px solid rgba(196,122,26,0.45);
+      border-radius: var(--radius);
+      background: rgba(196,122,26,0.1);
+      color: var(--orange);
+      font-size: 11px;
+      text-align: center;
+    }
 
     /* ─── Comments ────────────────────────────────────────── */
     #comments-row {
@@ -451,6 +460,7 @@
 
     <!-- Stat cards -->
     <div id="stat-cards"></div>
+    <div id="calibration-disclaimer" class="calibration-disclaimer" hidden></div>
 
     <!-- Comments -->
     <div id="comments-row">
@@ -649,12 +659,17 @@ function populateHeader() {
 function renderStats() {
   const active  = allSensors.filter(s => !s.status || s.status.toUpperCase() !== 'DISABLED');
   const total   = active.length;
-  const cal     = active.filter(s => isCalibrated(s) && !isExcepted(s)).length;
+  const activeCalibrated = active.filter(s => isCalibrated(s) && !isExcepted(s));
+  const disabledCalibrated = allSensors.filter(s =>
+    s.status && s.status.toUpperCase() === 'DISABLED' &&
+    isCalibrated(s) && !isExcepted(s)
+  );
+  const cal     = activeCalibrated.length + disabledCalibrated.length;
   const notCal  = active.filter(s => !isCalibrated(s) && !isExcepted(s)).length;
   const exc     = active.filter(isExcepted).length;
   const fail    = active.filter(isFailed).length;
   const check   = active.filter(s => s.quality && s.quality.toUpperCase() !== 'GOOD').length;
-  const pct     = total > 0 ? Math.round(((cal + exc) / total) * 100) : 0;
+  const pct     = total > 0 ? Math.round(((activeCalibrated.length + exc) / total) * 100) : 0;
 
   document.getElementById('stat-cards').innerHTML = `
     <div class="stat-card">
@@ -687,6 +702,13 @@ function renderStats() {
       <div class="stat-value" style="color:var(--text-sec);">${check}</div>
       <div class="stat-sub">Sensors currently in an error state</div>
     </div>`;
+
+  const disclaimer = document.getElementById('calibration-disclaimer');
+  const disabledCount = disabledCalibrated.length;
+  disclaimer.hidden = disabledCount === 0;
+  disclaimer.textContent = disabledCount
+    ? `${disabledCount} sensor${disabledCount === 1 ? '' : 's'} included in the calibrated count ${disabledCount === 1 ? 'is' : 'are'} currently disabled.`
+    : '';
 }
 
 /* ─── Tables ──────────────────────────────────────────────── */

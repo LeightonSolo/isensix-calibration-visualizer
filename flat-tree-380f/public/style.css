@@ -890,6 +890,12 @@ body.server-overview-open { overflow: hidden; }
   font-size: 12px;
   padding: 5px 13px;
 }
+.tab-btn.right.active{
+  background: var(--accent-blue);
+  color: #fff;
+  border-color: var(--border-strong);
+}
+
 
 .pinned-button {
   position: fixed;
