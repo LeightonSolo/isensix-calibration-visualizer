@@ -648,6 +648,7 @@ function setButtonActive(id, active) {
 
 /* ─── Data loading ──────────────────────────────────────── */
 async function loadData() {
+  try { await siteAuth.ensure(); } catch (_) { return; }
   if (!servers.length) {
     allSensors = [];
     allExceptions = [];
@@ -661,7 +662,7 @@ async function loadData() {
     const [sensorResults] = await Promise.all([
       Promise.all(servers.map(s =>
         fetch(`${CONFIG.WORKER_URL}/calibrations?server=${s}`, {
-          headers: { 'X-Api-Key': CONFIG.API_KEY }
+          headers: siteApiHeaders()
         }).then(r => r.json())
       )),
       loadExceptions(),
@@ -692,7 +693,7 @@ async function loadExceptions() {
     const results = await Promise.all(
       servers.map(s =>
         fetch(`${CONFIG.WORKER_URL}/exceptions?server=${s}`, {
-          headers: { 'X-Api-Key': CONFIG.API_KEY }
+          headers: siteApiHeaders()
         }).then(r => r.json())
       )
     );
@@ -1219,7 +1220,7 @@ let serverMeta = {}; // populated on load, keyed by server ID
 async function loadServerMeta() {
   try {
     const res = await fetch(`${CONFIG.WORKER_URL}/servers`, {
-      headers: { 'X-Api-Key': CONFIG.API_KEY }
+      headers: siteApiHeaders()
     });
     const rows = await res.json();
     serverMeta = Object.fromEntries(rows.map(r => [r.server, r]));
@@ -1487,7 +1488,7 @@ async function saveEditedServerConfig() {
 
   const response = await fetch(`${CONFIG.WORKER_URL}/servers`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Api-Key': CONFIG.API_KEY },
+    headers: siteApiHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ server, version, hostname, calibration_path, notes, customer })
   });
   if (!response.ok) {
@@ -1512,7 +1513,7 @@ async function saveServerConfig() {
 
   const response = await fetch(`${CONFIG.WORKER_URL}/servers`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Api-Key': CONFIG.API_KEY },
+    headers: siteApiHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ server, version, hostname, calibration_path, notes, customer })
   });
   if (!response.ok) {
@@ -1530,7 +1531,7 @@ async function saveServerConfig() {
 async function deleteServerConfig(server) {
   const response = await fetch(`${CONFIG.WORKER_URL}/servers/${server}`, {
     method: 'DELETE',
-    headers: { 'X-Api-Key': CONFIG.API_KEY }
+      headers: siteApiHeaders()
   });
   if (!response.ok) {
     alert(`Could not remove server: ${await response.text()}`);
@@ -1634,7 +1635,7 @@ async function saveException(sensor_id, server) {
 
   await fetch(`${CONFIG.WORKER_URL}/exceptions`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Api-Key': CONFIG.API_KEY },
+    headers: siteApiHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({
       sensor_id:   String(sensor_id),
       server,
@@ -1743,7 +1744,7 @@ function buildExceptionsTable() {
 async function removeException(id) {
   await fetch(`${CONFIG.WORKER_URL}/exceptions/${id}`, {
     method: 'DELETE',
-    headers: { 'X-Api-Key': CONFIG.API_KEY }
+      headers: siteApiHeaders()
   });
   window.location.reload();
 }
@@ -1863,7 +1864,7 @@ async function loadJobInfo() {
   try {
     const res = await fetch(
       `${CONFIG.WORKER_URL}/jobinfo/${encodeURIComponent(currentCustomer)}`,
-      { headers: { 'X-Api-Key': CONFIG.API_KEY } }
+      { headers: siteApiHeaders() }
     );
     jobInfo = await res.json();
   } catch(e) {
@@ -1885,12 +1886,10 @@ async function saveJobInfo({ silent = false, lastCalibrated = null } = {}) {
     }
     return;
   }
-  let editorToken = sessionStorage.getItem('cal_editor_token');
+  let editorToken = siteAuth.token();
   if (!editorToken && silent) return;
   if (!editorToken) {
-    editorToken = prompt('Enter the editor password to save job information:')?.trim();
-    if (!editorToken) return;
-    sessionStorage.setItem('cal_editor_token', editorToken);
+    try { editorToken = await siteReady; } catch (_) { return; }
   }
 
   const get = (id, key) => {
@@ -1941,11 +1940,10 @@ async function saveJobInfo({ silent = false, lastCalibrated = null } = {}) {
   try {
     const res = await fetch(`${CONFIG.WORKER_URL}/jobinfo`, {
       method: 'POST',
-      headers: {
+      headers: siteApiHeaders({
         'Content-Type': 'application/json',
-        'X-Api-Key': CONFIG.API_KEY,
         'X-Editor-Token': editorToken,
-      },
+      }),
       body: JSON.stringify(body),
     });
     console.log('Saved job info');
@@ -1957,9 +1955,9 @@ async function saveJobInfo({ silent = false, lastCalibrated = null } = {}) {
       setTimeout(() => { if (el) el.textContent = ''; }, 3000);
     }
   } catch(e) {
-    if (e.message.includes('Forbidden')) sessionStorage.removeItem('cal_editor_token');
-    if (!silent) alert(e.message.includes('Forbidden')
-      ? 'Incorrect editor password. Please try again.'
+    if (e.message.includes('401') || e.message.includes('403')) sessionStorage.removeItem('cal_site_token');
+    if (!silent) alert(e.message.includes('401') || e.message.includes('403')
+      ? 'Site password was rejected. Please reload and try again.'
       : 'Failed to save job info');
     console.error(e);
   }
@@ -2292,5 +2290,5 @@ document.addEventListener('keydown', event => {
 });
 
 renderServerTags();
-if (servers.length > 0) loadData();
+if (servers.length > 0) siteReady.then(() => loadData()).catch(error => console.error(error));
 else { showEmpty(true); renderMetrics(); }

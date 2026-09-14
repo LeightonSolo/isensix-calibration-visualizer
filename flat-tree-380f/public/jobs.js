@@ -2,8 +2,6 @@
 (function () {
   'use strict';
 
-  const API_HEADERS = { 'X-Api-Key': CONFIG.API_KEY };
-  const EDITOR_TOKEN_KEY = 'cal_editor_token';
   const SOFTWARE_FAMILIES = ['ARMS', 'G2.0', 'G2.1', 'G3.0'];
   const state = {
     jobs: [], stats: null, events: [], assignments: [], filtered: [], view: 'directory',
@@ -124,9 +122,10 @@
   }
 
   async function api(path, options = {}) {
+    await siteAuth.ensure();
     const response = await fetch(`${CONFIG.WORKER_URL}${path}`, {
       ...options,
-      headers: { ...API_HEADERS, ...(options.headers || {}) },
+      headers: { ...siteApiHeaders(), ...(options.headers || {}) },
     });
     if (!response.ok) throw new Error(`${response.status} ${await response.text()}`);
     return response.json();
@@ -661,13 +660,10 @@
     $('drawer-message').hidden = false;
   }
 
-  function editorToken() { return sessionStorage.getItem(EDITOR_TOKEN_KEY); }
+  function editorToken() { return siteAuth.token(); }
   function requireEditor(action) {
     if (editorToken()) { action(); return; }
-    state.pendingAction = action;
-    $('editor-password').value = '';
-    $('editor-dialog').showModal();
-    setTimeout(() => $('editor-password').focus(), 0);
+    siteAuth.ensure().then(action).catch(error => console.error(error));
   }
 
   function updateEditorButton() {
@@ -695,15 +691,15 @@
       if (!payload.job_name) { showDrawerMessage('Job name is required.'); return; }
       $('save-btn').disabled = true; $('save-status').textContent = 'Saving…'; $('drawer-message').hidden = true;
       try {
-        await api('/jobinfo', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Editor-Token': editorToken() }, body: JSON.stringify(payload) });
+          await api('/jobinfo', { method: 'POST', headers: siteApiHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify(payload) });
         state.dirty = false;
         $('save-status').textContent = 'Saved';
         await loadData();
         await openJob(payload.job_name);
       } catch (error) {
-        if (String(error.message).startsWith('403')) {
-          sessionStorage.removeItem(EDITOR_TOKEN_KEY); updateEditorButton();
-          showDrawerMessage('The editor password was rejected. Log in and try again.');
+        if (String(error.message).startsWith('401') || String(error.message).startsWith('403')) {
+          sessionStorage.removeItem('cal_site_token'); updateEditorButton();
+          showDrawerMessage('The site password was rejected. Reload and try again.');
         } else showDrawerMessage(`Save failed: ${error.message}`);
       } finally {
         $('save-btn').disabled = false;
@@ -755,14 +751,14 @@
   $('drawer-close').addEventListener('click', () => closeDrawer());
   $('drawer-backdrop').addEventListener('click', () => closeDrawer());
   $('editor-btn').addEventListener('click', () => {
-    if (editorToken()) { sessionStorage.removeItem(EDITOR_TOKEN_KEY); updateEditorButton(); if (state.editing) renderForm(state.selected, false); }
+    if (editorToken()) { siteAuth.lock(); updateEditorButton(); if (state.editing) renderForm(state.selected, false); }
     else requireEditor(() => {});
   });
   $('editor-form').addEventListener('submit', event => {
     event.preventDefault();
     const token = $('editor-password').value.trim();
     if (!token) return;
-    sessionStorage.setItem(EDITOR_TOKEN_KEY, token); updateEditorButton(); $('editor-dialog').close();
+    sessionStorage.setItem('cal_site_token', token); updateEditorButton(); $('editor-dialog').close();
     const action = state.pendingAction; state.pendingAction = null; if (action) action();
   });
   $('editor-cancel').addEventListener('click', () => { state.pendingAction = null; $('editor-dialog').close(); });
@@ -772,5 +768,6 @@
   window.addEventListener('beforeunload', event => { if (state.editing && state.dirty) event.preventDefault(); });
 
   updateEditorButton();
-  loadData();
+  siteReady.then(() => { updateEditorButton(); return loadData(); })
+    .catch(error => console.error(error));
 })();

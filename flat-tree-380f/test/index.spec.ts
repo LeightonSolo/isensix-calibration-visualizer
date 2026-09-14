@@ -5,12 +5,18 @@ import worker from '../src/index';
 const baseEnv = {
   API_KEY: 'test-api-key',
   EDITOR_TOKEN: 'test-editor-token',
+  CALENDAR_EDITOR_TOKEN: 'test-calendar-token',
 } as Env;
 
 function apiRequest(path: string, init: RequestInit = {}) {
   return new Request(`https://example.com${path}`, {
     ...init,
-    headers: { 'X-Api-Key': 'test-api-key', ...(init.headers || {}) },
+    headers: {
+      'X-Api-Key': 'test-api-key',
+      'X-Editor-Token': 'test-editor-token',
+      'X-Calendar-Token': 'test-calendar-token',
+      ...(init.headers || {}),
+    },
   });
 }
 
@@ -20,13 +26,26 @@ describe('Job Info API', () => {
     expect(response.status).toBe(401);
   });
 
+  it('requires the site token for browser data reads', async () => {
+    const response = await worker.fetch(new Request('https://example.com/jobinfo/summary', {
+      headers: { 'X-Api-Key': 'test-api-key' },
+    }), baseEnv);
+    expect(response.status).toBe(401);
+  });
+
   it('requires editor authorization for writes before touching D1', async () => {
     const response = await worker.fetch(apiRequest('/jobinfo', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-Editor-Token': '' },
       body: JSON.stringify({ job_name: 'Test job' }),
     }), baseEnv);
-    expect(response.status).toBe(403);
+    expect(response.status).toBe(401);
+  });
+
+  it('validates the site token without touching D1', async () => {
+    const response = await worker.fetch(apiRequest('/auth/site'), baseEnv);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ ok: true });
   });
 
   it('binds every Job Info upsert placeholder and accepts protected writes', async () => {
@@ -180,6 +199,24 @@ describe('Calibrations API', () => {
 });
 
 describe('Calendar API', () => {
+  it('requires the separate calendar token for calendar writes', async () => {
+    const prepare = vi.fn();
+    const env = { ...baseEnv, DB: { prepare } } as unknown as Env;
+
+    const response = await worker.fetch(apiRequest('/calendar/events', {
+      method: 'POST',
+      headers: { 'X-Calendar-Token': '' },
+      body: JSON.stringify({
+        title: 'Test job',
+        start_date: '2026-08-24',
+        end_date: '2026-08-24',
+      }),
+    }), env);
+
+    expect(response.status).toBe(403);
+    expect(prepare).not.toHaveBeenCalled();
+  });
+
   it('does not return legacy Unassigned assignment rows', async () => {
     const all = vi.fn().mockResolvedValue({ results: [] });
     const prepare = vi.fn().mockReturnValue({ bind: () => ({ all }), all });

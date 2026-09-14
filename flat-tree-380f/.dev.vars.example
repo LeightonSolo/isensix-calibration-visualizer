@@ -1,0 +1,4 @@
+API_KEY="replace-with-api-key"
+EDITOR_TOKEN="replace-with-site-and-job-info-password"
+CALENDAR_EDITOR_TOKEN="replace-with-calendar-edit-password"
+CMS_API_KEY="replace-with-cms-api-key"

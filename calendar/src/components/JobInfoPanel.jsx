@@ -3,9 +3,9 @@ import { useState, useEffect, useRef } from 'react';
 import { CONFIG } from '../config';
 import { format, parseISO } from 'date-fns';
 import { downloadOutlookCalendar } from '../utils/outlookExport.js';
+import { siteHeaders } from '../utils/siteAuth.js';
 
 const WORKER_URL = CONFIG.WORKER_URL;
-const API_KEY    = CONFIG.API_KEY;
 
 const EDIT_SECTIONS = [
   { title: 'Scheduling', fields: [
@@ -148,7 +148,7 @@ export default function JobInfoPanel({
     setLastTitle(title);
 
     fetch(`${WORKER_URL}/jobinfo/${encodeURIComponent(title)}`, {
-      headers: { 'X-Api-Key': API_KEY },
+      headers: siteHeaders(),
       signal: controller.signal,
     })
       .then(r => r.json())
@@ -204,7 +204,7 @@ export default function JobInfoPanel({
     }}>{label}</button>
   );
 
-  async function saveJobInfo(token) {
+  async function saveJobInfo(_calendarToken) {
     if (!jobInfo || !draft || !selectedEvent) return;
     const updates = {};
     EDIT_SECTIONS.flatMap(section => section.fields).forEach(field => {
@@ -224,18 +224,16 @@ export default function JobInfoPanel({
     try {
       const response = await fetch(`${WORKER_URL}/jobinfo`, {
         method: 'POST',
-        headers: {
+        headers: siteHeaders({
           'Content-Type': 'application/json',
-          'X-Api-Key': API_KEY,
-          'X-Editor-Token': token,
-        },
+        }),
         body: JSON.stringify(payload),
       });
       if (!response.ok) throw new Error(await response.text());
 
       const refreshedResponse = await fetch(
         `${WORKER_URL}/jobinfo/${encodeURIComponent(payload.job_name)}`,
-        { headers: { 'X-Api-Key': API_KEY } }
+        { headers: siteHeaders() }
       );
       if (!refreshedResponse.ok) throw new Error('Saved, but could not reload the job record.');
       const refreshed = await refreshedResponse.json();
@@ -246,7 +244,7 @@ export default function JobInfoPanel({
       setTab('summary');
     } catch (error) {
       if (String(error.message).includes('Forbidden')) {
-        sessionStorage.removeItem(CONFIG.EDITOR_TOKEN_KEY);
+        sessionStorage.removeItem(CONFIG.CALENDAR_TOKEN_KEY);
         setSaveMessage('Editor password was rejected. Lock and sign in again.');
       } else {
         setSaveMessage(error.message || 'Could not save job info.');

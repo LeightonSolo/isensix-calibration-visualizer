@@ -506,6 +506,8 @@
 </div>
 
 <script src="config.js"></script>
+<script src="site-auth.js"></script>
+<script>siteAuth.init(CONFIG);</script>
 <script>
 /* ─── State ───────────────────────────────────────────────── */
 let allSensors    = [];
@@ -605,6 +607,7 @@ function setStatus(msg) {
 
 /* ─── Data loading ────────────────────────────────────────── */
 async function loadData() {
+  try { await siteAuth.ensure(); } catch (_) { return; }
   if (!servers.length) {
     document.getElementById('loading').textContent =
       'No servers selected. Go back to the dashboard and add servers first.';
@@ -618,12 +621,12 @@ async function loadData() {
     const [sensorResults, excResults] = await Promise.all([
       Promise.all(servers.map(s =>
         fetch(`${CONFIG.WORKER_URL}/calibrations?server=${s}`, {
-          headers: { 'X-Api-Key': CONFIG.API_KEY }
+          headers: siteApiHeaders()
         }).then(r => r.json())
       )),
       Promise.all(servers.map(s =>
         fetch(`${CONFIG.WORKER_URL}/exceptions?server=${s}`, {
-          headers: { 'X-Api-Key': CONFIG.API_KEY }
+          headers: siteApiHeaders()
         }).then(r => r.json())
       )),
     ]);
@@ -964,7 +967,7 @@ PERSIST_FIELDS.forEach(id => {
   if (el) el.addEventListener('input', saveFields);
 });
 restoreFields();
-loadData();
+siteReady.then(() => loadData()).catch(error => console.error(error));
 </script>
 </body>
 </html>

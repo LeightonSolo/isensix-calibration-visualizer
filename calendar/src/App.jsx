@@ -9,6 +9,7 @@ import ResourceGrid from './components/ResourceGrid';
 import JobList from './components/JobList';
 import EditorGate from './components/EditorGate';
 import JobInfoPanel from './components/JobInfoPanel';
+import { requireSiteToken, siteHeaders } from './utils/siteAuth';
 import {
   generateTentativeJobs,
   materializeTentativeJob,
@@ -89,10 +90,24 @@ export default function App() {
   const [tab,           setTab]           = useState('grid');
   const [viewDate,      setViewDate]      = useState(new Date());
   const [editorToken,   setEditorToken]   = useState(
-    sessionStorage.getItem(CONFIG.EDITOR_TOKEN_KEY) || null
+    sessionStorage.getItem(CONFIG.CALENDAR_TOKEN_KEY) || null
   );
+  const [siteAuthenticated, setSiteAuthenticated] = useState(false);
+  const [siteError, setSiteError] = useState(null);
   const [showGate,      setShowGate]      = useState(false);
   const [pendingAction, setPendingAction] = useState(null);
+
+  const loginToSite = useCallback(async () => {
+    try {
+      await requireSiteToken();
+      setSiteAuthenticated(true);
+      setSiteError(null);
+    } catch (error) {
+      setSiteError(error.message);
+    }
+  }, []);
+
+  useEffect(() => { loginToSite(); }, [loginToSite]);
 
   const toggleTheme = useCallback(() => {
     setTheme(current => {
@@ -124,21 +139,28 @@ export default function App() {
           load, saveEvent, deleteEvent,
           saveTechEvent, saveTechEventBatch, deleteTechEvent } = useCalendarData();
 
-  const windowStart = startOfWeek(addMonths(viewDate, -1), { weekStartsOn: 1 });
-  const windowEnd   = endOfWeek(addMonths(viewDate, 3),    { weekStartsOn: 1 });
+  const windowStart = useMemo(
+    () => startOfWeek(addMonths(viewDate, -1), { weekStartsOn: 1 }),
+    [viewDate]
+  );
+  const windowEnd = useMemo(
+    () => endOfWeek(addMonths(viewDate, 3), { weekStartsOn: 1 }),
+    [viewDate]
+  );
 
   useEffect(() => {
-    load(windowStart, windowEnd);
-  }, [viewDate]);
+    if (siteAuthenticated) load(windowStart, windowEnd);
+  }, [viewDate, siteAuthenticated, windowStart, windowEnd, load]);
 
   const [serverMeta, setServerMeta] = useState({});
 
   useEffect(() => {
-    fetch(`${CONFIG.WORKER_URL}/servers`, { headers: { 'X-Api-Key': CONFIG.API_KEY } })
+    if (!siteAuthenticated) return;
+    fetch(`${CONFIG.WORKER_URL}/servers`, { headers: siteHeaders() })
       .then(r => r.json())
       .then(rows => setServerMeta(Object.fromEntries(rows.map(r => [r.server, r]))))
       .catch(console.error);
-  }, []);
+  }, [siteAuthenticated]);
 
   const [jobInfoMap, setJobInfoMap] = useState({});
 
@@ -149,7 +171,8 @@ export default function App() {
 
   // Load all job info on mount
   useEffect(() => {
-    fetch(`${CONFIG.WORKER_URL}/jobinfo/all`, { headers: { 'X-Api-Key': CONFIG.API_KEY } })
+    if (!siteAuthenticated) return;
+    fetch(`${CONFIG.WORKER_URL}/jobinfo/all`, { headers: siteHeaders() })
       .then(r => r.json())
       .then(rows => {
         const m = {};
@@ -157,7 +180,7 @@ export default function App() {
         setJobInfoMap(m);
       })
       .catch(console.error);
-  }, []);
+  }, [siteAuthenticated]);
 
   // Normalize stored tentative durations, then place ghosts in open technician slots.
   const normalizedTentativeCalendar = useMemo(
@@ -203,13 +226,21 @@ export default function App() {
     setShowGate(false);
     if (!token) { setPendingAction(null); return; }
     setEditorToken(token);
-    sessionStorage.setItem(CONFIG.EDITOR_TOKEN_KEY, token);
+    sessionStorage.setItem(CONFIG.CALENDAR_TOKEN_KEY, token);
     if (pendingAction) { pendingAction(token); setPendingAction(null); }
   }
 
   function handleLock() {
     setEditorToken(null);
-    sessionStorage.removeItem(CONFIG.EDITOR_TOKEN_KEY);
+    sessionStorage.removeItem(CONFIG.CALENDAR_TOKEN_KEY);
+  }
+
+  function handleSiteLock() {
+    sessionStorage.removeItem(CONFIG.SITE_TOKEN_KEY);
+    sessionStorage.removeItem(CONFIG.CALENDAR_TOKEN_KEY);
+    setEditorToken(null);
+    setSiteAuthenticated(false);
+    setSiteError('Site login required');
   }
 
   // When a ghost event is confirmed, save it as a real event
@@ -260,6 +291,15 @@ export default function App() {
     setLockedEvent(event);
   }
 }
+
+  if (!siteAuthenticated) {
+    return (
+      <div style={{ ...STYLES.app, alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+        <div>{siteError || 'Waiting for site login…'}</div>
+        {siteError && <button style={STYLES.btnPrimary} onClick={loginToSite}>Sign in</button>}
+      </div>
+    );
+  }
 
   return (
     <div style={STYLES.app}>
@@ -318,6 +358,8 @@ export default function App() {
         )}
 
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
+          <span style={{ fontSize: 12, color: 'var(--cal-success)' }}>Site unlocked</span>
+          <button style={STYLES.btn} onClick={handleSiteLock}>Lock site</button>
           {editorToken ? (
             <>
               <span style={{ fontSize: 12, color: 'var(--cal-success)' }}>✓ Editor</span>

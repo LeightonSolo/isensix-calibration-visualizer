@@ -6,6 +6,7 @@ export interface Env {
   DB: D1Database;
   API_KEY: string;
   EDITOR_TOKEN: string;
+  CALENDAR_EDITOR_TOKEN: string;
   CMS_API_KEY: string;
 }
 
@@ -13,8 +14,16 @@ function corsHeaders() {
   return {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS, DELETE',
-    'Access-Control-Allow-Headers': 'Content-Type, X-Api-Key, X-Editor-Token',
+    'Access-Control-Allow-Headers': 'Content-Type, X-Api-Key, X-Editor-Token, X-Calendar-Token',
   };
+}
+
+function hasSiteAccess(request: Request, env: Env) {
+  return request.headers.get('X-Editor-Token') === env.EDITOR_TOKEN;
+}
+
+function hasCalendarAccess(request: Request, env: Env) {
+  return request.headers.get('X-Calendar-Token') === env.CALENDAR_EDITOR_TOKEN;
 }
 
 function normalizeMinute(dt: string | null | undefined) {
@@ -121,10 +130,24 @@ export default {
       return json({ error: 'Unauthorized' }, 401);
     }
 
+    // The site login uses the existing editor secret. Calibration ingestion
+    // remains API-key-only because those requests come from the technicians'
+    // browser extensions rather than from the web application.
+    if (request.method === 'GET' && pathname === '/auth/site') {
+      return hasSiteAccess(request, env)
+        ? json({ ok: true })
+        : json({ error: 'Site login required' }, 401);
+    }
+
+    const isCalibrationIngestion = request.method === 'POST'
+      && (pathname === '/calibration' || pathname === '/calibrations/batch');
+    if (!isCalibrationIngestion && !hasSiteAccess(request, env)) {
+      return json({ error: 'Site login required' }, 401);
+    }
+
     // POST /admin/cms-sync - manually run the same guarded sync used by cron.
     if (request.method === 'POST' && pathname === '/admin/cms-sync') {
-      const editorKey = request.headers.get('X-Editor-Token');
-      if (editorKey !== env.EDITOR_TOKEN) {
+      if (!hasCalendarAccess(request, env)) {
         return json({ error: 'Forbidden' }, 403);
       }
       try {
@@ -137,8 +160,7 @@ export default {
 
     // POST /admin/cms-sync/preview - fetch and transform CMS data without writes.
     if (request.method === 'POST' && pathname === '/admin/cms-sync/preview') {
-      const editorKey = request.headers.get('X-Editor-Token');
-      if (editorKey !== env.EDITOR_TOKEN) {
+      if (!hasCalendarAccess(request, env)) {
         return json({ error: 'Forbidden' }, 403);
       }
       try {
@@ -159,8 +181,7 @@ export default {
 
     // POST /admin/calendar-sync - materialize newly eligible tentative jobs.
     if (request.method === 'POST' && pathname === '/admin/calendar-sync') {
-      const editorKey = request.headers.get('X-Editor-Token');
-      if (editorKey !== env.EDITOR_TOKEN) {
+      if (!hasCalendarAccess(request, env)) {
         return json({ error: 'Forbidden' }, 403);
       }
       return json(await reconcileTentativeCalendar(env.DB));
@@ -678,8 +699,7 @@ export default {
 
     // POST /calendar/events — create or update
     if (request.method === 'POST' && pathname === '/calendar/events') {
-      const editorKey = request.headers.get('X-Editor-Token');
-      if (editorKey !== env.EDITOR_TOKEN) {
+      if (!hasCalendarAccess(request, env)) {
         return new Response('Forbidden', { status: 403 });
       }
       const body = await request.json() as Record<string, any>;
@@ -793,8 +813,7 @@ export default {
 
     // DELETE /calendar/events/:id
     if (request.method === 'DELETE' && pathname.startsWith('/calendar/events/')) {
-      const editorKey = request.headers.get('X-Editor-Token');
-      if (editorKey !== env.EDITOR_TOKEN) {
+      if (!hasCalendarAccess(request, env)) {
         return new Response('Forbidden', { status: 403 });
       }
       const id = pathname.split('/').pop();
@@ -816,8 +835,7 @@ export default {
 
     // POST /calendar/tech-events
     if (request.method === 'POST' && pathname === '/calendar/tech-events') {
-      const editorKey = request.headers.get('X-Editor-Token');
-      if (editorKey !== env.EDITOR_TOKEN) {
+      if (!hasCalendarAccess(request, env)) {
         return new Response('Forbidden', { status: 403 });
       }
       const body = await request.json() as Record<string, any>;
@@ -833,8 +851,7 @@ export default {
 
     // POST /calendar/tech-events/batch
     if (request.method === 'POST' && pathname === '/calendar/tech-events/batch') {
-      const editorKey = request.headers.get('X-Editor-Token');
-      if (editorKey !== env.EDITOR_TOKEN) return new Response('Forbidden', { status: 403 });
+      if (!hasCalendarAccess(request, env)) return new Response('Forbidden', { status: 403 });
       const body = await request.json() as { entries: Record<string, any>[] };
       const { entries } = body;
       if (!Array.isArray(entries) || !entries.length) {
@@ -857,8 +874,7 @@ export default {
 
     // DELETE /calendar/tech-events/:id
     if (request.method === 'DELETE' && pathname.startsWith('/calendar/tech-events/')) {
-      const editorKey = request.headers.get('X-Editor-Token');
-      if (editorKey !== env.EDITOR_TOKEN) {
+      if (!hasCalendarAccess(request, env)) {
         return new Response('Forbidden', { status: 403 });
       }
       const id = pathname.split('/').pop();

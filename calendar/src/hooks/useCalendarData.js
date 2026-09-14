@@ -2,13 +2,11 @@
 import { useState, useCallback } from 'react';
 import { CONFIG } from '../config';
 import { withoutAutomaticUnassigned } from '../utils/calendarAssignments.js';
+import { siteHeaders } from '../utils/siteAuth.js';
 
 function headers(editorToken) {
-  const h = {
-    'Content-Type': 'application/json',
-    'X-Api-Key': CONFIG.API_KEY,
-  };
-  if (editorToken) h['X-Editor-Token'] = editorToken;
+  const h = siteHeaders({ 'Content-Type': 'application/json' });
+  if (editorToken) h['X-Calendar-Token'] = editorToken;
   return h;
 }
 

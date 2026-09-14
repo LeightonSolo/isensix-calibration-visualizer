@@ -1,16 +1,15 @@
-/** Renders the editor-password dialog and returns an authorized token to the requested calendar action. */
+/** Renders the calendar-password dialog and returns an authorized token to the requested calendar action. */
 import { useState } from 'react';
 import { CONFIG } from '../config';
 
 export default function EditorGate({ onUnlock }) {
   const [input, setInput] = useState('');
-  const [error, setError] = useState(false);
 
   function attempt() {
     // We don't verify the token locally, the Worker will reject bad tokens.
     // Just store it and let the first write attempt fail if wrong.
     if (!input.trim()) return;
-    sessionStorage.setItem(CONFIG.EDITOR_TOKEN_KEY, input.trim());
+    sessionStorage.setItem(CONFIG.CALENDAR_TOKEN_KEY, input.trim());
     onUnlock(input.trim());
   }
 
@@ -31,13 +30,13 @@ export default function EditorGate({ onUnlock }) {
         flexDirection: 'column',
         gap: 14,
       }}>
-        <div style={{ fontSize: 15, fontWeight: 600 }}>Editor access</div>
+        <div style={{ fontSize: 15, fontWeight: 600 }}>Calendar access</div>
         <div style={{ fontSize: 12, color: 'var(--cal-text-secondary)' }}>
-          Enter the editor password to create or modify events.
+          Enter the calendar password to create or modify calendar events.
         </div>
         <input
           type="password"
-          placeholder="Editor password"
+          placeholder="Calendar password"
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && attempt()}
@@ -49,11 +48,6 @@ export default function EditorGate({ onUnlock }) {
           }}
           autoFocus
         />
-        {error && (
-          <div style={{ fontSize: 12, color: 'var(--cal-danger)' }}>
-            Incorrect password
-          </div>
-        )}
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
           <button onClick={() => onUnlock(null)} style={{
             background: 'var(--cal-input)', border: '0.5px solid var(--cal-border)',

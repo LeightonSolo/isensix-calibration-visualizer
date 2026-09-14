@@ -2,7 +2,8 @@
 export const CONFIG = {
   WORKER_URL: 'https://flat-tree-380f.leightonsolo.workers.dev',
   API_KEY: 'U87iy7VynFYLJUDnfUYBJHnRKbRiQO3Z',
-  EDITOR_TOKEN_KEY: 'cal_editor_token',
+  SITE_TOKEN_KEY: 'cal_site_token',
+  CALENDAR_TOKEN_KEY: 'cal_calendar_token',
   TECHNICIANS: [
     'Daniel',
     'Dejan',
