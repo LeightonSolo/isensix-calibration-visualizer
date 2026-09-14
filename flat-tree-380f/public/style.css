@@ -1199,6 +1199,9 @@ table.summary tr:hover td { background: var(--bg-row-hover); }
 .ji-input textarea:focus,
 .ji-input select:focus { border-color: var(--accent-blue); }
 .ji-input textarea { resize: vertical; }
+.ji-contact-links { margin-top: 4px; font-size: 11px; line-height: 1.4; }
+.contact-email-link { color: var(--accent-light-blue); text-decoration: underline; text-underline-offset: 2px; }
+.contact-email-separator { color: var(--text-muted); margin: 0 3px; }
 
 /* end job info */
 

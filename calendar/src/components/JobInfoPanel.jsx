@@ -56,6 +56,7 @@ function Value({ children, muted }) {
       fontSize: 12,
       color: muted ? 'var(--cal-text-muted)' : 'var(--cal-text)',
       lineHeight: 1.5,
+      whiteSpace: 'pre-wrap',
     }}>{children || <span style={{ color: 'var(--cal-text-faint)' }}>—</span>}</div>
   );
 }
@@ -94,6 +95,27 @@ function linkifyText(text) {
       </a>
     ) : part
   );
+}
+
+function linkifyContactText(value) {
+  if (!value) return null;
+  const text = String(value);
+  const parts = [];
+  const emailRegex = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
+  let lastIndex = 0;
+  let match;
+  while ((match = emailRegex.exec(text))) {
+    if (match.index > lastIndex) parts.push(text.slice(lastIndex, match.index));
+    parts.push(
+      <a key={`${match.index}-${match[0]}`} href={`mailto:${encodeURIComponent(match[0])}`}
+        style={{ color: 'var(--cal-accent)', textDecoration: 'underline', textUnderlineOffset: 2 }}>
+        {match[0]}
+      </a>
+    );
+    lastIndex = match.index + match[0].length;
+  }
+  if (lastIndex < text.length) parts.push(text.slice(lastIndex));
+  return parts.length ? parts : text;
 }
 
 export default function JobInfoPanel({
@@ -585,14 +607,14 @@ function SummaryTab({ event, jobInfo, techs, serverMeta }) {
           {jobInfo.main_contact && (
             <>
               <Label>Main contact</Label>
-              <Value>{jobInfo.main_contact}</Value>
+              <Value>{linkifyContactText(jobInfo.main_contact)}</Value>
             </>
           )}
 
           {jobInfo.other_contacts && (
             <>
               <Label>Other contacts</Label>
-              <Value>{jobInfo.other_contacts}</Value>
+              <Value>{linkifyContactText(jobInfo.other_contacts)}</Value>
             </>
           )}
 
@@ -698,9 +720,9 @@ function DetailsTab({ jobInfo, event, techs, serverMeta }) {
       </div>)}
 
       <Divider/>
-      {row('Main contact',    jobInfo.main_contact)}
-      {row('Other contacts',  jobInfo.other_contacts)}
-      {row('Contact notes',   jobInfo.contact_notes)}
+      {row('Main contact',    linkifyContactText(jobInfo.main_contact))}
+      {row('Other contacts',  linkifyContactText(jobInfo.other_contacts))}
+      {row('Contact notes',   linkifyContactText(jobInfo.contact_notes))}
       {row('Credentials',     jobInfo.credentials)}
 
       <Divider/>

@@ -124,6 +124,10 @@ html[data-theme="light"] #jobs-table tbody tr.inactive-job:hover td:first-child 
 .field textarea { resize:vertical; min-height:64px; line-height:1.45; }
 .field input:disabled, .field select:disabled, .field textarea:disabled { border-color:transparent; background:transparent; color:var(--text-secondary); opacity:1; padding-left:0; }
 .field textarea:disabled { min-height:1.45em; overflow:hidden; resize:none; padding-top:0; padding-bottom:0; }
+.contact-email-links { margin-top:4px; font-size:11px; line-height:1.4; }
+.contact-email-separator { color:var(--text-muted); margin:0 3px; }
+.contact-edit-control { min-width:0; }
+.contact-cell .contact-email-link { color:var(--accent-light-blue); text-decoration:underline; text-underline-offset:2px; }
 .field.has-tone label { color:var(--tone-fg); }
 .field.has-tone input:disabled, .field.has-tone select:disabled, .field.has-tone textarea:disabled { padding-left:7px; border-color:var(--tone-border); background:var(--tone-bg); color:var(--tone-fg); font-weight:600; }
 .tone-alert, .tone-arms { --tone-bg:#46191bc7; --tone-fg:#ffb1b5; --tone-border:#a64b50; }

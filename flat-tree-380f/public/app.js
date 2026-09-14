@@ -1296,6 +1296,28 @@ function escapeHtml(value) {
     .replaceAll("'", '&#039;');
 }
 
+function contactEmailLinksHtml(value) {
+  const emails = String(value ?? '').match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) || [];
+  const unique = [...new Map(emails.map(email => [email.toLowerCase(), email])).values()];
+  return unique.map(email =>
+    `<a class="contact-email-link" href="mailto:${encodeURIComponent(email)}">Email ${escapeHtml(email)}</a>`
+  ).join('<span class="contact-email-separator"> · </span>');
+}
+
+function updateJobInfoContactLinks() {
+  ['ji-main-contact', 'ji-other-contacts', 'ji-contact-notes'].forEach(id => {
+    const input = document.getElementById(id);
+    const links = document.getElementById(`${id}-email-links`);
+    if (!input || !links) return;
+    const update = () => {
+      links.innerHTML = contactEmailLinksHtml(input.value);
+      links.hidden = !links.innerHTML;
+    };
+    input.addEventListener('input', update);
+    update();
+  });
+}
+
 function normalizeServerVersion(version) {
   const normalized = String(version || '3.0').trim().toUpperCase();
   if (normalized === 'ARMS') return 'ARMS';
@@ -2024,6 +2046,7 @@ function buildJobInfoTab() {
   setVal('ji-main-contact',   jobInfo.main_contact);
   setVal('ji-other-contacts', jobInfo.other_contacts);
   setVal('ji-contact-notes',  jobInfo.contact_notes);
+  updateJobInfoContactLinks();
   setVal('ji-vpn',            jobInfo.vpn_works);
   setVal('ji-airport',        jobInfo.airport_info);
   setVal('ji-emerald',        jobInfo.emerald_aisle);
@@ -2069,6 +2092,9 @@ function buildJobInfoHTML() {
         ${note ? `<div style="font-size:10px;color:var(--text-muted);margin-top:2px;">${note}</div>` : ''}
       </td>
     </tr>`;
+
+  const contactRow = (label, id, inputHtml) =>
+    row(label, `<div class="ji-contact-control">${inputHtml}<div id="${id}-email-links" class="ji-contact-links" hidden></div></div>`);
 
   // Read-only display row (for auto fields that shouldn't be edited)
   const roRow = (label, id, note='') =>
@@ -2129,9 +2155,9 @@ function buildJobInfoHTML() {
         ${row('Restaurants & Attractions',     ta('ji-restaurants'))}
 
         ${section('Contacts')}
-        ${row('Main contact',    inp('ji-main-contact',   'Name, phone, email'))}
-        ${row('Other contacts',  ta('ji-other-contacts'))}
-        ${row('Contact notes',   ta('ji-contact-notes'))}
+        ${contactRow('Main contact',   'ji-main-contact',   inp('ji-main-contact',   'Name, phone, email'))}
+        ${contactRow('Other contacts', 'ji-other-contacts', ta('ji-other-contacts'))}
+        ${contactRow('Contact notes',  'ji-contact-notes',  ta('ji-contact-notes'))}
         ${row('Credentials',     dl('ji-credentials', 'ji-cred-dl',
           ['None','Vendormate','Symplr','Green Security','IntelliCentrics']))}
 

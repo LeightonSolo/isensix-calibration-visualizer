@@ -41,6 +41,8 @@
     ],
   };
 
+  const CONTACT_FIELDS = new Set(['main_contact', 'other_contacts', 'contact_notes']);
+
   const formSections = [
     ['Overview', [
       ['job_name', 'Job name', 'text', 'wide'], ['customer', 'Customer'],
@@ -82,6 +84,16 @@
   const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, char => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;',
   })[char]);
+  const linkifyEmailHtml = value => escapeHtml(value).replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, email =>
+    `<a class="contact-email-link" href="mailto:${encodeURIComponent(email)}">${email}</a>`
+  );
+  const contactEmailLinksHtml = value => {
+    const emails = String(value ?? '').match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) || [];
+    const unique = [...new Map(emails.map(email => [email.toLowerCase(), email])).values()];
+    return unique.map(email =>
+      `<a class="contact-email-link" href="mailto:${encodeURIComponent(email)}">Email ${escapeHtml(email)}</a>`
+    ).join('<span class="contact-email-separator"> · </span>');
+  };
 
   function technicianTone(value) {
     const technician = CONFIG.TECHNICIANS.find(name => name.toLowerCase() === String(value ?? '').trim().toLowerCase());
@@ -390,6 +402,7 @@
       }
       if (key === 'scheduled_with') return `<td class="table-technicians" title="${escapeHtml(text(value))}">${tableTechniciansHtml(value)}</td>`;
       const cls = `${key === 'job_name' ? 'job-name' : ''} ${key === 'servers' ? 'mono' : ''}`.trim();
+      if (CONTACT_FIELDS.has(key)) return `<td class="${cls} contact-cell" title="${escapeHtml(text(value))}">${linkifyEmailHtml(text(value))}</td>`;
       const bar = metricBar(key, value);
       if (bar && bar.level !== null) return `<td class="${cls} data-bar" style="--data-level:${bar.level.toFixed(3)};--data-bar-color:${bar.color}" title="${escapeHtml(text(value))}"><span>${escapeHtml(text(value))}</span></td>`;
       return `<td class="${cls}" title="${escapeHtml(text(value))}">${escapeHtml(text(value))}</td>`;
@@ -578,7 +591,12 @@
     if (kind === 'checkbox') return `<div class="field field-check ${spanClass}"><input id="field-${key}" name="${key}" type="checkbox" ${Number(value) === 1 ? 'checked' : ''}><label for="field-${key}">${label}</label></div>`;
     if (kind === 'readonly') return `<div class="field ${spanClass}"><label>${label}</label><div class="field-readonly${key === 'scheduled_with' ? ' tech-list' : ''}">${key === 'scheduled_with' ? scheduledTechniciansHtml(value) : escapeHtml(text(value))}</div><small>Managed from the calendar</small></div>`;
     let control;
-    if (kind === 'textarea') control = `<textarea id="field-${key}" name="${key}" rows="3">${escapeHtml(value)}</textarea>`;
+    if (kind === 'textarea') {
+      const textarea = `<textarea id="field-${key}" name="${key}" rows="3"${CONTACT_FIELDS.has(key) ? ' data-contact-input="true"' : ''}>${escapeHtml(value)}</textarea>`;
+      control = CONTACT_FIELDS.has(key)
+        ? `<div class="contact-edit-control">${textarea}<div class="contact-email-links" data-contact-links>${contactEmailLinksHtml(value)}</div></div>`
+        : textarea;
+    }
     else if (kind === 'tech') control = `<input id="field-${key}" name="${key}" list="tech-options" value="${escapeHtml(value)}">`;
     else if (kind === 'hardware') control = `<input id="field-${key}" name="${key}" list="hardware-options" value="${escapeHtml(value)}">`;
     else control = `<input id="field-${key}" name="${key}" type="${kind}" value="${escapeHtml(value)}"${kind === 'number' ? ' min="0"' : ''}${disabledName}>`;
@@ -588,6 +606,13 @@
   function renderForm(job, isNew = false) {
     $('job-form-content').innerHTML = formSections.map(([title, fields, layout = '', tone = 'overview']) => `<section class="drawer-section section-${tone}"><h3>${title}</h3><div class="form-grid ${layout}">${fields.map(field => fieldHtml(field, job, isNew)).join('')}</div></section>`).join('')
       + `<datalist id="tech-options">${CONFIG.TECHNICIANS.filter(Boolean).map(v => `<option value="${escapeHtml(v)}">`).join('')}</datalist><datalist id="hardware-options"><option value="Guardian"><option value="ARMS"><option value="Mix"></datalist>`;
+    $('job-form-content').querySelectorAll('[data-contact-input]').forEach(input => {
+      const links = input.parentElement.querySelector('[data-contact-links]');
+      if (!links) return;
+      const update = () => { links.innerHTML = contactEmailLinksHtml(input.value); };
+      input.addEventListener('input', update);
+      update();
+    });
     setEditing(isNew);
     state.dirty = false;
     $('job-form').addEventListener('input', () => { state.dirty = true; }, { once: true });
