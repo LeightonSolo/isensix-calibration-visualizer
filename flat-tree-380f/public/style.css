@@ -54,10 +54,10 @@
   --bg-input:      #ffffff;
   --bg-tag:        #1459ad;
   --bg-metric:     #ffffff;
-  --bg-failure:    #fdecec;
-  --bg-failure-hover: #f9dada;
-  --bg-success:    #eaf5e5;
-  --bg-success-hover: #dcefd3;
+  --bg-failure:    #f3d7d7;
+  --bg-failure-hover: #dfa8a8;
+  --bg-success:    #c5e0b9;
+  --bg-success-hover: #96ce7c;
   --bg-header:     #f1f3f5;
   --bg-tab-calibrated: #e8f4e3;
   --bg-tab-failures: #fae8e8;
@@ -750,12 +750,12 @@ body.server-overview-open { overflow: hidden; }
   grid-column: span 4;
 }
 
-.server-overview-table tr.overview-done-row td,
+.server-overview-table tbody tr.overview-done-row td,
 .overview-calibrated .server-overview-table tbody tr td {
   background: var(--bg-success);
 }
 
-.server-overview-table tr.overview-done-row:hover td,
+.server-overview-table tbody tr.overview-done-row:hover td,
 .overview-calibrated .server-overview-table tbody tr:hover td {
   background: var(--bg-success-hover);
 }
