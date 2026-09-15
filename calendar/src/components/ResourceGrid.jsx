@@ -46,6 +46,7 @@ export default function ResourceGrid({
   editorToken, requireEditor,
   onSaveEvent, onDeleteEvent,
   onSaveTechEvent, onSaveTechEventBatch, onDeleteTechEvent,
+  onJobInfoSaved,
   // New props for job info panel
   onEventHover, onEventHoverEnd, onEventClick, lockedEventId,
 }) {
@@ -311,6 +312,9 @@ export default function ResourceGrid({
           techEvents={techEvents}
           jobInfoMap={jobInfoMap}
           serverMeta={serverMeta}
+          editorToken={editorToken}
+          requireEditor={requireEditor}
+          onJobInfoSaved={onJobInfoSaved}
           onSave={(data) => requireEditor(token => onSaveEvent(data, token))}
           onDelete={(id) => requireEditor(token => onDeleteEvent(id, token))}
           onClose={() => setModal(null)}

@@ -117,6 +117,7 @@ export default function JobModal({
   event, initialDate, initialTech, onSave, onDelete, onClose,
   calendarAssignments = [], techEvents = [],
   jobInfoMap = {}, serverMeta = {},
+  editorToken, requireEditor, onJobInfoSaved,
 }) {
   const isNew = !event?.id;
 
@@ -546,6 +547,9 @@ export default function JobModal({
           assignments={previewAssignments}
           locked={false}
           serverMeta={serverMeta}
+          editorToken={editorToken}
+          requireEditor={requireEditor}
+          onJobInfoSaved={onJobInfoSaved}
           jobInfoOverride={matchedJobInfo}
           embedded
           heading="Scheduling info"

@@ -393,6 +393,7 @@ export default function App() {
               onSaveTechEvent={handleSaveTechEvent}
               onSaveTechEventBatch={handleSaveTechEventBatch}
               onDeleteTechEvent={handleDeleteTechEvent}
+              onJobInfoSaved={handleJobInfoSaved}
               onEventHover={handleEventHover}
               onEventHoverEnd={handleEventHoverEnd}
               onEventClick={handleEventClick}
@@ -413,6 +414,7 @@ export default function App() {
               onSaveTechEvent={handleSaveTechEvent}
               onSaveTechEventBatch={handleSaveTechEventBatch}
               onDeleteTechEvent={handleDeleteTechEvent}
+              onJobInfoSaved={handleJobInfoSaved}
               onEventClick={handleEventClick}
             />
           )}

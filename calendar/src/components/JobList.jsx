@@ -31,6 +31,7 @@ export default function JobList({
   editorToken, requireEditor,
   onSaveEvent, onDeleteEvent,
   onSaveTechEvent, onSaveTechEventBatch, onDeleteTechEvent,
+  onJobInfoSaved,
 }) {
   const [modal,       setModal]       = useState(null);
   const [filter,      setFilter]      = useState('upcoming');
@@ -150,6 +151,9 @@ export default function JobList({
           techEvents={techEvents}
           jobInfoMap={jobInfoMap}
           serverMeta={serverMeta}
+          editorToken={editorToken}
+          requireEditor={requireEditor}
+          onJobInfoSaved={onJobInfoSaved}
           onSave={(data) => requireEditor(token => onSaveEvent(data, token))}
           onDelete={(id) => requireEditor(token => onDeleteEvent(id, token))}
           onClose={() => setModal(null)}
