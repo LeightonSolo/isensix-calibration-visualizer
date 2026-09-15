@@ -278,7 +278,7 @@ export default function ResourceGrid({
               <div style={{ fontWeight: 600, marginBottom: 3 }}>{hoverCard.data.title}</div>
               <div style={{ display: 'flex', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
                 {hoverCard.data.ticket_id && (
-                  <span style={{ color: 'var(--cal-text-secondary)', fontSize: 13 }}>#{hoverCard.data.ticket_id}</span>
+                  <span style={{ color: 'var(--cal-text-secondary)', fontSize: 15 }}>#{hoverCard.data.ticket_id}</span>
                 )}
                 <span style={{ fontSize: 13, fontWeight: 600, textTransform: 'uppercase',
                   letterSpacing: '0.04em',
@@ -644,7 +644,7 @@ export default function ResourceGrid({
                                   </span>
                                   {l.event.ticket_id && (
                                     <span style={{ position: 'absolute',
-                                      top: 0, left: 0, marginLeft: 4, opacity: 0.55, fontSize: 12,
+                                      top: 0, left: 0, marginLeft: 4, opacity: 0.55, fontSize: 15,
                                       flexShrink: 0, whiteSpace: 'nowrap', color: color.fg }}>
                                       #{l.event.ticket_id}
                                     </span>
