@@ -17,6 +17,7 @@ import {
   withAutomaticUnassigned,
   withoutAutomaticUnassigned,
 } from '../utils/calendarAssignments.js';
+import { techEventLabel } from '../utils/techEventLabels.js';
 
 const COL_W  = 130;
 const ROW_H  = 37;
@@ -520,12 +521,14 @@ export default function ResourceGrid({
                                     border: `0.5px solid ${getTechEventColor(te).border}`,
                                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                                     fontSize: 12, color: getTechEventColor(te).fg,
-                                    fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em',
+                                     fontWeight: 600, letterSpacing: '0.04em',
+                                     whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'clip',
+                                     minWidth: 0,
                                     zIndex: 2,
                                     opacity: isPast ? 0.5 : 1,
                                     filter: isPast ? 'saturate(0.35)' : 'none',
                                   }}>
-                                  {te.event_type.slice(0, 3).toUpperCase()}
+                                  {techEventLabel(te.event_type)}
                                 </div>
                                 
                               ))}
