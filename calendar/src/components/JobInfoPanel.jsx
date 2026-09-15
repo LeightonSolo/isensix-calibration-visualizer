@@ -66,6 +66,19 @@ function Divider() {
   return <div style={{ borderTop: '0.5px solid var(--cal-surface-subtle)', margin: '10px 0' }}/>;
 }
 
+function ShortcutKey({ children }) {
+  return (
+    <kbd style={{
+      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+      minWidth: 22, height: 22, boxSizing: 'border-box', padding: '0 5px',
+      border: '0.5px solid var(--cal-border-strong)', borderBottomWidth: 2,
+      borderRadius: 4, background: 'var(--cal-input)', color: 'var(--cal-text)',
+      fontFamily: 'JetBrains Mono, monospace', fontSize: 12, fontWeight: 700,
+      lineHeight: 1,
+    }}>{children}</kbd>
+  );
+}
+
 function formatDateRange(startDate, endDate) {
   if (!startDate) return null;
   try {
@@ -389,11 +402,35 @@ export default function JobInfoPanel({
       {/* Content */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '8px 14px 20px' }}>
         {!selectedEvent && (
-          <div style={{ marginTop: 20, fontSize: 14, color: 'var(--cal-text-quieter)',
-            textAlign: 'center', lineHeight: 1.8 }}>
+          <div style={{ margin: '16px 0 0', padding: '12px 13px',
+            border: '0.5px solid var(--cal-border)', borderRadius: 6,
+            background: 'var(--cal-card)', color: 'var(--cal-text-secondary)',
+            fontSize: 12, lineHeight: 1.5 }}>
             {emptyMessage ? emptyMessage : <>
-              Click the top right of a job to lock the panel.<br/>
-              Hover to preview.
+              <div style={{ color: 'var(--cal-text)', fontSize: 13, fontWeight: 600,
+                marginBottom: 8 }}>Calendar tips</div>
+              <div style={{ marginBottom: 12 }}>
+                Hover over a job to preview its details. Click the <span style={{
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  width: 18, height: 18, margin: '0 2px', borderRadius: 3,
+                  background: 'var(--cal-info-bg)', color: 'var(--cal-info-text)',
+                  fontSize: 13, fontWeight: 700, verticalAlign: '-3px',
+                }}>i</span> icon in the top-right corner to pin the panel.
+              </div>
+              <div style={{ color: 'var(--cal-text-muted)', fontSize: 11,
+                fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase',
+                marginBottom: 6 }}>While hovering over a job</div>
+              <div style={{ display: 'grid', gap: 5 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                  <ShortcutKey>C</ShortcutKey><span>Set as Confirmed</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                  <ShortcutKey>B</ShortcutKey><span>Set as Booked</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                  <ShortcutKey>T</ShortcutKey><span>Tentative without a ticket;<br></br>Ticketed if theres a ticket</span>
+                </div>
+              </div>
             </>}
           </div>
         )}
