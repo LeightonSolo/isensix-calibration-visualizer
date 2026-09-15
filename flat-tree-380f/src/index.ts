@@ -78,6 +78,17 @@ const JOB_SCHEDULE_CTE = `
       ORDER BY event_id, tech_name
     )
     GROUP BY event_id
+  ),
+  canonical_job_info AS (
+    SELECT
+      j.id,
+      ROW_NUMBER() OVER (
+        PARTITION BY lower(trim(COALESCE(j.job_name, '')))
+        ORDER BY CASE WHEN EXISTS (
+          SELECT 1 FROM calendar_events ce WHERE ce.job_info_id = j.id
+        ) THEN 0 ELSE 1 END, j.id ASC
+      ) AS name_rank
+    FROM job_info j
   )
 `;
 
@@ -415,6 +426,7 @@ export default {
         ${JOB_SCHEDULE_CTE}
         SELECT ${JOB_INFO_COLUMNS}
         FROM job_info j
+        JOIN canonical_job_info cj ON cj.id = j.id AND cj.name_rank = 1
         LEFT JOIN ranked_calendar e
           ON e.job_info_id = j.id AND e.schedule_rank = 1
         LEFT JOIN schedule_assignments a ON a.event_id = e.id
@@ -446,6 +458,7 @@ export default {
             END
           ) AS scheduled_with
         FROM job_info j
+        JOIN canonical_job_info cj ON cj.id = j.id AND cj.name_rank = 1
         LEFT JOIN ranked_calendar e
           ON e.job_info_id = j.id AND e.schedule_rank = 1
         LEFT JOIN schedule_assignments a ON a.event_id = e.id
@@ -531,10 +544,13 @@ export default {
         ${JOB_SCHEDULE_CTE}
         SELECT ${JOB_INFO_COLUMNS}
         FROM job_info j
+        JOIN canonical_job_info cj ON cj.id = j.id AND cj.name_rank = 1
         LEFT JOIN ranked_calendar e
           ON e.job_info_id = j.id AND e.schedule_rank = 1
         LEFT JOIN schedule_assignments a ON a.event_id = e.id
-        WHERE j.job_name = ?
+          WHERE lower(trim(j.job_name)) = lower(trim(?))
+          ORDER BY (e.id IS NOT NULL) DESC, j.id ASC
+          LIMIT 1
       `).bind(job_name).first();
       return json(result || {});
     }
@@ -547,9 +563,9 @@ export default {
       }
 
       const body = await request.json() as Record<string, any>;
-      const { job_name } = body;
+      const jobName = String(body.job_name || '').trim();
 
-      if (!job_name) {
+      if (!jobName) {
         return json({ error: 'Missing job name' }, 400);
       }
 
@@ -566,75 +582,30 @@ export default {
         return json({ error: 'Last calibrated must use YYYY-MM-DD format' }, 400);
       }
 
-      await env.DB.prepare(`
-        INSERT INTO job_info (
-          customer,
-          job_name,
-          servers,
-          sensors,
-          meters,
-          o2,
-          server_version,
-          hardware,
-          report,
-          num_tech,
-          estimated_days,
-          site_address,
-          offsites,
-          comments,
-          vpn_works,
-          airport_info,
-          emerald_aisle,
-          prev_hotel,
-          hotel_comments,
-          main_contact,
-          other_contacts,
-          contact_notes,
-          credentials,
-          primary_tech,
-          restaurants,
-          other_notes,
-          active,
-          last_calibrated
-        )
-        VALUES (
-          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(job_name) DO UPDATE SET
-          customer         = excluded.customer,
-          job_name         = excluded.job_name,
-          servers          = excluded.servers,
-          sensors          = excluded.sensors,
-          meters           = excluded.meters,
-          o2               = excluded.o2,
-          server_version   = excluded.server_version,
-          hardware         = excluded.hardware,
-          report           = excluded.report,
-          num_tech         = excluded.num_tech,
-          estimated_days   = excluded.estimated_days,
-          site_address     = excluded.site_address,
-          offsites         = excluded.offsites,
-          comments         = excluded.comments,
-          vpn_works        = excluded.vpn_works,
-          airport_info     = excluded.airport_info,
-          emerald_aisle    = excluded.emerald_aisle,
-          prev_hotel       = excluded.prev_hotel,
-          hotel_comments   = excluded.hotel_comments,
-          main_contact     = excluded.main_contact,
-          other_contacts   = excluded.other_contacts,
-          contact_notes    = excluded.contact_notes,
-          credentials      = excluded.credentials,
-          primary_tech     = excluded.primary_tech,
-          restaurants      = excluded.restaurants,
-          other_notes      = excluded.other_notes,
-          active           = excluded.active,
-          last_calibrated  = CASE
-            WHEN ? THEN excluded.last_calibrated
-            ELSE job_info.last_calibrated
-          END,
-          updated_at       = datetime('now')
-      `).bind(
+      const requestedId = Number(body.id);
+      let existingId: number | null = null;
+      if (Number.isInteger(requestedId) && requestedId > 0) {
+        const existing = await env.DB.prepare(
+          `SELECT id FROM job_info WHERE id = ?`
+        ).bind(requestedId).first<{ id: number }>();
+        existingId = existing?.id ?? null;
+      }
+      if (!existingId) {
+        const existing = await env.DB.prepare(`
+          SELECT candidate.id FROM job_info candidate
+          WHERE lower(trim(candidate.job_name)) = lower(?)
+          ORDER BY CASE WHEN EXISTS (
+            SELECT 1 FROM calendar_events event
+            WHERE event.job_info_id = candidate.id
+          ) THEN 0 ELSE 1 END, candidate.id ASC
+          LIMIT 1
+        `).bind(jobName).first<{ id: number }>();
+        existingId = existing?.id ?? null;
+      }
+
+      const values = [
         body.customer ?? null,
-        body.job_name ?? null,
+        jobName,
         body.servers ?? null,
         body.sensors ?? null,
         body.meters ?? null,
@@ -660,11 +631,43 @@ export default {
         body.restaurants ?? null,
         body.other_notes ?? null,
         body.active ?? 1,
+      ];
+
+      if (existingId) {
+        await env.DB.prepare(`
+          UPDATE job_info SET
+            customer=?, job_name=?, servers=?, sensors=?, meters=?, o2=?,
+            server_version=?, hardware=?, report=?, num_tech=?, estimated_days=?,
+            site_address=?, offsites=?, comments=?, vpn_works=?, airport_info=?,
+            emerald_aisle=?, prev_hotel=?, hotel_comments=?, main_contact=?,
+            other_contacts=?, contact_notes=?, credentials=?, primary_tech=?,
+            restaurants=?, other_notes=?, active=?,
+            last_calibrated=CASE WHEN ? THEN ? ELSE last_calibrated END,
+            updated_at=datetime('now')
+          WHERE id=?
+        `).bind(
+          ...values,
+          hasLastCalibrated ? 1 : 0,
+          body.last_calibrated || null,
+          existingId,
+        ).run();
+        return json({ ok: true, id: existingId, updated: true });
+      }
+
+      await env.DB.prepare(`
+        INSERT INTO job_info (
+          customer, job_name, servers, sensors, meters, o2, server_version, hardware,
+          report, num_tech, estimated_days, site_address, offsites, comments,
+          vpn_works, airport_info, emerald_aisle, prev_hotel, hotel_comments,
+          main_contact, other_contacts, contact_notes, credentials, primary_tech,
+          restaurants, other_notes, active, last_calibrated
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).bind(
+        ...values,
         body.last_calibrated || null,
-        hasLastCalibrated ? 1 : 0
       ).run();
 
-      return json({ ok: true });
+      return json({ ok: true, updated: false });
 
     }
 

@@ -1929,6 +1929,7 @@ async function saveJobInfo({ silent = false, lastCalibrated = null } = {}) {
   const hardware = detectHardware();
   const versions = [...new Set(servers.map(s => serverMeta[s]?.version).filter(Boolean))];
   const body = {
+    id:             jobInfo.id ?? null,
     customer:        currentCustomer,
     job_name:        get('ji-job-name', 'job_name') || currentCustomer,
     servers:         servers.join(', '),

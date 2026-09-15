@@ -696,7 +696,7 @@
   }
 
   function formPayload() {
-    const payload = {};
+    const payload = { id: state.selected?.id ?? null };
     formSections.forEach(([, fields]) => fields.forEach(([key, , kind]) => {
       if (kind === 'readonly') return;
       const control = $(`field-${key}`);

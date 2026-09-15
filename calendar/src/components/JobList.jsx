@@ -1,6 +1,6 @@
 /** Provides searchable list and administration views for calibration jobs and technician events. */
-import { useState, useMemo } from 'react';
-import { format, parseISO, isPast, isFuture, isToday } from 'date-fns';
+import { useState, useMemo, useEffect } from 'react';
+import { format, parseISO, isPast, isToday } from 'date-fns';
 import { CONFIG } from '../config';
 import JobModal from './JobModal';
 import TechEventModal from './TechEventModal';
@@ -32,6 +32,7 @@ export default function JobList({
   onSaveEvent, onDeleteEvent,
   onSaveTechEvent, onSaveTechEventBatch, onDeleteTechEvent,
   onJobInfoSaved,
+  calibrationFollowUpRows = [], focusFollowUpKey = 0,
 }) {
   const [modal,       setModal]       = useState(null);
   const [filter,      setFilter]      = useState('upcoming');
@@ -41,6 +42,17 @@ export default function JobList({
   const [sortCol,     setSortCol]     = useState('start_date');
   const [sortDir,     setSortDir]     = useState(1);
   const [view, setView] = useState('jobs'); // 'jobs' | 'techevents'
+
+  useEffect(() => {
+    if (!focusFollowUpKey) return;
+    setView('jobs');
+    setFilter('calibration-follow-up');
+    setTypeFilter('');
+    setTechFilter('');
+    setSearch('');
+    setSortCol('due_date');
+    setSortDir(1);
+  }, [focusFollowUpKey]);
 
   // Build tech list per event
   const eventTechs = useMemo(() => {
@@ -68,21 +80,23 @@ export default function JobList({
   }
 
  const filtered = useMemo(() => {
-  let rows = [...events];
+   let rows = filter === 'calibration-follow-up'
+     ? [...calibrationFollowUpRows]
+     : [...events];
 
-  if (filter === 'upcoming') {
-    rows = rows.filter(e => !isPast(parseISO(e.end_date)) || isToday(parseISO(e.end_date)));
-  } else if (filter === 'past') {
-    rows = rows.filter(e => isPast(parseISO(e.end_date)));
+   if (filter === 'upcoming') {
+     rows = rows.filter(e => !isPast(parseISO(e.end_date)) || isToday(parseISO(e.end_date)));
+   } else if (filter === 'past') {
+     rows = rows.filter(e => isPast(parseISO(e.end_date)));
   }
 
-  if (typeFilter) rows = rows.filter(e => e.event_type === typeFilter);
+   if (typeFilter) rows = rows.filter(e => e.event_type === typeFilter);
 
   // Tech filter — include job if selected tech has any assignment on it
   if (techFilter) {
     rows = rows.filter(e => {
-      const techs = eventTechs[e.id];
-      return techs && techs.has(techFilter);
+       const techs = e._techs || eventTechs[e.id];
+       return techs && (techs instanceof Set ? techs.has(techFilter) : techs.includes(techFilter));
     });
   }
 
@@ -104,7 +118,7 @@ export default function JobList({
   });
 
   return rows;
-}, [events, filter, typeFilter, techFilter, search, sortCol, sortDir]);
+ }, [events, calibrationFollowUpRows, filter, typeFilter, techFilter, search, sortCol, sortDir, eventTechs]);
 
   function openEdit(event) {
     setModal({
@@ -184,6 +198,16 @@ export default function JobList({
         <button style={tabStyle(filter==='past')} onClick={() => setFilter('past')}>
           Past
         </button>
+        <button style={tabStyle(filter==='calibration-follow-up')} onClick={() => {
+          setFilter('calibration-follow-up');
+          setTypeFilter('');
+          setTechFilter('');
+          setSortCol('due_date');
+          setSortDir(1);
+        }}>
+          Calibration follow-up
+          {calibrationFollowUpRows.length > 0 && ` (${calibrationFollowUpRows.length})`}
+        </button>
         <select style={{ ...inputStyle, marginLeft: 8 }}
           value={typeFilter} onChange={e => setTypeFilter(e.target.value)}>
           <option value="">All types</option>
@@ -202,7 +226,9 @@ export default function JobList({
           placeholder="Search title, customer, ticket…"
           value={search} onChange={e => setSearch(e.target.value)}/>
         <span style={{ fontSize: 12, color: 'var(--cal-text-muted)', marginLeft: 'auto' }}>
-          {filtered.length} event{filtered.length !== 1 ? 's' : ''}
+          {filtered.length} {filter === 'calibration-follow-up'
+            ? `job${filtered.length !== 1 ? 's' : ''}`
+            : `event${filtered.length !== 1 ? 's' : ''}`}
         </span>
         {editorToken && (
           <button
@@ -222,27 +248,37 @@ export default function JobList({
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 800 }}>
             <thead style={{ position: 'sticky', top: 0, zIndex: 2 }}>
               <tr>
-                <th style={thStyle('start_date')} onClick={() => sortBy('start_date')}>
-                  {thLabel('start_date', 'Dates')}
+                <th style={thStyle(filter === 'calibration-follow-up' ? 'due_date' : 'start_date')}
+                  onClick={() => sortBy(filter === 'calibration-follow-up' ? 'due_date' : 'start_date')}>
+                  {thLabel(filter === 'calibration-follow-up' ? 'due_date' : 'start_date',
+                    filter === 'calibration-follow-up' ? 'Due date' : 'Dates')}
                 </th>
                 <th style={thStyle('title')} onClick={() => sortBy('title')}>
                   {thLabel('title', 'Job name')}
                 </th>
-                <th style={thStyle('event_type')} onClick={() => sortBy('event_type')}>
-                  {thLabel('event_type', 'Type')}
+                <th style={thStyle(filter === 'calibration-follow-up' ? 'follow_up_status' : 'event_type')}
+                  onClick={() => sortBy(filter === 'calibration-follow-up' ? 'follow_up_status' : 'event_type')}>
+                  {thLabel(filter === 'calibration-follow-up' ? 'follow_up_status' : 'event_type',
+                    filter === 'calibration-follow-up' ? 'Follow-up' : 'Type')}
                 </th>
-                <th style={thStyle('status')} onClick={() => sortBy('status')}>
-                  {thLabel('status', 'Status')}
+                <th style={thStyle(filter === 'calibration-follow-up' ? 'last_calibrated' : 'status')}
+                  onClick={() => sortBy(filter === 'calibration-follow-up' ? 'last_calibrated' : 'status')}>
+                  {thLabel(filter === 'calibration-follow-up' ? 'last_calibrated' : 'status',
+                    filter === 'calibration-follow-up' ? 'Last calibrated' : 'Status')}
                 </th>
-                <th style={thStyle('ticket_id')} onClick={() => sortBy('ticket_id')}>
-                  {thLabel('ticket_id', 'Ticket')}
+                <th style={thStyle(filter === 'calibration-follow-up' ? 'days_overdue' : 'ticket_id')}
+                  onClick={() => sortBy(filter === 'calibration-follow-up' ? 'days_overdue' : 'ticket_id')}>
+                  {thLabel(filter === 'calibration-follow-up' ? 'days_overdue' : 'ticket_id',
+                    filter === 'calibration-follow-up' ? 'Days overdue' : 'Ticket')}
                 </th>
                 <th style={thStyle('customer')} onClick={() => sortBy('customer')}>
                   {thLabel('customer', 'Customer')}
                 </th>
                 <th style={thStyle('_techs')}>Techs</th>
-                <th style={thStyle('notes')} onClick={() => sortBy('notes')}>
-                  {thLabel('notes', 'Notes')}
+                <th style={thStyle(filter === 'calibration-follow-up' ? 'next_event_date' : 'notes')}
+                  onClick={() => sortBy(filter === 'calibration-follow-up' ? 'next_event_date' : 'notes')}>
+                  {thLabel(filter === 'calibration-follow-up' ? 'next_event_date' : 'notes',
+                    filter === 'calibration-follow-up' ? 'Next event' : 'Notes')}
                 </th>
                 <th style={{ ...thStyle('_actions'), width: 60 }}></th>
               </tr>
@@ -258,16 +294,24 @@ export default function JobList({
               )}
               {filtered.map((event, i) => {
                 const color  = getEventColor(event);
-                const techs  = [...(eventTechs[event.id] || [])];
+                const techs  = event._techs || [...(eventTechs[event.id] || [])];
                 const isOver = isPast(parseISO(event.end_date));
+                const isFollowUp = filter === 'calibration-follow-up';
+                const followUpColor = event.follow_up_status === 'overdue'
+                  ? { bg: 'var(--cal-danger-bg)', fg: 'var(--cal-danger-text)', border: 'var(--cal-danger-border)' }
+                  : event.follow_up_status === 'needs confirmation'
+                    ? { bg: 'var(--cal-warning-bg)', fg: 'var(--cal-warning-text)', border: 'var(--cal-warning-border)' }
+                    : { bg: 'var(--cal-info-bg)', fg: 'var(--cal-info-text)', border: 'var(--cal-info-border)' };
                 return (
-                  <tr key={event.id}
+                  <tr key={event._row_id || event.id}
                     style={{ background: i % 2 === 0 ? 'var(--cal-panel)' : 'var(--cal-row-alt)' }}
                     onDoubleClick={() => openEdit(event)}>
                     <td style={{ padding: '7px 10px', fontSize: 12,
                       color: 'var(--cal-text)', whiteSpace: 'nowrap',
                       opacity: isOver ? 0.6 : 1 }}>
-                      {event.start_date === event.end_date
+                      {isFollowUp
+                        ? format(parseISO(event.due_date), 'M/d/yy')
+                        : event.start_date === event.end_date
                         ? format(parseISO(event.start_date), 'M/d/yy')
                         : `${format(parseISO(event.start_date), 'M/d')} – ${format(parseISO(event.end_date), 'M/d/yy')}`
                       }
@@ -279,18 +323,24 @@ export default function JobList({
                       {event.title}
                     </td>
                     <td style={{ padding: '7px 10px' }}>
-                      <span style={S.badge(color)}>
-                        {event.event_type}
+                      <span style={S.badge(isFollowUp ? followUpColor : color)}>
+                        {isFollowUp ? event.follow_up_status : event.event_type}
                       </span>
                     </td>
                     <td style={{ padding: '7px 10px' }}>
-                      <span style={S.badge(CONFIG.STATUS_COLORS[event.status] || CONFIG.STATUS_COLORS.ticketed)}>
-                        {event.status}
+                      <span style={S.badge(isFollowUp
+                        ? { bg: 'var(--cal-panel)', fg: 'var(--cal-text-secondary)', border: 'var(--cal-border)' }
+                        : CONFIG.STATUS_COLORS[event.status] || CONFIG.STATUS_COLORS.ticketed)}>
+                        {isFollowUp
+                          ? format(parseISO(event.last_calibrated), 'M/d/yy')
+                          : event.status}
                       </span>
                     </td>
                     <td style={{ padding: '7px 10px', fontSize: 12,
                       color: 'var(--cal-text-secondary)', fontFamily: 'JetBrains Mono, monospace' }}>
-                      {event.ticket_id || '—'}
+                      {isFollowUp
+                        ? event.days_overdue > 0 ? event.days_overdue : '—'
+                        : event.ticket_id || '—'}
                     </td>
                     <td style={{ padding: '7px 10px', fontSize: 12,
                       color: 'var(--cal-text-secondary)', maxWidth: 160,
@@ -303,8 +353,8 @@ export default function JobList({
                     <td style={{ padding: '7px 10px', fontSize: 12,
                       color: 'var(--cal-text-muted)', maxWidth: 200,
                       overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                      title={event.notes || ''}>
-                      {event.notes || '—'}
+                      title={isFollowUp ? event.next_event_date || '' : event.notes || ''}>
+                      {isFollowUp ? event.next_event_date || 'Not scheduled' : event.notes || '—'}
                     </td>
                     <td style={{ padding: '7px 10px', textAlign: 'center' }}>
                       <button onClick={() => openEdit(event)}

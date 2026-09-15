@@ -15,6 +15,7 @@ import {
   materializeTentativeJob,
   normalizeTentativeCalendar,
 } from './utils/tentativeJobs';
+import { buildCalibrationFollowUpRows } from './utils/calibrationFollowUp.js';
 
 const STYLES = {
   app: {
@@ -88,6 +89,7 @@ export default function App() {
     document.documentElement.dataset.theme === 'light' ? 'light' : 'dark'
   );
   const [tab,           setTab]           = useState('grid');
+  const [jobListFocus,  setJobListFocus]  = useState(0);
   const [viewDate,      setViewDate]      = useState(new Date());
   const [editorToken,   setEditorToken]   = useState(
     sessionStorage.getItem(CONFIG.CALENDAR_TOKEN_KEY) || null
@@ -209,6 +211,14 @@ export default function App() {
     () => [...normalizedTentativeCalendar.assignments, ...ghostAssignments],
     [normalizedTentativeCalendar, ghostAssignments]
   );
+  const todayKey = format(new Date(), 'yyyy-MM-dd');
+  const calibrationFollowUpRows = useMemo(
+    () => buildCalibrationFollowUpRows(jobInfoMap, events, new Date(`${todayKey}T00:00:00`)),
+    [jobInfoMap, events, todayKey]
+  );
+  const overdueCalibrationCount = calibrationFollowUpRows.filter(
+    row => row.follow_up_status === 'overdue'
+  ).length;
 
   // Derived panel event: locked takes priority over hovered
   const panelEvent = lockedEvent || hoveredEvent;
@@ -357,6 +367,20 @@ export default function App() {
           </span>
         )}
 
+        {overdueCalibrationCount > 0 && (
+          <button type="button" onClick={() => {
+            setTab('list');
+            setJobListFocus(focus => focus + 1);
+          }} style={{
+            border: '0.5px solid var(--cal-danger-border)', borderRadius: 4,
+            background: 'var(--cal-danger-bg)', color: 'var(--cal-danger-text)',
+            padding: '4px 8px', fontSize: 12, cursor: 'pointer',
+            fontFamily: 'Inter, system-ui, sans-serif',
+          }} title="Show calibration follow-up list">
+            ⚠ {overdueCalibrationCount} overdue calibration{overdueCalibrationCount !== 1 ? 's' : ''}
+          </button>
+        )}
+
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
           <span style={{ fontSize: 12, color: 'var(--cal-success)' }}>Site unlocked</span>
           <button style={STYLES.btn} onClick={handleSiteLock}>Lock site</button>
@@ -415,6 +439,8 @@ export default function App() {
               onSaveTechEventBatch={handleSaveTechEventBatch}
               onDeleteTechEvent={handleDeleteTechEvent}
               onJobInfoSaved={handleJobInfoSaved}
+              calibrationFollowUpRows={calibrationFollowUpRows}
+              focusFollowUpKey={jobListFocus}
               onEventClick={handleEventClick}
             />
           )}
