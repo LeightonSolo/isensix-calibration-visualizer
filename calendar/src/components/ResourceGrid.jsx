@@ -617,12 +617,12 @@ export default function ResourceGrid({
                                     style={{
                                       position: 'absolute',
                                       top: 2, right: 2,
-                                      width: 14, height: 14,
+                                      width: 18, height: 18,
                                       borderRadius: 3,
                                       background: 'rgba(0,0,0,0.3)',
                                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                                       cursor: 'pointer', zIndex: 4, flexShrink: 0,
-                                      fontSize: 12, color: color.fg, opacity: 0.7,
+                                      fontSize: 15, color: color.fg, opacity: 0.7,
                                       fontWeight: 700,
                                     }}
                                     onMouseEnter={e => e.currentTarget.style.opacity = '1'}
