@@ -4,6 +4,7 @@ import { CONFIG } from '../config';
 import { format, parseISO } from 'date-fns';
 import { downloadOutlookCalendar } from '../utils/outlookExport.js';
 import { siteHeaders } from '../utils/siteAuth.js';
+import { serverTunnelUrl } from '../utils/serverLinks.js';
 
 const WORKER_URL = CONFIG.WORKER_URL;
 
@@ -75,14 +76,6 @@ function formatDateRange(startDate, endDate) {
   }
 }
 
-function serverLink(sid, serverMeta) {
-  // Use stored hostname if available, fallback to ics1.ca.isensix.com
-  const meta = serverMeta?.[sid];
-  const host = meta?.hostname || 'ics1.ca.isensix.com';
-  //const host = 'ics1.ca.isensix.com';
-  return `https://${host}:7${sid}`;
-}
-
 function linkifyText(text) {
   if (!text) return null;
   const urlRegex = /(https?:\/\/[^\s]+)/g;
@@ -116,6 +109,20 @@ function linkifyContactText(value) {
   }
   if (lastIndex < text.length) parts.push(text.slice(lastIndex));
   return parts.length ? parts : text;
+}
+
+function ServerLink({ sid, serverMeta }) {
+  const style = {
+    color: 'var(--cal-accent)', fontSize: 12, textDecoration: 'none',
+    padding: '1px 6px', borderRadius: 3,
+    border: '0.5px solid var(--cal-info-border)', background: 'var(--cal-info-bg)',
+  };
+  const url = serverTunnelUrl(sid, serverMeta);
+  return url ? (
+    <a href={url} target="_blank" rel="noreferrer" style={style}>{sid}</a>
+  ) : (
+    <span style={{ ...style, display: 'inline-block', color: 'var(--cal-text-muted)' }}>{sid}</span>
+  );
 }
 
 export default function JobInfoPanel({
@@ -546,13 +553,7 @@ function SummaryTab({ event, jobInfo, techs, serverMeta }) {
               <Label>Servers</Label>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                 {jobInfo.servers.split(',').map(s => s.trim()).filter(Boolean).map(sid => (
-                  <a key={sid} href={serverLink(sid, serverMeta)}
-                    target="_blank" rel="noreferrer"
-                    style={{ color: 'var(--cal-accent)', fontSize: 12, textDecoration: 'none',
-                      padding: '1px 6px', borderRadius: 3,
-                      border: '0.5px solid var(--cal-info-border)', background: 'var(--cal-info-bg)' }}>
-                    {sid}
-                  </a>
+                  <ServerLink key={sid} sid={sid} serverMeta={serverMeta} />
                 ))}
               </div>
             </>
@@ -615,6 +616,13 @@ function SummaryTab({ event, jobInfo, techs, serverMeta }) {
             <>
               <Label>Other contacts</Label>
               <Value>{linkifyContactText(jobInfo.other_contacts)}</Value>
+            </>
+          )}
+
+          {jobInfo.contact_notes && (
+            <>
+              <Label>Contact notes</Label>
+              <Value>{linkifyContactText(jobInfo.contact_notes)}</Value>
             </>
           )}
 
@@ -696,13 +704,7 @@ function DetailsTab({ jobInfo, event, techs, serverMeta }) {
             <>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                 {jobInfo.servers.split(',').map(s => s.trim()).filter(Boolean).map(sid => (
-                  <a key={sid} href={serverLink(sid, serverMeta)}
-                    target="_blank" rel="noreferrer"
-                    style={{ color: 'var(--cal-accent)', fontSize: 12, textDecoration: 'none',
-                      padding: '1px 6px', borderRadius: 3,
-                      border: '0.5px solid var(--cal-info-border)', background: 'var(--cal-info-bg)' }}>
-                    {sid}
-                  </a>
+                  <ServerLink key={sid} sid={sid} serverMeta={serverMeta} />
                 ))}
               </div>
             </>
