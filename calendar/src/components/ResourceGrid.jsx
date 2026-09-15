@@ -1,5 +1,5 @@
 /** Renders the technician-by-date schedule grid with job spans, time off, conflicts, and event interactions. */
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import {
   format, eachDayOfInterval, startOfWeek, endOfWeek,
   addWeeks, subWeeks, isWeekend, parseISO, addDays,
@@ -18,6 +18,7 @@ import {
   withoutAutomaticUnassigned,
 } from '../utils/calendarAssignments.js';
 import { techEventLabel } from '../utils/techEventLabels.js';
+import { statusForShortcut } from '../utils/eventStatusShortcuts.js';
 
 const COL_W  = 130;
 const ROW_H  = 37;
@@ -90,6 +91,30 @@ export default function ResourceGrid({
     });
     return m;
   }, [techEvents]);
+
+  useEffect(() => {
+    function handleStatusShortcut(event) {
+      if (!editorToken || !requireEditor || hoverCard?.type !== 'job') return;
+      if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return;
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(event.target?.tagName)
+        || event.target?.isContentEditable) return;
+
+      const jobEvent = hoverCard.data;
+      const nextStatus = statusForShortcut(jobEvent, event.key);
+      if (!nextStatus || nextStatus === jobEvent.status) return;
+
+      event.preventDefault();
+      setHoverCard(null);
+      requireEditor(token => {
+        onSaveEvent({ ...jobEvent, status: nextStatus }, token).catch(error => {
+          console.error('Failed to update event status from keyboard shortcut', error);
+        });
+      });
+    }
+
+    window.addEventListener('keydown', handleStatusShortcut);
+    return () => window.removeEventListener('keydown', handleStatusShortcut);
+  }, [editorToken, hoverCard, onSaveEvent, requireEditor]);
 
   const techBusyDates = useMemo(() => {
     const m = {};
