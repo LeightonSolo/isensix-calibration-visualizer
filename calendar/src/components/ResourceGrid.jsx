@@ -104,11 +104,18 @@ export default function ResourceGrid({
       if (!nextStatus || nextStatus === jobEvent.status) return;
 
       event.preventDefault();
-      setHoverCard(null);
+      setHoverCard(current => current
+        ? { ...current, data: { ...current.data, status: nextStatus } }
+        : current);
       requireEditor(token => {
-        onSaveEvent({ ...jobEvent, status: nextStatus }, token).catch(error => {
-          console.error('Failed to update event status from keyboard shortcut', error);
-        });
+        Promise.resolve(onSaveEvent({ ...jobEvent, status: nextStatus }, token))
+          .catch(error => {
+            console.error('Failed to update event status from keyboard shortcut', error);
+            setHoverCard(current => current?.data?.id === jobEvent.id
+              && current.data.status === nextStatus
+              ? { ...current, data: { ...current.data, status: jobEvent.status } }
+              : current);
+          });
       });
     }
 
