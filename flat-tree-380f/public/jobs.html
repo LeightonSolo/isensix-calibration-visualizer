@@ -44,6 +44,7 @@
   <div class="jobs-view-tabs" role="tablist" aria-label="Jobs views">
     <button class="jobs-view-tab active" data-view="directory" role="tab">Directory</button>
     <button class="jobs-view-tab" data-view="analytics" role="tab">Analytics</button>
+    <button class="jobs-view-tab" data-view="cms-review" role="tab">CMS review</button>
   </div>
 
   <main>
@@ -83,6 +84,35 @@
         </div>
         <div id="jobs-empty" class="jobs-empty" hidden>No jobs match the current filters.</div>
       </div>
+    </section>
+
+    <section id="cms-review-view" hidden>
+      <section id="cms-unassigned-panel" class="panel cms-unassigned-panel" hidden aria-labelledby="cms-unassigned-title">
+        <div class="cms-unassigned-heading">
+          <div><h2 id="cms-unassigned-title">CMS servers not assigned to a Job Info record</h2><p>These servers were present in the latest successful CMS pull but are not listed on the Jobs tab.</p></div>
+          <div class="cms-unassigned-actions"><span id="cms-unassigned-count"></span><button id="cms-add-reason-btn" type="button">Add explanation</button></div>
+        </div>
+        <div id="cms-unassigned-warning" class="cms-unassigned-warning" role="alert" hidden></div>
+        <form id="cms-reason-form" class="cms-reason-form" hidden>
+          <strong id="cms-reason-form-title">Add CMS server explanation</strong>
+          <label>SID <input id="cms-reason-server" inputmode="numeric" pattern="[0-9]{3}" maxlength="3" required></label>
+          <label>Name <input id="cms-reason-name"></label>
+          <label class="cms-reason-comments">Comments <input id="cms-reason-comments" required></label>
+          <button type="submit" class="primary">Save explanation</button><button id="cms-reason-cancel" type="button">Cancel</button>
+        </form>
+        <div class="cms-unassigned-table-wrap">
+          <table class="cms-unassigned-table"><caption>Current CMS servers not assigned to Jobs</caption>
+            <thead><tr><th>Name</th><th>SID</th><th>Profile</th><th>Comments</th><th>CMS hostname</th><th>Actions</th></tr></thead>
+            <tbody id="cms-unassigned-body"></tbody>
+          </table>
+        </div>
+        <div class="cms-unassigned-table-wrap cms-reasons-list">
+          <table class="cms-unassigned-table"><caption>Saved explanations</caption>
+            <thead><tr><th>Name</th><th>SID</th><th>Profile</th><th>Comments</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody id="cms-reasons-body"></tbody>
+          </table>
+        </div>
+      </section>
     </section>
 
     <section id="analytics-view" hidden>

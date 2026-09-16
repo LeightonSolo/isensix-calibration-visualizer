@@ -7,7 +7,7 @@
     jobs: [], stats: null, events: [], assignments: [], filtered: [], view: 'directory',
     sortKey: 'job_name', sortDir: 1, preset: 'all',
     columnWidths: {},
-    selected: null, editing: false, dirty: false, pendingAction: null, serverMeta: {},
+    selected: null, editing: false, dirty: false, pendingAction: null, serverMeta: {}, cmsUnassigned: null,
     initialJob: new URLSearchParams(location.search).get('job'), initialJobOpened: false,
   };
 
@@ -225,6 +225,84 @@
     $('cms-sync-status').textContent = `Last pulled from CMS: ${formatTimestamp(timestamp)}`;
   }
 
+  function renderCmsUnassigned(data) {
+    const rows = data?.rows || [];
+    const reasons = data?.reasons || [];
+    const panel = $('cms-unassigned-panel');
+    panel.hidden = !data;
+    if (!data) return;
+    $('cms-unassigned-count').textContent = `${rows.length} current · ${reasons.length} explanation${reasons.length === 1 ? '' : 's'}`;
+    const unexplained = Number(data.unexplained_count) || 0;
+    const warning = $('cms-unassigned-warning');
+    warning.hidden = unexplained === 0;
+    warning.textContent = unexplained === 1
+      ? 'CMS found 1 unassigned server without an explanation.'
+      : `CMS found ${unexplained} unassigned servers without an explanation.`;
+    $('cms-unassigned-body').innerHTML = rows.length ? rows.map(row => `<tr class="${Number(row.needs_reason) ? 'needs-reason' : ''}">
+      <td>${escapeHtml(row.name || 'Unknown CMS server')}</td>
+      <td>${escapeHtml(row.server)}</td>
+      <td>${escapeHtml(row.profile || '—')}</td>
+      <td>${escapeHtml(row.comments || 'No reason recorded')}</td>
+      <td>${escapeHtml(row.hostname || '—')}</td>
+      <td><button type="button" data-cms-edit="${escapeHtml(row.server)}" data-cms-name="${escapeHtml(row.name || '')}" data-cms-comments="${escapeHtml(row.comments || '')}">Edit</button></td>
+    </tr>`).join('') : '<tr><td colspan="6">No active CMS servers are currently unassigned to Jobs.</td></tr>';
+    $('cms-reasons-body').innerHTML = reasons.length ? reasons.map(row => `<tr>
+      <td>${escapeHtml(row.name || row.cms_hostname || 'Unknown CMS server')}</td>
+      <td>${escapeHtml(row.server)}</td>
+      <td>${escapeHtml(row.cms_profile || '—')}</td>
+      <td>${escapeHtml(row.comments)}</td>
+      <td>${Number(row.assigned_to_job) ? 'Assigned to Job Info' : Number(row.present_in_cms) ? (['A', 'N'].includes(String(row.cms_profile || '').trim().toUpperCase()) ? 'Unassigned in CMS' : 'Inactive CMS profile') : 'Not in latest CMS pull'}</td>
+      <td><button type="button" data-cms-edit="${escapeHtml(row.server)}" data-cms-name="${escapeHtml(row.name || '')}" data-cms-comments="${escapeHtml(row.comments || '')}">Edit</button> <button type="button" data-cms-delete="${escapeHtml(row.server)}">Delete</button></td>
+    </tr>`).join('') : '<tr><td colspan="6">No saved explanations.</td></tr>';
+  }
+
+  function showReasonForm(server = '', name = '', comments = '') {
+    $('cms-reason-form').hidden = false;
+    $('cms-reason-form-title').textContent = server ? `Edit explanation for SID ${server}` : 'Add CMS server explanation';
+    $('cms-reason-server').value = server;
+    $('cms-reason-server').disabled = Boolean(server);
+    $('cms-reason-name').value = name;
+    $('cms-reason-comments').value = comments;
+    $('cms-reason-form').scrollIntoView({ block: 'nearest' });
+  }
+
+  function hideReasonForm() {
+    $('cms-reason-form').hidden = true;
+    $('cms-reason-server').disabled = false;
+    $('cms-reason-form').reset();
+  }
+
+  async function saveCmsReason(event) {
+    event.preventDefault();
+    requireEditor(async () => {
+      const server = $('cms-reason-server').value.trim();
+      const name = $('cms-reason-name').value.trim();
+      const comments = $('cms-reason-comments').value.trim();
+      try {
+        await api('/admin/cms-unassigned-reasons', {
+          method: 'POST', headers: siteApiHeaders({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify({ server, name, comments }),
+        });
+        hideReasonForm();
+        await loadData();
+      } catch (error) { showDrawerMessage(`Could not save CMS explanation: ${error.message}`); }
+    });
+  }
+
+  function editCmsReason(button) {
+    requireEditor(() => showReasonForm(button.dataset.cmsEdit, button.dataset.cmsName, button.dataset.cmsComments));
+  }
+
+  function deleteCmsReason(server) {
+    if (!confirm(`Delete the explanation for SID ${server}?`)) return;
+    requireEditor(async () => {
+      try {
+        await api(`/admin/cms-unassigned-reasons/${encodeURIComponent(server)}`, { method: 'DELETE', headers: siteApiHeaders() });
+        await loadData();
+      } catch (error) { showDrawerMessage(`Could not delete CMS explanation: ${error.message}`); }
+    });
+  }
+
   function hardwareClass(value) {
     return fieldTone('hardware', value);
   }
@@ -249,14 +327,17 @@
           offsites: row.offsites ?? legacyByJob.get(row.job_name)?.offsites ?? null,
         }));
       });
-      const [jobs, stats, events, assignments, serverRows, cmsStatus] = await Promise.all([
+      const [jobs, stats, events, assignments, serverRows, cmsStatus, cmsUnassigned] = await Promise.all([
         jobsRequest, api('/jobinfo/stats'),
         api('/calendar/events').catch(() => []), api('/calendar/assignments').catch(() => []),
         api('/servers').catch(() => []),
         api('/admin/cms-sync/status').catch(() => null),
+        api('/admin/cms-unassigned').catch(() => null),
       ]);
       state.serverMeta = Object.fromEntries((serverRows || []).map(row => [String(row.server), row]));
+      state.cmsUnassigned = cmsUnassigned;
       renderCmsSyncStatus(cmsStatus);
+      renderCmsUnassigned(cmsUnassigned);
       state.jobs = jobs.map(job => ({ ...job, location: locationLabel(job), state: parseState(job.site_address) }));
       state.stats = stats;
       state.events = events;
@@ -537,6 +618,7 @@
     document.querySelectorAll('.jobs-view-tab').forEach(button => button.classList.toggle('active', button.dataset.view === view));
     $('directory-view').hidden = view !== 'directory';
     $('analytics-view').hidden = view !== 'analytics';
+    $('cms-review-view').hidden = view !== 'cms-review';
   }
 
   function barChart(id, rows, onClick) {
@@ -852,6 +934,19 @@
   });
   $('jobs-table-head').addEventListener('pointerdown', beginColumnResize);
   $('jobs-table-body').addEventListener('click', event => { if (event.target.closest('a')) return; const row = event.target.closest('tr[data-job]'); if (row) openJob(row.dataset.job); });
+  $('cms-add-reason-btn').addEventListener('click', () => requireEditor(() => showReasonForm()));
+  $('cms-reason-form').addEventListener('submit', saveCmsReason);
+  $('cms-reason-cancel').addEventListener('click', hideReasonForm);
+  $('cms-unassigned-body').addEventListener('click', event => {
+    const button = event.target.closest('[data-cms-edit]');
+    if (button) editCmsReason(button);
+  });
+  $('cms-reasons-body').addEventListener('click', event => {
+    const edit = event.target.closest('[data-cms-edit]');
+    if (edit) { editCmsReason(edit); return; }
+    const remove = event.target.closest('[data-cms-delete]');
+    if (remove) deleteCmsReason(remove.dataset.cmsDelete);
+  });
   $('new-job-btn').addEventListener('click', () => requireEditor(openNewJob));
   $('edit-btn').addEventListener('click', () => requireEditor(() => setEditing(true)));
   $('job-form').addEventListener('submit', saveJob);

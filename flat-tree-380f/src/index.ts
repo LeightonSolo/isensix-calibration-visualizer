@@ -190,6 +190,104 @@ export default {
       return json(result || {});
     }
 
+    // GET /admin/cms-unassigned — current CMS servers not represented in Job Info.
+    if (request.method === 'GET' && pathname === '/admin/cms-unassigned') {
+      const result = await env.DB.prepare(`
+        WITH latest_sync AS (
+          SELECT started_at
+          FROM cms_sync_runs
+          WHERE status = 'success'
+          ORDER BY id DESC
+          LIMIT 1
+        ), unassigned AS (
+          SELECT
+            CAST(i.customer_id AS TEXT) AS server,
+            COALESCE(r.name, s.customer, i.hostname, 'Unknown CMS server') AS name,
+            i.hostname,
+            i.profile,
+            l.started_at AS last_pulled_at,
+            COALESCE(r.comments, '') AS comments,
+            CASE WHEN r.server IS NULL THEN 1 ELSE 0 END AS needs_reason
+          FROM cms_server_inventory i
+          JOIN latest_sync l ON i.last_seen_at = l.started_at
+          LEFT JOIN cms_unassigned_server_reasons r
+            ON CAST(r.server AS TEXT) = CAST(i.customer_id AS TEXT) AND r.active = 1
+          LEFT JOIN servers s ON CAST(s.server AS TEXT) = CAST(i.customer_id AS TEXT)
+          WHERE NOT EXISTS (
+            SELECT 1
+            FROM job_info j
+            WHERE (',' || replace(COALESCE(j.servers, ''), ' ', '') || ',')
+              LIKE '%,' || replace(CAST(i.customer_id AS TEXT), ' ', '') || ',%'
+          )
+          AND upper(trim(i.profile)) IN ('A', 'N')
+        )
+        SELECT * FROM unassigned ORDER BY needs_reason DESC, CAST(server AS INTEGER), server
+      `).all();
+      const rows = result.results || [];
+      const reasonResult = await env.DB.prepare(`
+        WITH latest_sync AS (
+          SELECT started_at
+          FROM cms_sync_runs
+          WHERE status = 'success'
+          ORDER BY id DESC
+          LIMIT 1
+        )
+        SELECT
+          r.server, r.name, r.comments, r.active,
+          i.hostname AS cms_hostname,
+          i.profile AS cms_profile,
+          CASE WHEN i.customer_id IS NULL THEN 0 ELSE 1 END AS present_in_cms,
+          CASE WHEN EXISTS (
+            SELECT 1 FROM job_info j
+            WHERE (',' || replace(COALESCE(j.servers, ''), ' ', '') || ',')
+              LIKE '%,' || replace(CAST(r.server AS TEXT), ' ', '') || ',%'
+          ) THEN 1 ELSE 0 END AS assigned_to_job
+        FROM cms_unassigned_server_reasons r
+        LEFT JOIN latest_sync l ON 1 = 1
+        LEFT JOIN cms_server_inventory i
+          ON CAST(i.customer_id AS TEXT) = CAST(r.server AS TEXT)
+          AND i.last_seen_at = l.started_at
+        WHERE r.active = 1
+        ORDER BY CAST(r.server AS INTEGER), r.server
+      `).all();
+      const reasons = reasonResult.results || [];
+      return json({
+        last_pulled_at: rows.length ? rows[0].last_pulled_at : null,
+        unexplained_count: rows.filter(row => Number(row.needs_reason) === 1).length,
+        rows,
+        reasons,
+      });
+    }
+
+    if (request.method === 'POST' && pathname === '/admin/cms-unassigned-reasons') {
+      if (request.headers.get('X-Editor-Token') !== env.EDITOR_TOKEN) {
+        return new Response('Forbidden', { status: 403, headers: corsHeaders() });
+      }
+      const body = await request.json() as Record<string, any>;
+      const server = String(body.server || '').trim();
+      const comments = String(body.comments || '').trim();
+      if (!/^\d{3}$/.test(server) || !comments) return json({ error: 'SID and comments are required' }, 400);
+      await env.DB.prepare(`
+        INSERT INTO cms_unassigned_server_reasons (server, name, comments, active, updated_at)
+        VALUES (?, ?, ?, 1, datetime('now'))
+        ON CONFLICT(server) DO UPDATE SET
+          name = excluded.name,
+          comments = excluded.comments,
+          active = 1,
+          updated_at = datetime('now')
+      `).bind(server, String(body.name || '').trim() || null, comments).run();
+      return json({ ok: true });
+    }
+
+    if (request.method === 'DELETE' && pathname.startsWith('/admin/cms-unassigned-reasons/')) {
+      if (request.headers.get('X-Editor-Token') !== env.EDITOR_TOKEN) {
+        return new Response('Forbidden', { status: 403, headers: corsHeaders() });
+      }
+      const server = decodeURIComponent(pathname.slice('/admin/cms-unassigned-reasons/'.length));
+      await env.DB.prepare(`DELETE FROM cms_unassigned_server_reasons WHERE server = ?`).bind(server).run();
+      return json({ ok: true });
+    }
+
     // POST /admin/calendar-sync - materialize newly eligible tentative jobs.
     if (request.method === 'POST' && pathname === '/admin/calendar-sync') {
       if (!hasCalendarAccess(request, env)) {
