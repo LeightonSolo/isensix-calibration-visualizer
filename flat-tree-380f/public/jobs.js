@@ -228,9 +228,34 @@
   function renderCmsUnassigned(data) {
     const rows = data?.rows || [];
     const reasons = data?.reasons || [];
+    const reconciliation = data?.reconciliation || { rows: [], missing_count: 0, pending_count: 0, informational_count: 0 };
+    const reconciliationRows = reconciliation.rows || [];
+    const reconciliationPanel = $('cms-reconciliation-panel');
     const panel = $('cms-unassigned-panel');
+    reconciliationPanel.hidden = !data;
     panel.hidden = !data;
     if (!data) return;
+    const statusLabels = {
+      'missing-from-cms': 'Missing from latest CMS pull',
+      'inactive-profile': 'Inactive CMS profile',
+      'no-active-sensors': 'No active sensors',
+      'awaiting-pull': 'Waiting for successful CMS pull',
+    };
+    $('cms-reconciliation-count').textContent = `${reconciliation.missing_count || 0} warning${Number(reconciliation.missing_count) === 1 ? '' : 's'} · ${reconciliation.pending_count || 0} pending · ${reconciliation.informational_count || 0} informational`;
+    const reconciliationWarning = $('cms-reconciliation-warning');
+    reconciliationWarning.hidden = Number(reconciliation.missing_count) === 0;
+    reconciliationWarning.textContent = Number(reconciliation.missing_count) === 1
+      ? '1 Job Info server was not present in the latest successful CMS pull. Verify the CMS record before removing it from Job Info.'
+      : `${reconciliation.missing_count} Job Info servers were not present in the latest successful CMS pull. Verify the CMS records before removing them from Job Info.`;
+    $('cms-reconciliation-body').innerHTML = reconciliationRows.length ? reconciliationRows.map(row => `<tr class="${row.warning ? 'needs-reason' : 'cms-informational'}">
+      <td>${escapeHtml(row.job_name || 'Unknown Job Info')}</td>
+      <td>${escapeHtml(row.server)}</td>
+      <td>${escapeHtml(statusLabels[row.status] || row.status || 'Unknown')}${row.status === 'missing-from-cms' && !row.warning ? ' (pending verification)' : ''}</td>
+      <td>${escapeHtml(row.profile || '—')}</td>
+      <td>${escapeHtml(row.sensor_count ?? '0')}</td>
+      <td>${escapeHtml(formatTimestamp(row.last_seen_at))}</td>
+      <td>${escapeHtml(row.hostname || '—')}</td>
+    </tr>`).join('') : '<tr><td colspan="7">All Job Info server assignments match active CMS servers.</td></tr>';
     $('cms-unassigned-count').textContent = `${rows.length} current · ${reasons.length} explanation${reasons.length === 1 ? '' : 's'}`;
     const unexplained = Number(data.unexplained_count) || 0;
     const warning = $('cms-unassigned-warning');

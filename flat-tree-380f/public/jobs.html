@@ -87,6 +87,19 @@
     </section>
 
     <section id="cms-review-view" hidden>
+      <section id="cms-reconciliation-panel" class="panel cms-unassigned-panel" hidden aria-labelledby="cms-reconciliation-title">
+        <div class="cms-unassigned-heading">
+          <div><h2 id="cms-reconciliation-title">Job Info servers not currently active in CMS</h2><p>Assignments are preserved. Missing servers become warnings after 24 hours; inactive profiles and servers with no active sensors are informational only.</p></div>
+          <span id="cms-reconciliation-count" class="cms-review-count"></span>
+        </div>
+        <div id="cms-reconciliation-warning" class="cms-unassigned-warning" role="alert" hidden></div>
+        <div class="cms-unassigned-table-wrap">
+          <table class="cms-unassigned-table"><caption>Job Info server assignments compared with the latest successful CMS pull</caption>
+            <thead><tr><th>Job Info</th><th>SID</th><th>Status</th><th>Profile</th><th>Sensors</th><th>Last seen in CMS</th><th>CMS hostname</th></tr></thead>
+            <tbody id="cms-reconciliation-body"></tbody>
+          </table>
+        </div>
+      </section>
       <section id="cms-unassigned-panel" class="panel cms-unassigned-panel" hidden aria-labelledby="cms-unassigned-title">
         <div class="cms-unassigned-heading">
           <div><h2 id="cms-unassigned-title">CMS servers not assigned to a Job Info record</h2><p>Only active profiles A/N with at least one Guardian or ARMS sensor are shown; inactive and no-sensor servers are omitted.</p></div>

@@ -192,6 +192,14 @@ export default {
 
     // GET /admin/cms-unassigned — current CMS servers not represented in Job Info.
     if (request.method === 'GET' && pathname === '/admin/cms-unassigned') {
+      const latestSync = await env.DB.prepare(`
+        SELECT started_at, completed_at
+        FROM cms_sync_runs
+        WHERE status = 'success'
+        ORDER BY id DESC
+        LIMIT 1
+      `).first<{ started_at: string; completed_at: string | null }>();
+      const latestPulledAt = latestSync?.started_at || null;
       const result = await env.DB.prepare(`
         WITH latest_sync AS (
           SELECT started_at
@@ -226,6 +234,60 @@ export default {
         SELECT * FROM unassigned ORDER BY needs_reason DESC, CAST(server AS INTEGER), server
       `).all();
       const rows = result.results || [];
+      const [jobResult, inventoryResult] = await Promise.all([
+        env.DB.prepare(`SELECT id, job_name, servers FROM job_info ORDER BY lower(job_name), id`).all(),
+        env.DB.prepare(`
+          SELECT customer_id AS server, hostname, profile,
+                 COALESCE(sensor_count_guardian, 0) + COALESCE(sensor_count_arms, 0) AS sensor_count,
+                 last_seen_at
+          FROM cms_server_inventory
+        `).all(),
+      ]);
+      const inventoryByServer = new Map((inventoryResult.results || []).map(item => [String(item.server), item]));
+      const tracked = [];
+      for (const job of jobResult.results || []) {
+        const serverIds = String(job.servers || '').split(',').map(server => server.trim()).filter(Boolean);
+        for (const server of serverIds) {
+          const cms = inventoryByServer.get(server);
+          const isCurrent = Boolean(latestPulledAt && cms && cms.last_seen_at === latestPulledAt);
+          const profile = String(cms?.profile || '').trim().toUpperCase();
+          const sensorCount = Number(cms?.sensor_count || 0);
+          const status = !latestPulledAt
+            ? 'awaiting-pull'
+            : !cms || !isCurrent
+              ? 'missing-from-cms'
+              : !['A', 'N'].includes(profile)
+                ? 'inactive-profile'
+                : sensorCount === 0
+                  ? 'no-active-sensors'
+                  : 'matched';
+          if (status !== 'matched') {
+            const latestTime = latestPulledAt ? Date.parse(latestPulledAt) : NaN;
+            const lastSeenTime = cms?.last_seen_at ? Date.parse(String(cms.last_seen_at)) : NaN;
+            const warning = status === 'missing-from-cms' && (
+              !cms || !Number.isFinite(latestTime) || !Number.isFinite(lastSeenTime)
+              || latestTime - lastSeenTime >= 24 * 60 * 60 * 1000
+            );
+            tracked.push({
+              server,
+              job_id: job.id,
+              job_name: job.job_name,
+              hostname: cms?.hostname || null,
+              profile: cms?.profile || null,
+              sensor_count: sensorCount,
+              last_seen_at: cms?.last_seen_at || null,
+              status,
+              warning,
+            });
+          }
+        }
+      }
+      tracked.sort((left, right) => {
+        const difference = Number(left.server) - Number(right.server);
+        return Number.isFinite(difference) && difference !== 0
+          ? difference
+          : String(left.server).localeCompare(String(right.server));
+      });
       const reasonResult = await env.DB.prepare(`
         WITH latest_sync AS (
           SELECT started_at
@@ -255,8 +317,14 @@ export default {
       `).all();
       const reasons = reasonResult.results || [];
       return json({
-        last_pulled_at: rows.length ? rows[0].last_pulled_at : null,
+        last_pulled_at: latestSync?.completed_at || (rows.length ? rows[0].last_pulled_at : null),
         unexplained_count: rows.filter(row => Number(row.needs_reason) === 1).length,
+        reconciliation: {
+          missing_count: tracked.filter(row => row.warning).length,
+          pending_count: tracked.filter(row => row.status === 'missing-from-cms' && !row.warning).length,
+          informational_count: tracked.filter(row => row.status !== 'missing-from-cms').length,
+          rows: tracked,
+        },
         rows,
         reasons,
       });

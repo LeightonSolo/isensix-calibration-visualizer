@@ -25,6 +25,7 @@
 .cms-unassigned-heading p { margin-top:3px; color:var(--text-muted); font-size:11px; }
 .cms-unassigned-actions { display:flex; align-items:center; gap:8px; }
 .cms-unassigned-actions > span { color:var(--text-muted); font:11px var(--font-mono); white-space:nowrap; }
+.cms-review-count { color:var(--text-muted); font:11px var(--font-mono); white-space:nowrap; }
 .cms-unassigned-actions button, .cms-reason-form button { padding:4px 8px; font-size:11px; }
 .cms-unassigned-warning { margin-bottom:9px; padding:8px 10px; border:1px solid var(--accent-red); border-radius:var(--radius-sm); background:var(--bg-failure); color:var(--accent-red); font-size:12px; font-weight:600; }
 .cms-reason-form { display:flex; align-items:end; gap:8px; flex-wrap:wrap; margin-bottom:10px; padding:9px; border:1px solid var(--border); border-radius:var(--radius-sm); background:var(--bg-header); }
@@ -44,6 +45,7 @@
 .cms-unassigned-table td:last-child { white-space:nowrap; }
 .cms-unassigned-table td button { padding:2px 6px; font-size:10px; }
 .cms-unassigned-table tr.needs-reason td { color:var(--accent-red); }
+.cms-unassigned-table tr.cms-informational td { color:var(--text-muted); }
 .jobs-table-panel { position:relative; overflow:hidden; }
 .jobs-table-scroll { overflow:auto; max-height:calc(100vh - 245px); min-height:320px; }
 #jobs-table { width:100%; border-collapse:separate; border-spacing:0; min-width:1050px; }
