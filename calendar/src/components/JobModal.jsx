@@ -124,6 +124,7 @@ export default function JobModal({
   const [title,      setTitle]      = useState(event?.title      || '');
   const [eventType,  setEventType]  = useState(event?.event_type || 'calibration');
   const [status,     setStatus]     = useState(event?.status     || 'ticketed');
+  const [statusManuallySelected, setStatusManuallySelected] = useState(false);
   const [customer,   setCustomer]   = useState(event?.customer   || '');
   const [startDate,  setStartDate]  = useState(
     event?.start_date || (initialDate ? format(initialDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'))
@@ -381,6 +382,7 @@ export default function JobModal({
                 // uncontrolled and would leave the generated note visible.
                 setNotes(notesForStatus(notes, nextStatus) || '');
                 setStatus(nextStatus);
+                setStatusManuallySelected(true);
               }}>
               {CONFIG.EVENT_STATUSES.map(s =>
                 <option key={s} value={s}
@@ -406,7 +408,14 @@ export default function JobModal({
           <div style={S.col}>
             <label style={S.label}>Ticket ID</label>
             <input style={S.input} value={ticketId}
-              onChange={e => setTicketId(e.target.value)}
+              onChange={e => {
+                const nextTicketId = e.target.value;
+                setTicketId(nextTicketId);
+                if (!statusManuallySelected && status === 'tentative' && nextTicketId.trim()) {
+                  setNotes(notesForStatus(notes, 'ticketed') || '');
+                  setStatus('ticketed');
+                }
+              }}
               placeholder="e.g. 72956"/>
           </div>
         </div>
