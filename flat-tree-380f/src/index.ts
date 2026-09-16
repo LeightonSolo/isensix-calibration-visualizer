@@ -205,6 +205,7 @@ export default {
             COALESCE(r.name, s.customer, i.hostname, 'Unknown CMS server') AS name,
             i.hostname,
             i.profile,
+            COALESCE(i.sensor_count_guardian, 0) + COALESCE(i.sensor_count_arms, 0) AS sensor_count,
             l.started_at AS last_pulled_at,
             COALESCE(r.comments, '') AS comments,
             CASE WHEN r.server IS NULL THEN 1 ELSE 0 END AS needs_reason
@@ -220,6 +221,7 @@ export default {
               LIKE '%,' || replace(CAST(i.customer_id AS TEXT), ' ', '') || ',%'
           )
           AND upper(trim(i.profile)) IN ('A', 'N')
+          AND (COALESCE(i.sensor_count_guardian, 0) + COALESCE(i.sensor_count_arms, 0)) > 0
         )
         SELECT * FROM unassigned ORDER BY needs_reason DESC, CAST(server AS INTEGER), server
       `).all();
@@ -236,6 +238,7 @@ export default {
           r.server, r.name, r.comments, r.active,
           i.hostname AS cms_hostname,
           i.profile AS cms_profile,
+          COALESCE(i.sensor_count_guardian, 0) + COALESCE(i.sensor_count_arms, 0) AS sensor_count,
           CASE WHEN i.customer_id IS NULL THEN 0 ELSE 1 END AS present_in_cms,
           CASE WHEN EXISTS (
             SELECT 1 FROM job_info j

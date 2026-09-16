@@ -89,7 +89,7 @@
     <section id="cms-review-view" hidden>
       <section id="cms-unassigned-panel" class="panel cms-unassigned-panel" hidden aria-labelledby="cms-unassigned-title">
         <div class="cms-unassigned-heading">
-          <div><h2 id="cms-unassigned-title">CMS servers not assigned to a Job Info record</h2><p>These servers were present in the latest successful CMS pull but are not listed on the Jobs tab.</p></div>
+          <div><h2 id="cms-unassigned-title">CMS servers not assigned to a Job Info record</h2><p>Only active profiles A/N with at least one Guardian or ARMS sensor are shown; inactive and no-sensor servers are omitted.</p></div>
           <div class="cms-unassigned-actions"><span id="cms-unassigned-count"></span><button id="cms-add-reason-btn" type="button">Add explanation</button></div>
         </div>
         <div id="cms-unassigned-warning" class="cms-unassigned-warning" role="alert" hidden></div>
@@ -102,13 +102,13 @@
         </form>
         <div class="cms-unassigned-table-wrap">
           <table class="cms-unassigned-table"><caption>Current CMS servers not assigned to Jobs</caption>
-            <thead><tr><th>Name</th><th>SID</th><th>Profile</th><th>Comments</th><th>CMS hostname</th><th>Actions</th></tr></thead>
+            <thead><tr><th>Name</th><th>SID</th><th>Profile</th><th>Sensors</th><th>Comments</th><th>CMS hostname</th><th>Actions</th></tr></thead>
             <tbody id="cms-unassigned-body"></tbody>
           </table>
         </div>
         <div class="cms-unassigned-table-wrap cms-reasons-list">
           <table class="cms-unassigned-table"><caption>Saved explanations</caption>
-            <thead><tr><th>Name</th><th>SID</th><th>Profile</th><th>Comments</th><th>Status</th><th>Actions</th></tr></thead>
+            <thead><tr><th>Name</th><th>SID</th><th>Profile</th><th>Sensors</th><th>Comments</th><th>Status</th><th>Actions</th></tr></thead>
             <tbody id="cms-reasons-body"></tbody>
           </table>
         </div>

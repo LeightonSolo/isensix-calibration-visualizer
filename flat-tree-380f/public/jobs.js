@@ -242,18 +242,20 @@
       <td>${escapeHtml(row.name || 'Unknown CMS server')}</td>
       <td>${escapeHtml(row.server)}</td>
       <td>${escapeHtml(row.profile || '—')}</td>
+      <td>${escapeHtml(row.sensor_count ?? '0')}</td>
       <td>${escapeHtml(row.comments || 'No reason recorded')}</td>
       <td>${escapeHtml(row.hostname || '—')}</td>
       <td><button type="button" data-cms-edit="${escapeHtml(row.server)}" data-cms-name="${escapeHtml(row.name || '')}" data-cms-comments="${escapeHtml(row.comments || '')}">Edit</button></td>
-    </tr>`).join('') : '<tr><td colspan="6">No active CMS servers are currently unassigned to Jobs.</td></tr>';
+    </tr>`).join('') : '<tr><td colspan="7">No active CMS servers with sensors are currently unassigned to Jobs.</td></tr>';
     $('cms-reasons-body').innerHTML = reasons.length ? reasons.map(row => `<tr>
       <td>${escapeHtml(row.name || row.cms_hostname || 'Unknown CMS server')}</td>
       <td>${escapeHtml(row.server)}</td>
       <td>${escapeHtml(row.cms_profile || '—')}</td>
+      <td>${escapeHtml(row.sensor_count ?? '0')}</td>
       <td>${escapeHtml(row.comments)}</td>
-      <td>${Number(row.assigned_to_job) ? 'Assigned to Job Info' : Number(row.present_in_cms) ? (['A', 'N'].includes(String(row.cms_profile || '').trim().toUpperCase()) ? 'Unassigned in CMS' : 'Inactive CMS profile') : 'Not in latest CMS pull'}</td>
+      <td>${Number(row.assigned_to_job) ? 'Assigned to Job Info' : Number(row.present_in_cms) ? (['A', 'N'].includes(String(row.cms_profile || '').trim().toUpperCase()) ? (Number(row.sensor_count) > 0 ? 'Unassigned in CMS' : 'No active sensors') : 'Inactive CMS profile') : 'Not in latest CMS pull'}</td>
       <td><button type="button" data-cms-edit="${escapeHtml(row.server)}" data-cms-name="${escapeHtml(row.name || '')}" data-cms-comments="${escapeHtml(row.comments || '')}">Edit</button> <button type="button" data-cms-delete="${escapeHtml(row.server)}">Delete</button></td>
-    </tr>`).join('') : '<tr><td colspan="6">No saved explanations.</td></tr>';
+    </tr>`).join('') : '<tr><td colspan="7">No saved explanations.</td></tr>';
   }
 
   function showReasonForm(server = '', name = '', comments = '') {
