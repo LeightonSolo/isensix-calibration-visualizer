@@ -443,7 +443,7 @@ export default {
         SELECT
           j.id, j.customer, j.job_name, j.servers, j.sensors, j.meters, j.o2,
           j.server_version, j.hardware, j.num_tech, j.active, j.estimated_days,
-          j.site_address, j.vpn_works, j.airport_info, j.prev_hotel,
+          j.site_address, j.offsites, j.vpn_works, j.airport_info, j.prev_hotel,
           j.primary_tech, j.last_calibrated, j.updated_at, j.main_contact,
           j.other_contacts, j.contact_notes, j.emerald_aisle, j.hotel_comments,
           j.restaurants,

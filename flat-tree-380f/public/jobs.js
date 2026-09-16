@@ -7,7 +7,7 @@
     jobs: [], stats: null, events: [], assignments: [], filtered: [], view: 'directory',
     sortKey: 'job_name', sortDir: 1, preset: 'all',
     columnWidths: {},
-    selected: null, editing: false, dirty: false, pendingAction: null,
+    selected: null, editing: false, dirty: false, pendingAction: null, serverMeta: {},
     initialJob: new URLSearchParams(location.search).get('job'), initialJobOpened: false,
   };
 
@@ -24,7 +24,7 @@
       ['last_calibrated', 'Last calibrated'],
     ],
     travel: [
-      ['job_name', 'Job'], ['location', 'Location'], ['site_address', 'Main address'],
+      ['job_name', 'Job'], ['location', 'Location'], ['site_address', 'Main address'], ['offsites', 'Offsites'],
       ['airport_info', 'Airport'], ['emerald_aisle', 'Emerald Aisle'], ['prev_hotel', 'Previous hotel'], ['hotel_comments', 'Hotel comments'], ['restaurants', 'Restaurants and attractions'],
       ['vpn_works', 'VPN'], ['scheduled_with', 'Technicians'],
     ],
@@ -35,7 +35,7 @@
       ['sensors', 'Sensors'], ['num_tech', 'Techs'], ['meters', 'Meters'],
       ['o2', 'O₂'], ['scheduled_with', 'Scheduled with'],
       ['primary_tech', 'Primary tech'], ['hardware', 'Hardware'], ['server_version', 'Software'],
-      ['location', 'Location'], ['site_address', 'Address'], ['vpn_works', 'VPN'],
+      ['location', 'Location'], ['site_address', 'Address'], ['offsites', 'Offsites'], ['vpn_works', 'VPN'],
       ['airport_info', 'Airport'], ['emerald_aisle', 'Emerald Aisle'], ['main_contact', 'Main contact'], ['other_contacts', 'Other contacts'], ['contact_notes', 'Contact notes'],
        ['prev_hotel', 'Previous hotel'], ['hotel_comments', 'Hotel comments'], ['restaurants', 'Restaurants and attractions'], ['updated_at', 'Updated'], ['active', 'Active?'],
     ],
@@ -93,6 +93,61 @@
     return unique.map(email =>
       `<a class="contact-email-link" href="mailto:${encodeURIComponent(email)}">Email ${escapeHtml(email)}</a>`
     ).join('<span class="contact-email-separator"> · </span>');
+  };
+
+  const DEFAULT_TUNNEL_HOSTNAME = 'ics1.ca.isensix.com';
+  const TUNNEL_HOSTNAMES = new Set([DEFAULT_TUNNEL_HOSTNAME, 'ics3.isensix.com']);
+  const normalizeHostname = hostname => String(hostname || '').trim().toLowerCase()
+    .replace(/^https?:\/\//, '').split(/[/:?#]/)[0];
+  const tunnelHostname = hostname => {
+    const normalized = normalizeHostname(hostname);
+    return TUNNEL_HOSTNAMES.has(normalized) ? normalized : DEFAULT_TUNNEL_HOSTNAME;
+  };
+  const usefulMapQuery = value => {
+    const normalized = String(value ?? '').trim().toLowerCase();
+    return normalized.length >= 3 && !['none', 'n/a', 'na', 'unknown', 'tbd'].includes(normalized);
+  };
+  const mapUrl = value => usefulMapQuery(value)
+    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(String(value).trim())}`
+    : null;
+  const safeHttpUrl = value => {
+    try {
+      const url = new URL(String(value).trim());
+      return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : null;
+    } catch (_) { return null; }
+  };
+  const linkifyUrlHtml = value => escapeHtml(String(value ?? '')).replace(/https?:\/\/[^\s<>'"]+/gi, raw => {
+    const trailing = raw.match(/[),.;!?]+$/)?.[0] || '';
+    const candidate = raw.slice(0, raw.length - trailing.length);
+    const url = safeHttpUrl(candidate);
+    return url
+      ? `<a class="job-info-link" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${candidate}</a>${trailing}`
+      : raw;
+  });
+  const serverTunnelUrl = server => {
+    const serverId = String(server || '').trim();
+    if (!/^\d{3}$/.test(serverId)) return null;
+    const meta = state.serverMeta[serverId] || {};
+    return `https://${tunnelHostname(meta.hostname)}:7${serverId}`;
+  };
+  const serverLinksHtml = value => {
+    const servers = String(value ?? '').split(',').map(part => part.trim()).filter(Boolean);
+    if (!servers.length) return escapeHtml(text(value));
+    return servers.map(server => {
+      const url = serverTunnelUrl(server);
+      return url
+        ? `<a class="server-link" href="${url}" target="_blank" rel="noopener noreferrer" title="Open Server ${escapeHtml(server)}">${escapeHtml(server)}</a>`
+        : escapeHtml(server);
+    }).join('<span class="server-link-separator">, </span>');
+  };
+  const fieldLinksHtml = (key, value) => {
+    if (key === 'servers') return /(^|,)\s*\d{3}\s*(,|$)/.test(String(value ?? '')) ? serverLinksHtml(value) : '';
+    if (key === 'site_address') {
+      const url = mapUrl(value);
+      return url ? `<a class="job-info-link" href="${url}" target="_blank" rel="noopener noreferrer">${escapeHtml(String(value).trim())}</a>` : '';
+    }
+    if (key === 'offsites') return /https?:\/\/[^\s<>'"]+/i.test(String(value ?? '')) ? linkifyUrlHtml(value) : '';
+    return '';
   };
 
   function technicianTone(value) {
@@ -169,17 +224,23 @@
     $('load-status').textContent = 'Loading jobs…';
     try {
       const jobsRequest = api('/jobinfo/summary').then(async rows => {
-        if (rows.some(row => Object.prototype.hasOwnProperty.call(row, 'prev_hotel'))) return rows;
-        // Compatibility with a deployed Worker that predates prev_hotel in the
-        // summary projection. Remove this fallback after every environment is updated.
+        if (rows.some(row => Object.prototype.hasOwnProperty.call(row, 'prev_hotel')
+          && Object.prototype.hasOwnProperty.call(row, 'offsites'))) return rows;
+        // Compatibility with a deployed Worker that predates the latest summary
+        // fields. Remove this fallback after every environment is updated.
         const legacyRows = await api('/jobinfo/all');
-        const hotelByJob = new Map(legacyRows.map(row => [row.job_name, row.prev_hotel]));
-        return rows.map(row => ({ ...row, prev_hotel: hotelByJob.get(row.job_name) ?? null }));
+        const legacyByJob = new Map(legacyRows.map(row => [row.job_name, row]));
+        return rows.map(row => ({ ...row,
+          prev_hotel: row.prev_hotel ?? legacyByJob.get(row.job_name)?.prev_hotel ?? null,
+          offsites: row.offsites ?? legacyByJob.get(row.job_name)?.offsites ?? null,
+        }));
       });
-      const [jobs, stats, events, assignments] = await Promise.all([
+      const [jobs, stats, events, assignments, serverRows] = await Promise.all([
         jobsRequest, api('/jobinfo/stats'),
         api('/calendar/events').catch(() => []), api('/calendar/assignments').catch(() => []),
+        api('/servers').catch(() => []),
       ]);
+      state.serverMeta = Object.fromEntries((serverRows || []).map(row => [String(row.server), row]));
       state.jobs = jobs.map(job => ({ ...job, location: locationLabel(job), state: parseState(job.site_address) }));
       state.stats = stats;
       state.events = events;
@@ -391,6 +452,10 @@
       `<th data-sort="${key}"${presetWidths ? ` style="width:${presetWidths[index]}px"` : ''}><span>${escapeHtml(label)}${state.sortKey === key ? (state.sortDir === 1 ? ' ↑' : ' ↓') : ''}</span><span class="column-resizer" aria-hidden="true"></span></th>`).join('');
     $('jobs-table-body').innerHTML = state.filtered.map(job => `<tr class="${Number(job.active) === 1 ? '' : 'inactive-job'}" data-job="${escapeHtml(job.job_name)}">${selectedColumns.map(([key]) => {
       const value = job[key];
+      const cls = `${key === 'job_name' ? 'job-name' : ''} ${key === 'servers' ? 'mono' : ''}`.trim();
+      if (key === 'servers') return `<td class="${cls}" title="${escapeHtml(text(value))}">${serverLinksHtml(value)}</td>`;
+      if (key === 'site_address') return `<td class="${cls}" title="${escapeHtml(text(value))}">${mapUrl(value) ? `<a class="job-info-link" href="${mapUrl(value)}" target="_blank" rel="noopener noreferrer">${escapeHtml(text(value))}</a>` : escapeHtml(text(value))}</td>`;
+      if (key === 'offsites') return `<td class="${cls}" title="${escapeHtml(text(value))}">${linkifyUrlHtml(text(value))}</td>`;
       if (key === 'hardware') {
         const tone = hardwareClass(value);
         return `<td class="${tone ? `table-tone ${tone}` : ''}" title="${escapeHtml(text(value))}">${escapeHtml(text(value))}</td>`;
@@ -401,7 +466,6 @@
         return `<td class="${tone ? `table-tone ${tone}` : ''}" title="${escapeHtml(text(value))}">${escapeHtml(text(value))}</td>`;
       }
       if (key === 'scheduled_with') return `<td class="table-technicians" title="${escapeHtml(text(value))}">${tableTechniciansHtml(value)}</td>`;
-      const cls = `${key === 'job_name' ? 'job-name' : ''} ${key === 'servers' ? 'mono' : ''}`.trim();
       if (CONTACT_FIELDS.has(key)) return `<td class="${cls} contact-cell" title="${escapeHtml(text(value))}">${linkifyEmailHtml(text(value))}</td>`;
       const bar = metricBar(key, value);
       if (bar && bar.level !== null) return `<td class="${cls} data-bar" style="--data-level:${bar.level.toFixed(3)};--data-bar-color:${bar.color}" title="${escapeHtml(text(value))}"><span>${escapeHtml(text(value))}</span></td>`;
@@ -600,7 +664,9 @@
     else if (kind === 'tech') control = `<input id="field-${key}" name="${key}" list="tech-options" value="${escapeHtml(value)}">`;
     else if (kind === 'hardware') control = `<input id="field-${key}" name="${key}" list="hardware-options" value="${escapeHtml(value)}">`;
     else control = `<input id="field-${key}" name="${key}" type="${kind}" value="${escapeHtml(value)}"${kind === 'number' ? ' min="0"' : ''}${disabledName}>`;
-    return `<div class="field ${spanClass} ${toneClass}"><label for="field-${key}">${label}</label>${control}</div>`;
+    const links = fieldLinksHtml(key, value);
+    const linkable = links ? ' linkable-field' : '';
+    return `<div class="field ${spanClass} ${toneClass}${linkable}"><label for="field-${key}">${label}</label>${control}${links ? `<div class="field-link-preview">${links}</div>` : ''}</div>`;
   }
 
   function renderForm(job, isNew = false) {
@@ -629,6 +695,7 @@
 
   function setEditing(editing) {
     state.editing = editing;
+    $('job-form').classList.toggle('editing', editing);
     $('job-form').querySelectorAll('input, textarea, select').forEach(control => {
       control.disabled = !editing || (editing && control.dataset.lockedName === 'true');
       if (control.tagName === 'TEXTAREA') {
@@ -768,7 +835,7 @@
     applyFilters();
   });
   $('jobs-table-head').addEventListener('pointerdown', beginColumnResize);
-  $('jobs-table-body').addEventListener('click', event => { const row = event.target.closest('tr[data-job]'); if (row) openJob(row.dataset.job); });
+  $('jobs-table-body').addEventListener('click', event => { if (event.target.closest('a')) return; const row = event.target.closest('tr[data-job]'); if (row) openJob(row.dataset.job); });
   $('new-job-btn').addEventListener('click', () => requireEditor(openNewJob));
   $('edit-btn').addEventListener('click', () => requireEditor(() => setEditing(true)));
   $('job-form').addEventListener('submit', saveJob);
