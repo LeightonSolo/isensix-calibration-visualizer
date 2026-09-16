@@ -211,6 +211,20 @@
     return address;
   }
 
+  function formatTimestamp(value) {
+    if (!value) return '—';
+    const raw = String(value).trim();
+    const timestamp = Date.parse(/[zZ]|[+-]\d{2}:?\d{2}$/.test(raw) ? raw : `${raw}Z`);
+    return Number.isFinite(timestamp)
+      ? new Date(timestamp).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })
+      : raw;
+  }
+
+  function renderCmsSyncStatus(status) {
+    const timestamp = status?.status === 'success' ? status.completed_at : null;
+    $('cms-sync-status').textContent = `Last pulled from CMS: ${formatTimestamp(timestamp)}`;
+  }
+
   function hardwareClass(value) {
     return fieldTone('hardware', value);
   }
@@ -235,12 +249,14 @@
           offsites: row.offsites ?? legacyByJob.get(row.job_name)?.offsites ?? null,
         }));
       });
-      const [jobs, stats, events, assignments, serverRows] = await Promise.all([
+      const [jobs, stats, events, assignments, serverRows, cmsStatus] = await Promise.all([
         jobsRequest, api('/jobinfo/stats'),
         api('/calendar/events').catch(() => []), api('/calendar/assignments').catch(() => []),
         api('/servers').catch(() => []),
+        api('/admin/cms-sync/status').catch(() => null),
       ]);
       state.serverMeta = Object.fromEntries((serverRows || []).map(row => [String(row.server), row]));
+      renderCmsSyncStatus(cmsStatus);
       state.jobs = jobs.map(job => ({ ...job, location: locationLabel(job), state: parseState(job.site_address) }));
       state.stats = stats;
       state.events = events;

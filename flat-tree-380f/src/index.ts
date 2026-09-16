@@ -185,7 +185,7 @@ export default {
     // GET /admin/cms-sync/status
     if (request.method === 'GET' && pathname === '/admin/cms-sync/status') {
       const result = await env.DB.prepare(`
-        SELECT * FROM cms_sync_runs ORDER BY id DESC LIMIT 1
+        SELECT * FROM cms_sync_runs WHERE status = 'success' ORDER BY id DESC LIMIT 1
       `).first();
       return json(result || {});
     }

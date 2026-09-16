@@ -7,7 +7,7 @@
 .jobs-heading h1 { font-size:24px; line-height:1.2; letter-spacing:-.02em; }
 .jobs-heading p { margin-top:4px; color:var(--text-muted); }
 .jobs-heading-actions { display:flex; align-items:center; gap:8px; }
-#load-status, #save-status { color:var(--text-muted); font-size:12px; }
+#load-status, #save-status, #cms-sync-status { color:var(--text-muted); font-size:12px; }
 .jobs-view-tabs { display:flex; gap:4px; border-bottom:1px solid var(--border); margin-bottom:14px; }
 .jobs-view-tab { border-radius:var(--radius-sm) var(--radius-sm) 0 0; border-bottom:0; padding:7px 18px; }
 .panel { background:var(--bg-panel); border:1px solid var(--border); border-radius:var(--radius-md); }
