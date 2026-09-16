@@ -235,7 +235,7 @@ export default {
       `).all();
       const rows = result.results || [];
       const [jobResult, inventoryResult] = await Promise.all([
-        env.DB.prepare(`SELECT id, job_name, servers FROM job_info ORDER BY lower(job_name), id`).all(),
+        env.DB.prepare(`SELECT id, job_name, servers, active FROM job_info ORDER BY lower(job_name), id`).all(),
         env.DB.prepare(`
           SELECT customer_id AS server, hostname, profile,
                  COALESCE(sensor_count_guardian, 0) + COALESCE(sensor_count_arms, 0) AS sensor_count,
@@ -246,6 +246,7 @@ export default {
       const inventoryByServer = new Map((inventoryResult.results || []).map(item => [String(item.server), item]));
       const tracked = [];
       for (const job of jobResult.results || []) {
+        if (Number(job.active) !== 1) continue;
         const serverIds = String(job.servers || '').split(',').map(server => server.trim()).filter(Boolean);
         for (const server of serverIds) {
           const cms = inventoryByServer.get(server);
