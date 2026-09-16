@@ -27,6 +27,7 @@
 .cms-unassigned-actions > span { color:var(--text-muted); font:11px var(--font-mono); white-space:nowrap; }
 .cms-review-count { color:var(--text-muted); font:11px var(--font-mono); white-space:nowrap; }
 .cms-unassigned-actions button, .cms-reason-form button { padding:4px 8px; font-size:11px; }
+.cms-unassigned-actions button:disabled { opacity:.6; cursor:wait; }
 .cms-unassigned-warning { margin-bottom:9px; padding:8px 10px; border:1px solid var(--accent-red); border-radius:var(--radius-sm); background:var(--bg-failure); color:var(--accent-red); font-size:12px; font-weight:600; }
 .cms-reason-form { display:flex; align-items:end; gap:8px; flex-wrap:wrap; margin-bottom:10px; padding:9px; border:1px solid var(--border); border-radius:var(--radius-sm); background:var(--bg-header); }
 .cms-reason-form strong { flex-basis:100%; font-size:12px; }

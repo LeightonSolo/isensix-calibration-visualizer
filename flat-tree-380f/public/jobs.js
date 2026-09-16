@@ -225,6 +225,39 @@
     $('cms-sync-status').textContent = `Last pulled from CMS: ${formatTimestamp(timestamp)}`;
   }
 
+  async function runCmsSync() {
+    const tokenKey = 'cal_calendar_token';
+    let calendarToken = sessionStorage.getItem(tokenKey);
+    if (!calendarToken) {
+      calendarToken = window.prompt('Enter the calendar/editor password to pull from CMS:')?.trim() || '';
+      if (!calendarToken) return;
+    }
+    const button = $('cms-sync-now-btn');
+    button.disabled = true;
+    button.textContent = 'Pulling from CMS…';
+    try {
+      const response = await fetch(`${CONFIG.WORKER_URL}/admin/cms-sync`, {
+        method: 'POST',
+        headers: siteApiHeaders({ 'X-Calendar-Token': calendarToken }),
+      });
+      if (!response.ok) {
+        if (response.status === 403) sessionStorage.removeItem(tokenKey);
+        throw new Error(`${response.status} ${await response.text()}`);
+      }
+      sessionStorage.setItem(tokenKey, calendarToken);
+      const result = await response.json();
+      $('cms-sync-status').textContent = `Last pulled from CMS: ${formatTimestamp(new Date().toISOString())}`;
+      button.textContent = `CMS pull complete (${result.serversReceived ?? 0} servers)`;
+      await loadData();
+    } catch (error) {
+      button.textContent = 'CMS pull failed';
+      showDrawerMessage(`Could not pull from CMS: ${error.message}`);
+    } finally {
+      button.disabled = false;
+      window.setTimeout(() => { button.textContent = 'Pull from CMS now'; }, 4000);
+    }
+  }
+
   function renderCmsUnassigned(data) {
     const rows = data?.rows || [];
     const reasons = data?.reasons || [];
@@ -962,6 +995,7 @@
   $('jobs-table-head').addEventListener('pointerdown', beginColumnResize);
   $('jobs-table-body').addEventListener('click', event => { if (event.target.closest('a')) return; const row = event.target.closest('tr[data-job]'); if (row) openJob(row.dataset.job); });
   $('cms-add-reason-btn').addEventListener('click', () => requireEditor(() => showReasonForm()));
+  $('cms-sync-now-btn').addEventListener('click', () => requireEditor(runCmsSync));
   $('cms-reason-form').addEventListener('submit', saveCmsReason);
   $('cms-reason-cancel').addEventListener('click', hideReasonForm);
   $('cms-unassigned-body').addEventListener('click', event => {
