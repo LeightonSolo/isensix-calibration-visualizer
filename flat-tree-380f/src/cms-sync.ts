@@ -229,6 +229,19 @@ function sortedServerIds(rows: NormalizedCmsServer[]): string[] {
   });
 }
 
+function splitServerIds(value: string | null | undefined): string[] {
+  return [...new Set(String(value || '').split(',').map(server => server.trim()).filter(Boolean))];
+}
+
+function mergedServerIds(current: string | null | undefined, rows: NormalizedCmsServer[]): string[] {
+  return [...new Set([...splitServerIds(current), ...sortedServerIds(rows)])].sort((left, right) => {
+    const numericDifference = Number(left) - Number(right);
+    return Number.isFinite(numericDifference) && numericDifference !== 0
+      ? numericDifference
+      : left.localeCompare(right);
+  });
+}
+
 export async function buildJobInfoPreview(db: D1Database, rows: NormalizedCmsServer[]): Promise<CmsJobInfoPreview> {
   const serverResult = await db.prepare(`
     SELECT CAST(server AS TEXT) AS server, customer FROM servers
@@ -263,6 +276,7 @@ export async function buildJobInfoPreview(db: D1Database, rows: NormalizedCmsSer
   }
 
   const jobs = [...grouped.entries()].map(([jobName, group]) => {
+    const current = currentByJob.get(jobName.toLowerCase()) ?? null;
     const guardianCount = group.reduce((sum, row) => sum + row.guardianSensorCount, 0);
     const armsCount = group.reduce((sum, row) => sum + row.armsSensorCount, 0);
     const meterSet = new Set(group.flatMap(row => row.meters));
@@ -270,7 +284,9 @@ export async function buildJobInfoPreview(db: D1Database, rows: NormalizedCmsSer
     const suppliers = [...new Set(group.map(row => row.supplierName).filter((value): value is string => Boolean(value)))];
     const proposed: ProposedJobInfo = {
       job_name: jobName,
-      servers: sortedServerIds(group).join(', '),
+      // CMS supplies the authoritative additions, but preserve IDs already
+      // recorded on Job Info so a manual assignment is not erased by cron.
+      servers: mergedServerIds(current?.servers, group).join(', '),
       sensors: guardianCount + armsCount,
       meters: ['RE', 'HU', 'CO2', 'DP'].filter(meter => meterSet.has(meter)).join(', '),
       o2: group.reduce((sum, row) => sum + row.o2Count, 0),
@@ -279,7 +295,6 @@ export async function buildJobInfoPreview(db: D1Database, rows: NormalizedCmsSer
       credentials: suppliers.length ? suppliers.join(', ') : null,
       active: group.some(row => row.active === 1) ? 1 : 0,
     };
-    const current = currentByJob.get(jobName.toLowerCase()) ?? null;
     const hasExistingCredentials = Boolean(current?.credentials?.trim());
     const credentialsAction: CmsJobInfoPreview['jobs'][number]['credentials_action'] = hasExistingCredentials
       ? 'preserve-existing'

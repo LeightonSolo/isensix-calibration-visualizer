@@ -67,7 +67,7 @@ describe('CMS inventory normalization', () => {
     const all = vi.fn()
       .mockResolvedValueOnce({ results: [{ server: '30', customer: 'CA Production' }] })
       .mockResolvedValueOnce({ results: [{
-        job_name: 'CA Production', servers: '30', sensors: 90, meters: 'RE', o2: 0,
+        job_name: 'CA Production', servers: '30, 860', sensors: 90, meters: 'RE', o2: 0,
         server_version: '2.0', hardware: 'Guardian', credentials: null, active: 1,
       }] });
     const prepare = vi.fn().mockReturnValue({ all });
@@ -94,6 +94,7 @@ describe('CMS inventory normalization', () => {
         credentials_action: 'fill-from-cms',
         proposed: {
           job_name: 'CA Production',
+          servers: '30, 860',
           sensors: 102,
           o2: 1,
           hardware: 'Mix',
