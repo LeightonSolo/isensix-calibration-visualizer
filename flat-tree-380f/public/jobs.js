@@ -46,7 +46,7 @@
   const formSections = [
     ['Overview', [
       ['job_name', 'Job name', 'text', 'wide'], ['customer', 'Customer'],
-      ['last_calibrated', 'Last calibrated', 'date'], ['active', 'Active record', 'checkbox'],
+      ['last_calibrated', 'Last calibrated', 'date', 'wide'], ['active', 'Active record', 'checkbox'],
       ['primary_tech', 'Primary technician', 'tech'],
     ], 'compact', 'overview'],
     ['Equipment', [

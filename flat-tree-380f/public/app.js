@@ -2022,6 +2022,7 @@ function buildJobInfoTab() {
   setVal('ji-server-version', versions.join(', '));
   setVal('ji-meters',         meters.join(', '));
   setVal('ji-o2',             o2count || 0);
+  setVal('ji-last-calibrated', jobInfo.last_calibrated || '—');
   setVal('ji-customer-display', currentCustomer || '—');
 
   // Meter flags
@@ -2121,6 +2122,7 @@ function buildJobInfoHTML() {
 
         ${section('Identity')}
         ${roRow('Customer',      'ji-customer-display', 'Set in Servers panel')}
+        ${roRow('Last calibrated', 'ji-last-calibrated')}
         ${row('Job name',        inp('ji-job-name'))}
         ${row('Primary tech',    sel('ji-primary-tech',
           `<option value="">Select...</option>${techOptions}`))}
