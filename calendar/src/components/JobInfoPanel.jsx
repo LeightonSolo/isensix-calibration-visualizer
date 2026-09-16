@@ -370,6 +370,7 @@ export default function JobInfoPanel({
                 )}
                 {jobInfo && (
                   <a href={`../jobs.html?job=${encodeURIComponent(jobInfo.job_name || selectedEvent.title)}`}
+                    target="_blank" rel="noreferrer"
                     style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 4,
                       border: '0.5px solid var(--cal-info-border)', borderRadius: 4,
                       background: 'var(--cal-info-bg)', color: 'var(--cal-accent)',
@@ -559,6 +560,8 @@ function SummaryTab({ event, jobInfo, techs, serverMeta }) {
       {jobInfo?.estimated_days && (
         <Value muted>Est. {jobInfo.estimated_days} day{jobInfo.estimated_days !== 1 ? 's' : ''}</Value>
       )}
+      <Label>Last calibrated</Label>
+      <Value>{jobInfo?.last_calibrated}</Value>
 
       {/* Techs */}
       <Label>Assigned techs</Label>
@@ -730,6 +733,7 @@ function DetailsTab({ jobInfo, event, techs, serverMeta }) {
     <>
       {row('Customer',        jobInfo.customer)}
       {row('Job name',        jobInfo.job_name)}
+      {row('Last calibrated', jobInfo.last_calibrated)}
       {row('Calendar status', event.status)}
       {row('Primary tech',    jobInfo.primary_tech)}
       {row('Scheduled with',  techs?.join(', '))}
