@@ -107,6 +107,42 @@ describe('CMS inventory normalization', () => {
     expect(prepare).toHaveBeenCalledTimes(2);
   });
 
+  it('aggregates CMS rows for every server already listed on Job Info', async () => {
+    const all = vi.fn()
+      // 860 has not been assigned a customer in the server inventory yet.
+      .mockResolvedValueOnce({ results: [{ server: '859', customer: 'Broad Institute' }] })
+      .mockResolvedValueOnce({ results: [{
+        job_name: 'Broad Institute', servers: '859, 860', sensors: 256, meters: 'RE', o2: 0,
+        server_version: 'G2.0', hardware: 'Guardian', credentials: null, active: 1,
+      }] });
+    const db = { prepare: vi.fn().mockReturnValue({ all }) } as unknown as D1Database;
+
+    const broad859 = normalizeCmsInventoryRow({
+      customer_id: 859,
+      profile: 'A',
+      sensor_count_guardian: 256,
+      guardian_sensors: [{ type: 'Humidity', count: 8 }, { type: 'Oxygen', count: 1 }],
+      guardian_version: '2.0',
+    });
+    const broad860 = normalizeCmsInventoryRow({
+      customer_id: 860,
+      profile: 'A',
+      sensor_count_arms: 80,
+      arms_sensors: [{ type: 'CO2_A_20', count: 4 }, { type: 'DiffPress .25', count: 2 }, { type: 'Oxygen', count: 3 }],
+    });
+
+    const preview = await buildJobInfoPreview(db, [broad859!, broad860!]);
+    expect(preview.jobs[0].proposed).toMatchObject({
+      job_name: 'Broad Institute',
+      servers: '859, 860',
+      sensors: 336,
+      meters: 'RE, HU, CO2, DP',
+      o2: 4,
+      server_version: 'G2.0, ARMS',
+      hardware: 'Mix',
+    });
+  });
+
   it('preserves existing job_info credentials in the preview decision', async () => {
     const all = vi.fn()
       .mockResolvedValueOnce({ results: [{ server: '30', customer: 'CA Production' }] })

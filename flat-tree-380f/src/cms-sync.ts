@@ -257,11 +257,21 @@ export async function buildJobInfoPreview(db: D1Database, rows: NormalizedCmsSer
   const currentByJob = new Map(
     jobResult.results.map(row => [String(row.job_name).trim().toLowerCase(), row]),
   );
+  const jobByServer = new Map<string, string>();
+  for (const current of jobResult.results) {
+    const jobName = String(current.job_name || '').trim();
+    if (!jobName) continue;
+    for (const server of splitServerIds(current.servers)) {
+      // Job Info is the durable grouping a technician configured. Prefer it
+      // when CMS/server inventory has not been updated for a newly added SID.
+      if (!jobByServer.has(server)) jobByServer.set(server, jobName);
+    }
+  }
   const grouped = new Map<string, NormalizedCmsServer[]>();
   const unmatchedServers: CmsJobInfoPreview['unmatchedServers'] = [];
 
   for (const row of rows) {
-    const customer = customerByServer.get(row.customerId);
+    const customer = jobByServer.get(row.customerId) ?? customerByServer.get(row.customerId);
     if (!customer) {
       unmatchedServers.push({
         customer_id: row.customerId,
