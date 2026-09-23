@@ -5,6 +5,7 @@ import { format, parseISO } from 'date-fns';
 import { downloadOutlookCalendar } from '../utils/outlookExport.js';
 import { siteHeaders } from '../utils/siteAuth.js';
 import { serverTunnelUrl } from '../utils/serverLinks.js';
+import TravelPanel from './TravelPanel.jsx';
 
 const WORKER_URL = CONFIG.WORKER_URL;
 
@@ -390,6 +391,7 @@ export default function JobInfoPanel({
           borderBottom: '0.5px solid var(--cal-surface-subtle)', flexShrink: 0 }}>
           {tabBtn('summary', 'Summary')}
           {tabBtn('details', 'Full details')}
+          {jobInfo && tabBtn('travel', 'Travel')}
           {jobInfo && requireEditor && tabBtn('edit', 'Edit')}
           {saveMessage && tab !== 'edit' && (
             <span style={{ alignSelf: 'center', color: saveMessage === 'Saved'
@@ -451,6 +453,10 @@ export default function JobInfoPanel({
 
         {selectedEvent && !loading && tab === 'details' && (
           <DetailsTab jobInfo={jobInfo} event={selectedEvent} techs={eventTechs} serverMeta={serverMeta} />
+        )}
+
+        {selectedEvent && !loading && tab === 'travel' && (
+          <TravelPanel jobInfo={jobInfo} />
         )}
 
         {selectedEvent && !loading && tab === 'edit' && jobInfo && draft && (
