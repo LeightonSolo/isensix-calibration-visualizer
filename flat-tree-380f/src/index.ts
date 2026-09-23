@@ -870,6 +870,68 @@ export default {
       return json(results);
     }
 
+    // Travel details are kept separately from calendar event notes so hotel,
+    // car, and flight information can be updated without changing the event.
+    if ((request.method === 'GET' || request.method === 'POST') && pathname === '/calendar/travel') {
+      await env.DB.prepare(`
+        CREATE TABLE IF NOT EXISTS travel_items (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          job_info_id INTEGER NOT NULL REFERENCES job_info(id) ON DELETE CASCADE,
+          kind TEXT NOT NULL CHECK (kind IN ('hotel', 'car', 'flight')),
+          technician TEXT,
+          status TEXT NOT NULL DEFAULT 'needed' CHECK (status IN ('needed', 'booked', 'not_needed')),
+          details TEXT,
+          notes TEXT,
+          updated_at TEXT DEFAULT (datetime('now'))
+        )
+      `).run();
+
+      const jobInfoId = Number(url.searchParams.get('job_info_id') || (request.method === 'POST'
+        ? ((await request.clone().json()) as Record<string, any>).job_info_id
+        : 0));
+      if (!Number.isInteger(jobInfoId) || jobInfoId < 1) {
+        return json({ error: 'A valid job_info_id is required' }, 400);
+      }
+
+      if (request.method === 'GET') {
+        const { results } = await env.DB.prepare(`
+          SELECT id, job_info_id, kind, technician, status, details, notes, updated_at
+          FROM travel_items
+          WHERE job_info_id = ?
+          ORDER BY kind, technician, id
+        `).bind(jobInfoId).all();
+        return json(results);
+      }
+
+      // Travel is editable by any authenticated site user; calendar event
+      // changes remain protected by the separate calendar editor token.
+      if (!hasSiteAccess(request, env)) return new Response('Forbidden', { status: 403, headers: corsHeaders() });
+      const body = await request.json() as Record<string, any>;
+      const items = Array.isArray(body.items) ? body.items : [];
+      const validItems = items.filter((item: any) =>
+        ['hotel', 'car', 'flight'].includes(String(item?.kind))
+        && ['needed', 'booked', 'not_needed'].includes(String(item?.status || 'needed'))
+      );
+      if (validItems.length !== items.length) return json({ error: 'Invalid travel item' }, 400);
+
+      const statements = [
+        env.DB.prepare(`DELETE FROM travel_items WHERE job_info_id = ?`).bind(jobInfoId),
+        ...validItems.map((item: any) => env.DB.prepare(`
+          INSERT INTO travel_items (job_info_id, kind, technician, status, details, notes, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+        `).bind(
+          jobInfoId,
+          String(item.kind),
+          String(item.technician || '').trim() || null,
+          String(item.status || 'needed'),
+          String(item.details || '').trim() || null,
+          String(item.notes || '').trim() || null,
+        )),
+      ];
+      await env.DB.batch(statements);
+      return json({ ok: true, count: validItems.length });
+    }
+
     // POST /calendar/events — create or update
     if (request.method === 'POST' && pathname === '/calendar/events') {
       if (!hasCalendarAccess(request, env)) {
