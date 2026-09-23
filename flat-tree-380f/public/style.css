@@ -570,6 +570,17 @@ body.server-overview-open { overflow: hidden; }
 
 .server-overview-meta strong { color: var(--text-primary); font-weight: 600; }
 
+.server-overview-progress {
+  display: inline-flex;
+  min-width: 190px;
+  align-items: center;
+  gap: 8px;
+}
+
+.server-overview-progress .status-progress {
+  width: 120px;
+}
+
 .server-overview-metrics {
   display: grid;
   grid-template-columns: repeat(8, minmax(88px, 1fr));
@@ -872,6 +883,36 @@ body.server-overview-open { overflow: hidden; }
 .donut-legend { display: flex; flex-direction: column; }
 .donut-legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-secondary); }
 .donut-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 1; }
+
+.zone-progress-cell {
+  display: flex;
+  min-width: 120px;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.status-progress {
+  width: 100%;
+}
+
+.status-progress-track {
+  display: flex;
+  width: 100%;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--border-light);
+}
+
+.status-progress-segment {
+  display: block;
+  height: 100%;
+  min-width: 2px;
+}
+
+.progress-calibrated { background: var(--accent-green); }
+.progress-exception { background: var(--accent-orange); }
+.progress-failure { background: var(--accent-red); }
 
 /* ─── Tabs ──────────────────────────────────────────────── */
 #tab-bar {

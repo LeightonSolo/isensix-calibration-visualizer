@@ -119,6 +119,18 @@ function isQualityError(s) {
   return ['LINK', 'SENSOR', 'INIT', 'NETWORK'].includes(String(s.quality || '').toUpperCase());
 }
 
+function getProgressBreakdown(sensors) {
+  const exceptions = sensors.filter(isExcepted);
+  const failures = sensors.filter(sensor =>
+    !isExcepted(sensor) && isCalibrated(sensor) && isFailed(sensor)
+  );
+  const calibrated = sensors.filter(sensor =>
+    !isExcepted(sensor) && !isFailed(sensor) && isCalibrated(sensor)
+  );
+  const remaining = Math.max(0, sensors.length - calibrated.length - exceptions.length - failures.length);
+  return { total: sensors.length, calibrated: calibrated.length, exceptions: exceptions.length, failures: failures.length, remaining };
+}
+
 function isFailed(s) {
   if (s.new_offset === null || s.new_offset === undefined) return false;
   const max = thresholds[s.sensor_type];
@@ -352,14 +364,17 @@ function groupServerOverviewRows(sensors, key) {
     if (!groups.has(label)) groups.set(label, []);
     groups.get(label).push(sensor);
   });
-  return [...groups.entries()].map(([label, group]) => ({
-    label,
-    total: group.length,
-    calibrated: group.filter(sensor => isCalibrated(sensor) && !isExcepted(sensor)).length,
-    exceptions: group.filter(isExcepted).length,
-    remaining: group.filter(sensor => !isCalibrated(sensor) && !isExcepted(sensor)).length,
-    failures: group.filter(isFailed).length,
-  })).sort((a, b) => a.label.localeCompare(b.label));
+  return [...groups.entries()].map(([label, group]) => {
+    const progress = getProgressBreakdown(group);
+    return {
+      label,
+      total: progress.total,
+      calibrated: progress.calibrated,
+      exceptions: progress.exceptions,
+      remaining: progress.remaining,
+      failures: progress.failures,
+    };
+  }).sort((a, b) => a.label.localeCompare(b.label));
 }
 
 function renderServerOverview(server) {
@@ -391,6 +406,7 @@ function renderServerOverview(server) {
     return date >= yesterday && date < today;
   }).length;
   const meta = serverMeta[server] || {};
+  const progress = getProgressBreakdown(enabled);
   const zones = groupServerOverviewRows(enabled, 'zone');
   const types = groupServerOverviewRows(enabled, 'sensor_type');
 
@@ -404,6 +420,7 @@ function renderServerOverview(server) {
       <span>Version <strong>${escapeHtml(meta.version || 'Unknown')}</strong></span>
       <span>Hardware <strong>${escapeHtml(detectHardware(all))}</strong></span>
       <span>Latest calibration <strong>${latest ? formatOverviewDate(latest.calibrated_at) : '—'}</strong></span>
+      <span class="server-overview-progress"><strong>Progress</strong>${buildProgressBar(progress)}</span>
     </div>
 
     <div class="server-overview-metrics">
@@ -419,7 +436,7 @@ function renderServerOverview(server) {
 
     <div class="server-overview-grid">
       ${buildServerOverviewTable('zones', 'Zone breakdown', zones, [
-        { label: 'Zone', key: 'label', render: row => escapeHtml(row.label) },
+        { label: 'Zone', key: 'label', render: row => `<div class="zone-progress-cell"><span>${escapeHtml(row.label)}</span>${buildProgressBar(row)}</div>` },
         { label: 'Sensors', key: 'total', render: row => row.total },
         { label: 'Cal.', key: 'calibrated', render: row => `<span class="green-val">${row.calibrated}</span>` },
         { label: 'Exc.', key: 'exceptions', render: row => row.exceptions ? `<span class="orange-val">${row.exceptions}</span>` : '0' },
@@ -739,6 +756,10 @@ function renderMetrics() {
   const sensors = allSensors.filter(s =>
     (!s.status || s.status.toUpperCase() !== 'DISABLED') && !isExcepted(s)
   );
+  const progressSensors = allSensors.filter(s =>
+    !s.status || s.status.toUpperCase() !== 'DISABLED'
+  );
+  const progress = getProgressBreakdown(progressSensors);
   const total = sensors.length; //total enabled sensors
   const enabledCalibrated = sensors.filter(isCalibrated);
   const disabledCalibrated = getDisabledCalibratedSensors();
@@ -746,9 +767,24 @@ function renderMetrics() {
   const cal   = calibratedSensors.length; // includes sensors calibrated in-window that are now disabled
   const left  = total - enabledCalibrated.length;
   const fail  = sensors.filter(isFailed).length;
-  const pct   = total > 0 ? Math.round((enabledCalibrated.length / total) * 100) : 0;
-  const r = 26, circ = 2 * Math.PI * r, dash = (pct / 100) * circ;
+  const pct   = progress.total > 0 ? Math.round((progress.calibrated / progress.total) * 100) : 0;
+  const r = 26, circ = 2 * Math.PI * r;
   const track = 'var(--border)';
+  let arcOffset = 0;
+  const progressArcs = [
+    { count: progress.calibrated, color: 'var(--accent-green)', label: 'Calibrated' },
+    { count: progress.exceptions, color: 'var(--accent-orange)', label: 'Exceptions' },
+    { count: progress.failures, color: 'var(--accent-red)', label: 'Failures' },
+  ].filter(segment => segment.count > 0).map(segment => {
+    const length = (segment.count / progress.total) * circ;
+    const arc = `<circle cx="32" cy="32" r="${r}" fill="none" stroke="${segment.color}" stroke-width="7"
+      stroke-dasharray="${length.toFixed(1)} ${circ.toFixed(1)}"
+      stroke-dashoffset="-${arcOffset.toFixed(1)}" stroke-linecap="butt" transform="rotate(-90 32 32)">
+      <title>${segment.label}: ${segment.count}</title>
+    </circle>`;
+    arcOffset += length;
+    return arc;
+  }).join('');
   const calibrationTooltip = getDisabledCalibrationTooltip(disabledCalibrated.length);
   const calibrationTooltipAttr = calibrationTooltip ? ` title="${calibrationTooltip}"` : '';
   const excepted = allSensors.filter(isExcepted).length;
@@ -810,21 +846,25 @@ function renderMetrics() {
       <div class="metric-sub">this year</div>
     </div>
     <div id="donut-card" class="metric-card donut-card" data-tab="calibrated" role="button" tabindex="0" aria-label="Open Calibrated tab">
-      <svg width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="Progress ${pct}%">
+      <svg width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="Progress ${pct}% calibrated">
         <circle cx="32" cy="32" r="${r}" fill="none" stroke="${track}" stroke-width="7"/>
-        <circle cx="32" cy="32" r="${r}" fill="none" stroke="var(--accent-green)" stroke-width="7"
-          stroke-dasharray="${dash.toFixed(1)} ${circ.toFixed(1)}"
-          stroke-linecap="round" transform="rotate(-90 32 32)"/>
+        ${progressArcs}
         <text x="32" y="37" text-anchor="middle" font-size="12" font-weight="600"
           fill="var(--text-primary)">${pct}%</text>
       </svg>
       <div class="donut-legend">
         <div class="metric-label">Progress</div>
         <div class="donut-legend-item">
-          <span class="donut-dot" style="background:var(--accent-green)"></span>Done
+          <span class="donut-dot" style="background:var(--accent-green)"></span>Done (${progress.calibrated})
         </div>
         <div class="donut-legend-item">
-          <span class="donut-dot" style="background:${track}"></span>Left
+          <span class="donut-dot" style="background:var(--accent-orange)"></span>Exceptions (${progress.exceptions})
+        </div>
+        <div class="donut-legend-item">
+          <span class="donut-dot" style="background:var(--accent-red)"></span>Failures (${progress.failures})
+        </div>
+        <div class="donut-legend-item">
+          <span class="donut-dot" style="background:${track}"></span>Left (${progress.remaining})
         </div>
       </div>
     </div>`;
@@ -1040,10 +1080,11 @@ function buildTypesTable() {
   const types = [...new Set(sensors.map(s => s.sensor_type).filter(Boolean))].sort();
   let rows = types.map(t => {
     const g   = sensors.filter(s => s.sensor_type === t);
-    const cal = g.filter(s => isCalibrated(s) && !isExcepted(s)).length;
-    const exc = g.filter(isExcepted).length;
-    const fail= g.filter(isFailed).length;
-    const left= g.length - cal - exc;
+    const progress = getProgressBreakdown(g);
+    const cal = progress.calibrated;
+    const exc = progress.exceptions;
+    const fail= progress.failures;
+    const left= progress.remaining;
     const srv = [...new Set(g.map(s => s.server).filter(Boolean))].join(', ');
     return { t, total: g.length, cal, exc, left, fail, srv, done: left === 0 };
   });
@@ -1074,6 +1115,25 @@ function buildTypesTable() {
 }
 
 /* ─── Zones table ───────────────────────────────────────── */
+function buildProgressBar(row) {
+  const total = row.total || 1;
+  const calibrated = row.calibrated ?? row.cal ?? 0;
+  const exceptions = row.exceptions ?? row.exc ?? 0;
+  const failures = row.failures ?? row.fail ?? 0;
+  const remaining = row.remaining ?? row.left ?? 0;
+  const segments = [
+    { count: calibrated, className: 'progress-calibrated', label: 'calibrated' },
+    { count: exceptions, className: 'progress-exception', label: 'exceptions' },
+    { count: failures, className: 'progress-failure', label: 'failures' },
+  ];
+  const summary = `${calibrated} calibrated, ${exceptions} exception${exceptions === 1 ? '' : 's'}, ${failures} failure${failures === 1 ? '' : 's'}, ${remaining} remaining`;
+  return `<div class="status-progress" role="img" aria-label="${escapeHtml(summary)}" title="${escapeHtml(summary)}">
+    <span class="status-progress-track">${segments.filter(segment => segment.count > 0).map(segment =>
+      `<span class="status-progress-segment ${segment.className}" style="width:${((segment.count / total) * 100).toFixed(2)}%" title="${segment.count} ${segment.label}"></span>`
+    ).join('')}</span>
+  </div>`;
+}
+
 function buildZonesTable() {
   const sensors = allSensors.filter(s =>
     !s.status || s.status.toUpperCase() !== 'DISABLED'
@@ -1081,10 +1141,11 @@ function buildZonesTable() {
   const zones = [...new Set(sensors.map(s => s.zone).filter(Boolean))].sort();
   let rows = zones.map(z => {
     const g   = sensors.filter(s => s.zone === z);
-    const cal = g.filter(s => isCalibrated(s) && !isExcepted(s)).length;
-    const exc = g.filter(isExcepted).length;
-    const fail= g.filter(isFailed).length;
-    const left= g.length - cal - exc;
+    const progress = getProgressBreakdown(g);
+    const cal = progress.calibrated;
+    const exc = progress.exceptions;
+    const fail= progress.failures;
+    const left= progress.remaining;
     const srv = [...new Set(g.map(s => s.server).filter(Boolean))].join(', ');
     return { z, srv, total: g.length, cal, exc, left, fail, done: left <= 0 };
   });
@@ -1101,7 +1162,7 @@ function buildZonesTable() {
       ${thSort('Failures',   'fail',  zoneSort, 'sortZone')}
     </tr></thead>
     <tbody>${rows.map(r => `<tr class="${r.done ? 'done-row' : ''}">
-      <td title="${r.z}">${r.z}</td>
+      <td title="${r.z}"><div class="zone-progress-cell"><span>${r.z}</span>${buildProgressBar(r)}</div></td>
       <td class="muted">${r.srv}</td>
       <td>${r.total}</td>
       <td class="green-val">${r.cal}</td>
