@@ -30,7 +30,7 @@ function colorStyle(colors) {
 }
 
 function statusLabel(status) {
-  return status === 'booked' ? 'Booked' : status === 'not_needed' ? 'Not needed' : 'Needs action';
+  return status === 'booked' ? 'Booked' : status === 'not_needed' ? 'Not needed' : 'Needs booking';
 }
 
 function TravelItemEditor({ item, onChange, onRemove }) {
@@ -169,7 +169,7 @@ export default function TravelPanel({ jobInfo, event, onTravelSaved }) {
 
   return (
     <div className="travel-panel">
-      <div className="travel-help">Shared travel details for this job. Add optional notes for solo or team travel.</div>
+      <div className="travel-help">Shared travel details for this job.</div>
       {grouped.map(kind => (
         <section className="travel-card" key={kind.key}>
           <div className="travel-card-heading">
