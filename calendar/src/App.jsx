@@ -171,6 +171,18 @@ export default function App() {
     setJobInfoMap(current => ({ ...current, [updatedJob.job_name]: updatedJob }));
   }, []);
 
+  const handleTravelSaved = useCallback(result => {
+    const eventId = result?.auto_booked_event_id;
+    if (eventId) {
+      const markBooked = current => current && String(current.id) === String(eventId)
+        ? { ...current, status: 'booked' }
+        : current;
+      setLockedEvent(markBooked);
+      setHoveredEvent(markBooked);
+    }
+    load(windowStart, windowEnd);
+  }, [load, windowStart, windowEnd]);
+
   // Load all job info on mount
   useEffect(() => {
     if (!siteAuthenticated) return;
@@ -456,6 +468,7 @@ export default function App() {
           editorToken={editorToken}
           requireEditor={requireEditor}
           onJobInfoSaved={handleJobInfoSaved}
+          onTravelSaved={handleTravelSaved}
         />
       </div>
     </div>

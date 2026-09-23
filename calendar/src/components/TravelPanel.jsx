@@ -18,6 +18,7 @@ function statusLabel(status) {
 function TravelItemEditor({ item, onChange, onRemove }) {
   const knownTechnicians = ['', ...CONFIG.TECHNICIANS];
   const manualTechnician = Boolean(item.manual || (item.technician && !knownTechnicians.includes(item.technician)));
+  const [showExtra, setShowExtra] = useState(Boolean(item.details || item.notes));
 
   function updateTechnician(value) {
     if (value === '__manual__') {
@@ -57,15 +58,20 @@ function TravelItemEditor({ item, onChange, onRemove }) {
             ...(event.target.value && item.status === 'needed' ? { status: 'booked' } : {}),
           })} />
       )}
-      <input value={item.details || ''} placeholder="Booking details"
-        onChange={event => onChange({ details: event.target.value })} />
-      <textarea rows={2} value={item.notes || ''} placeholder="Optional notes"
-        onChange={event => onChange({ notes: event.target.value })} />
+      <button type="button" className="travel-extra-toggle" onClick={() => setShowExtra(current => !current)}>
+        {showExtra ? 'Hide details' : (item.details || item.notes ? 'Edit details' : '+ details / notes')}
+      </button>
+      {showExtra && <>
+        <input value={item.details || ''} placeholder="Booking details"
+          onChange={event => onChange({ details: event.target.value })} />
+        <textarea rows={2} value={item.notes || ''} placeholder="Optional notes"
+          onChange={event => onChange({ notes: event.target.value })} />
+      </>}
     </div>
   );
 }
 
-export default function TravelPanel({ jobInfo }) {
+export default function TravelPanel({ jobInfo, event, onTravelSaved }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -117,9 +123,11 @@ export default function TravelPanel({ jobInfo }) {
       const response = await fetch(`${CONFIG.WORKER_URL}/calendar/travel`, {
         method: 'POST',
         headers: siteHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify({ job_info_id: jobInfo.id, items }),
+        body: JSON.stringify({ job_info_id: jobInfo.id, event_id: event?.id ?? null, items }),
       });
       if (!response.ok) throw new Error(response.status === 403 ? 'Site access required.' : 'Could not save travel information.');
+      const result = await response.json();
+      onTravelSaved?.(result);
       setMessage('Saved');
     } catch (error) {
       setMessage(error.message || 'Could not save travel information.');
@@ -137,7 +145,7 @@ export default function TravelPanel({ jobInfo }) {
       {grouped.map(kind => (
         <section className="travel-card" key={kind.key}>
           <div className="travel-card-heading">
-            <strong>{kind.icon} {kind.label}</strong>
+            <strong>{kind.icon} {kind.label}<span className="travel-booked-count">: {kind.items.filter(item => item.status === 'booked').length} Booked</span></strong>
             {editable && <button type="button" onClick={() => addItem(kind.key)}>+ booking</button>}
           </div>
           {kind.items.length ? kind.items.map(item => {

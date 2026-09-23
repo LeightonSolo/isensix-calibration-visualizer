@@ -151,6 +151,7 @@ export default function JobInfoPanel({
   editorToken,
   requireEditor,
   onJobInfoSaved,
+  onTravelSaved,
 }) {
   const [fetchedJobInfo, setFetchedJobInfo] = useState(null);
   const [loading,  setLoading]  = useState(false);
@@ -456,7 +457,7 @@ export default function JobInfoPanel({
         )}
 
         {selectedEvent && !loading && tab === 'travel' && (
-          <TravelPanel jobInfo={jobInfo} />
+          <TravelPanel jobInfo={jobInfo} event={selectedEvent} onTravelSaved={onTravelSaved} />
         )}
 
         {selectedEvent && !loading && tab === 'edit' && jobInfo && draft && (

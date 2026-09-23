@@ -907,6 +907,7 @@ export default {
       // changes remain protected by the separate calendar editor token.
       if (!hasSiteAccess(request, env)) return new Response('Forbidden', { status: 403, headers: corsHeaders() });
       const body = await request.json() as Record<string, any>;
+      const eventId = Number(body.event_id || 0);
       const items = Array.isArray(body.items) ? body.items : [];
       const validItems = items.filter((item: any) =>
         ['hotel', 'car', 'flight'].includes(String(item?.kind))
@@ -929,7 +930,45 @@ export default {
         )),
       ];
       await env.DB.batch(statements);
-      return json({ ok: true, count: validItems.length });
+
+      // Travel users can trigger only this narrow automatic transition; they
+      // still cannot edit calendar events generally.
+      let autoBookedEventId: number | null = null;
+      if (Number.isInteger(eventId) && eventId > 0) {
+        const linkedEvent = await env.DB.prepare(`
+          SELECT id FROM calendar_events WHERE id = ? AND job_info_id = ?
+        `).bind(eventId, jobInfoId).first();
+        if (linkedEvent) {
+          const { results: assignmentRows } = await env.DB.prepare(`
+            SELECT DISTINCT lower(trim(tech_name)) AS technician
+            FROM event_assignments
+            WHERE event_id = ?
+              AND trim(tech_name) <> ''
+              AND lower(trim(tech_name)) <> 'unassigned'
+          `).bind(eventId).all();
+          const assignedTechnicians = assignmentRows
+            .map((row: any) => String(row.technician || '').trim().toLowerCase())
+            .filter(Boolean);
+          const completeTravel = assignedTechnicians.length > 0
+            && ['hotel', 'car', 'flight'].every(kind => assignedTechnicians.every(technician =>
+              validItems.some((item: any) => {
+                const itemTechnician = String(item.technician || '').trim().toLowerCase();
+                return String(item.kind) === kind
+                  && ['booked', 'not_needed'].includes(String(item.status))
+                  && (!itemTechnician || itemTechnician === technician);
+              })
+            ));
+          if (completeTravel) {
+            await env.DB.prepare(`
+              UPDATE calendar_events
+              SET status = 'booked', updated_at = datetime('now')
+              WHERE id = ? AND job_info_id = ? AND status <> 'booked'
+            `).bind(eventId, jobInfoId).run();
+            autoBookedEventId = eventId;
+          }
+        }
+      }
+      return json({ ok: true, count: validItems.length, auto_booked_event_id: autoBookedEventId });
     }
 
     // POST /calendar/events — create or update

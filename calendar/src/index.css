@@ -343,6 +343,7 @@ body,
 .travel-card { background: var(--cal-card); border: .5px solid var(--cal-border); border-radius: 6px; margin: 0 0 9px; padding: 9px; }
 .travel-card-heading { align-items: center; color: var(--cal-text-secondary); display: flex; font-size: 12px; justify-content: space-between; margin-bottom: 7px; }
 .travel-card-heading strong { color: var(--cal-text); }
+.travel-booked-count { color: var(--cal-success); font-size: 11px; font-weight: 500; }
 .travel-card-heading button, .travel-save { background: var(--cal-input); border: .5px solid var(--cal-border-strong); border-radius: 4px; color: var(--cal-text); cursor: pointer; font-size: 11px; padding: 3px 7px; }
 .travel-item-readonly { border-top: .5px solid var(--cal-border); display: grid; gap: 2px; margin-top: 6px; padding: 6px 0 0; }
 .travel-item-readonly span, .travel-item-readonly small { color: var(--cal-text-secondary); font-size: 11px; overflow-wrap: anywhere; }
@@ -353,6 +354,8 @@ body,
 .travel-editor-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 5px; }
 .travel-panel input, .travel-panel select, .travel-panel textarea { background: var(--cal-input); border: .5px solid var(--cal-border-strong); border-radius: 4px; box-sizing: border-box; color: var(--cal-text); font: 11px Inter, system-ui, sans-serif; padding: 5px 6px; width: 100%; }
 .travel-panel textarea { resize: vertical; }
+.travel-extra-toggle { background: transparent; border: 0; color: var(--cal-accent); cursor: pointer; font-size: 11px; padding: 0; text-align: left; }
+.travel-extra-toggle:hover { text-decoration: underline; }
 .travel-remove { background: transparent; border: 0; color: var(--cal-text-muted); cursor: pointer; font-size: 17px; line-height: 1; padding: 0 3px; }
 .travel-remove:hover { color: var(--cal-danger); }
 .travel-save-row { align-items: center; display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px; }
