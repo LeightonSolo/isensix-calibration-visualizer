@@ -855,16 +855,16 @@ function renderMetrics() {
       <div class="donut-legend">
         <div class="metric-label">Progress</div>
         <div class="donut-legend-item">
-          <span class="donut-dot" style="background:var(--accent-green)"></span>Done (${progress.calibrated})
+          <span class="donut-dot" style="background:var(--accent-green)"></span>Done(${progress.calibrated})
         </div>
         <div class="donut-legend-item">
-          <span class="donut-dot" style="background:var(--accent-orange)"></span>Exceptions (${progress.exceptions})
+          <span class="donut-dot" style="background:var(--accent-orange)"></span>Exceptions(${progress.exceptions})
         </div>
         <div class="donut-legend-item">
-          <span class="donut-dot" style="background:var(--accent-red)"></span>Failures (${progress.failures})
+          <span class="donut-dot" style="background:var(--accent-red)"></span>Failures(${progress.failures})
         </div>
         <div class="donut-legend-item">
-          <span class="donut-dot" style="background:${track}"></span>Left (${progress.remaining})
+          <span class="donut-dot" style="background:${track}"></span>Left(${progress.remaining})
         </div>
       </div>
     </div>`;

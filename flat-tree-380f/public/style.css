@@ -881,7 +881,7 @@ body.server-overview-open { overflow: hidden; }
 .metric-value.blue   { color: var(--accent-light-blue); }
 .donut-card { display: flex; align-items: center; gap: 14px;}
 .donut-legend { display: flex; flex-direction: column; }
-.donut-legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-secondary); }
+.donut-legend-item { display: flex; align-items: center; gap: 6px; font-size: 10px; color: var(--text-secondary); }
 .donut-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 1; }
 
 .zone-progress-cell {
