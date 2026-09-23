@@ -10,6 +10,24 @@ const KINDS = [
 ];
 
 const EMPTY_ITEM = kind => ({ kind, technician: '', status: 'needed', details: '', notes: '' });
+const TRAVEL_STATUS_COLORS = {
+  needed: CONFIG.TYPE_COLORS.pto,
+  booked: CONFIG.STATUS_COLORS.booked,
+  not_needed: CONFIG.STATUS_COLORS.confirmed,
+};
+const NEUTRAL_TECH_COLOR = {
+  bg: 'var(--cal-input)',
+  fg: 'var(--cal-text)',
+  border: 'var(--cal-border-strong)',
+};
+
+function colorStyle(colors) {
+  return colors ? {
+    backgroundColor: colors.bg,
+    borderColor: colors.border,
+    color: colors.fg,
+  } : undefined;
+}
 
 function statusLabel(status) {
   return status === 'booked' ? 'Booked' : status === 'not_needed' ? 'Not needed' : 'Needs action';
@@ -36,15 +54,25 @@ function TravelItemEditor({ item, onChange, onRemove }) {
     <div className="travel-item-editor">
       <div className="travel-editor-row">
         <select value={manualTechnician ? '__manual__' : (item.technician || '')}
+          style={colorStyle(manualTechnician || !item.technician
+            ? NEUTRAL_TECH_COLOR
+            : CONFIG.TECH_COLORS?.[item.technician])}
           aria-label="Technician or shared booking" onChange={event => updateTechnician(event.target.value)}>
-          <option value="">Shared booking</option>
-          {CONFIG.TECHNICIANS.map(technician => <option key={technician} value={technician}>{technician}</option>)}
-          <option value="__manual__">Manual override…</option>
+          <option value="" style={colorStyle(NEUTRAL_TECH_COLOR)}>Shared booking</option>
+          {CONFIG.TECHNICIANS.map(technician => (
+            <option key={technician} value={technician} style={colorStyle(CONFIG.TECH_COLORS?.[technician])}>
+              {technician}
+            </option>
+          ))}
+          <option value="__manual__" style={colorStyle(NEUTRAL_TECH_COLOR)}>Manual override…</option>
         </select>
-        <select value={item.status || 'needed'} aria-label="Travel status"
+        <select value={item.status || 'needed'} style={colorStyle(TRAVEL_STATUS_COLORS[item.status || 'needed'])}
+          aria-label="Travel status"
           onChange={event => onChange({ status: event.target.value })}>
           {['needed', 'booked', 'not_needed'].map(status => (
-            <option key={status} value={status}>{statusLabel(status)}</option>
+            <option key={status} value={status} style={colorStyle(TRAVEL_STATUS_COLORS[status])}>
+              {statusLabel(status)}
+            </option>
           ))}
         </select>
         <button type="button" className="travel-remove" onClick={onRemove} aria-label="Remove booking">×</button>
