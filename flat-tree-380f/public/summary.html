@@ -515,6 +515,9 @@ let allExceptions = [];
 let servers       = JSON.parse(localStorage.getItem('cal_servers') || '[]');
 let thresholds    = JSON.parse(localStorage.getItem('cal_thresholds') || 'null')
                     || { ...CONFIG.DEFAULT_THRESHOLDS };
+let summaryJobInfo = {};
+let customerAutofilledValue = null;
+let printedNameAutofilledValue = null;
 
 
 // Fields to persist
@@ -527,14 +530,23 @@ function saveFields() {
     if (el) data[id] = el.value;
   });
   localStorage.setItem('summary_fields', JSON.stringify(data));
+  localStorage.setItem('summary_autofill_fields', JSON.stringify({
+    customer: customerAutofilledValue,
+    printedName: printedNameAutofilledValue,
+  }));
 }
 
 function restoreFields() {
   const data = JSON.parse(localStorage.getItem('summary_fields') || '{}');
+  const autofilled = JSON.parse(localStorage.getItem('summary_autofill_fields') || '{}');
   PERSIST_FIELDS.forEach(id => {
     const el = document.getElementById(id);
     if (el && data[id]) el.value = data[id];
   });
+  customerAutofilledValue = autofilled.customer && data['field-customer'] === autofilled.customer
+    ? autofilled.customer : null;
+  printedNameAutofilledValue = autofilled.printedName && data['field-signame'] === autofilled.printedName
+    ? autofilled.printedName : null;
 }
 
 /* ─── Helpers ─────────────────────────────────────────────── */
@@ -605,6 +617,84 @@ function setStatus(msg) {
   document.getElementById('status-msg').textContent = msg;
 }
 
+function contactPrintedName(value) {
+  const text = String(value || '')
+    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, ' ')
+    .replace(/(?:\+?1[\s.-]?)?(?:\(?\d{3}\)?[\s.-]?)\d{3}[\s.-]\d{4}/g, ' ')
+    .replace(/\b(?:name|contact|main contact|phone|tel|telephone|mobile|email|e-mail)\s*[:\-]\s*/gi, ' ')
+    .replace(/[<>()[\]{}]/g, ' ');
+  const candidate = text
+    .split(/[\r\n,;|]+/)
+    .map(part => part.replace(/\s+/g, ' ').trim())
+    .find(part => part && !/^https?:\/\//i.test(part) && /[A-Za-z]/.test(part));
+  return candidate || '';
+}
+
+function applySummaryAutofills() {
+  const customer = String(summaryJobInfo.job_name || '').trim();
+  const customerEl = document.getElementById('field-customer');
+  if (!customer && customerEl?.value.trim() === customerAutofilledValue) {
+    customerEl.value = '';
+    customerAutofilledValue = null;
+  }
+  if (customerEl && customer && (!customerEl.value.trim() || customerEl.value.trim() === customerAutofilledValue)) {
+    customerEl.value = customer;
+    customerAutofilledValue = customer;
+  }
+
+  const printedName = contactPrintedName(summaryJobInfo.main_contact);
+  const printedNameEl = document.getElementById('field-signame');
+  if (!printedName && printedNameEl?.value.trim() === printedNameAutofilledValue) {
+    printedNameEl.value = '';
+    printedNameAutofilledValue = null;
+  }
+  if (printedNameEl && printedName && (!printedNameEl.value.trim() || printedNameEl.value.trim() === printedNameAutofilledValue)) {
+    printedNameEl.value = printedName;
+    printedNameAutofilledValue = printedName;
+  }
+  saveFields();
+}
+
+async function loadSummaryJobInfo() {
+  try {
+    const response = await fetch(`${CONFIG.WORKER_URL}/servers`, { headers: siteApiHeaders() });
+    if (!response.ok) throw new Error('Could not load server information');
+    const serverRows = await response.json();
+    const customerCounts = {};
+    servers.forEach(server => {
+      const row = serverRows.find(item => String(item.server) === String(server));
+      const customer = String(row?.customer || '').trim();
+      if (customer) customerCounts[customer] = (customerCounts[customer] || 0) + 1;
+    });
+    const currentCustomer = Object.entries(customerCounts).sort((a, b) => b[1] - a[1])[0]?.[0];
+    if (!currentCustomer) {
+      summaryJobInfo = {};
+      applySummaryAutofills();
+      return;
+    }
+    if (!localStorage.getItem('summary_autofill_fields')) {
+      const savedCustomer = document.getElementById('field-customer')?.value.trim().toLowerCase();
+      if (savedCustomer) {
+        const allJobsResponse = await fetch(`${CONFIG.WORKER_URL}/jobinfo/all`, { headers: siteApiHeaders() });
+        if (allJobsResponse.ok) {
+          const allJobs = await allJobsResponse.json();
+          const matchingJob = allJobs.find(job => String(job.job_name || '').trim().toLowerCase() === savedCustomer);
+          if (matchingJob) customerAutofilledValue = String(matchingJob.job_name).trim();
+        }
+      }
+    }
+    const jobResponse = await fetch(
+      `${CONFIG.WORKER_URL}/jobinfo/${encodeURIComponent(currentCustomer)}`,
+      { headers: siteApiHeaders() }
+    );
+    if (!jobResponse.ok) throw new Error('Could not load job information');
+    summaryJobInfo = await jobResponse.json();
+    applySummaryAutofills();
+  } catch (error) {
+    console.warn('Could not load summary job info for autofill', error);
+  }
+}
+
 /* ─── Data loading ────────────────────────────────────────── */
 async function loadData() {
   try { await siteAuth.ensure(); } catch (_) { return; }
@@ -633,6 +723,8 @@ async function loadData() {
 
     allSensors    = sensorResults.flat();
     allExceptions = excResults.flat();
+
+    await loadSummaryJobInfo();
 
     document.getElementById('loading').style.display = 'none';
     document.getElementById('summary-doc').style.display = 'flex';
@@ -964,7 +1056,15 @@ setTimeout(() => {
 /* ─── Init ────────────────────────────────────────────────── */
 PERSIST_FIELDS.forEach(id => {
   const el = document.getElementById(id);
-  if (el) el.addEventListener('input', saveFields);
+  if (el) el.addEventListener('input', () => {
+    if (id === 'field-customer' && el.value.trim() !== customerAutofilledValue) {
+      customerAutofilledValue = null;
+    }
+    if (id === 'field-signame' && el.value.trim() !== printedNameAutofilledValue) {
+      printedNameAutofilledValue = null;
+    }
+    saveFields();
+  });
 });
 restoreFields();
 siteReady.then(() => loadData()).catch(error => console.error(error));
