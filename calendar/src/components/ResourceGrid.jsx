@@ -613,6 +613,8 @@ export default function ResourceGrid({
                                   if (isGhost && editorToken) {
                                     // Ghost click → open modal to confirm/edit
                                     openJobModal(l.event);
+                                  } else {
+                                    onEventClick?.(l.event);
                                   }
                                 }}
                                 

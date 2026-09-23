@@ -16,12 +16,30 @@ function statusLabel(status) {
 }
 
 function TravelItemEditor({ item, onChange, onRemove }) {
+  const knownTechnicians = ['', ...CONFIG.TECHNICIANS];
+  const manualTechnician = Boolean(item.manual || (item.technician && !knownTechnicians.includes(item.technician)));
+
+  function updateTechnician(value) {
+    if (value === '__manual__') {
+      onChange({ manual: true, technician: '' });
+      return;
+    }
+    onChange({
+      manual: false,
+      technician: value,
+      ...(value && item.status === 'needed' ? { status: 'booked' } : {}),
+    });
+  }
+
   return (
     <div className="travel-item-editor">
       <div className="travel-editor-row">
-        <input value={item.technician || ''} placeholder="Technician or shared"
-          aria-label="Technician or shared booking"
-          onChange={event => onChange({ technician: event.target.value })} />
+        <select value={manualTechnician ? '__manual__' : (item.technician || '')}
+          aria-label="Technician or shared booking" onChange={event => updateTechnician(event.target.value)}>
+          <option value="">Shared booking</option>
+          {CONFIG.TECHNICIANS.map(technician => <option key={technician} value={technician}>{technician}</option>)}
+          <option value="__manual__">Manual override…</option>
+        </select>
         <select value={item.status || 'needed'} aria-label="Travel status"
           onChange={event => onChange({ status: event.target.value })}>
           {['needed', 'booked', 'not_needed'].map(status => (
@@ -30,6 +48,15 @@ function TravelItemEditor({ item, onChange, onRemove }) {
         </select>
         <button type="button" className="travel-remove" onClick={onRemove} aria-label="Remove booking">×</button>
       </div>
+      {manualTechnician && (
+        <input value={item.technician || ''} placeholder="Enter technician name"
+          aria-label="Manual technician name"
+          onChange={event => onChange({
+            manual: true,
+            technician: event.target.value,
+            ...(event.target.value && item.status === 'needed' ? { status: 'booked' } : {}),
+          })} />
+      )}
       <input value={item.details || ''} placeholder="Booking details"
         onChange={event => onChange({ details: event.target.value })} />
       <textarea rows={2} value={item.notes || ''} placeholder="Optional notes"
