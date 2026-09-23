@@ -115,6 +115,10 @@ function isCalibrated(s) {
   return new Date(s.calibrated_at) >= getCutoff();
 }
 
+function isQualityError(s) {
+  return ['LINK', 'SENSOR', 'INIT', 'NETWORK'].includes(String(s.quality || '').toUpperCase());
+}
+
 function isFailed(s) {
   if (s.new_offset === null || s.new_offset === undefined) return false;
   const max = thresholds[s.sensor_type];
@@ -330,7 +334,12 @@ function buildServerOverviewTable(sectionKey, title, rows, columns, emptyText, m
               const direction = active ? (sort.dir === 1 ? 'ascending' : 'descending') : 'none';
               return `<th aria-sort="${direction}"><button type="button" class="server-overview-sort${active ? ' is-active' : ''}" data-overview-section="${escapeHtml(sectionKey)}" data-overview-sort="${escapeHtml(column.key)}" title="Sort by ${escapeHtml(column.label)}">${escapeHtml(column.label)}<span aria-hidden="true">${active ? (sort.dir === 1 ? '&#9650;' : '&#9660;') : ''}</span></button></th>`;
             }).join('')}</tr></thead>
-            <tbody>${sortedRows.map(row => `<tr class="${escapeHtml(rowClass(row))}">${sortableColumns.map(column => `<td>${column.render(row)}</td>`).join('')}</tr>`).join('')}</tbody>
+            <tbody>${sortedRows.map(row => {
+              const qualityError = isQualityError(row);
+              const classes = [rowClass(row), qualityError ? 'overview-quality-error-row' : ''].filter(Boolean).join(' ');
+              const qualityTitle = qualityError ? `Qual: ${String(row.quality).toUpperCase()}` : '';
+              return `<tr class="${escapeHtml(classes)}"${qualityTitle ? ` title="${escapeHtml(qualityTitle)}"` : ''}>${sortableColumns.map(column => `<td>${column.render(row)}</td>`).join('')}</tr>`;
+            }).join('')}</tbody>
           </table>` : `<div class="server-overview-empty">${escapeHtml(emptyText)}</div>`}
       </div>
     </section>`;
@@ -991,9 +1000,10 @@ function buildSensorTable(rows) {
     const repeatBadge = !excepted && repeated
       ? `<span class="qual qual-warn" style="margin-left:4px;" title="Was an exception in ${CURRENT_YEAR-1}">repeat</span>`
       : '';
+    const qualityError = isQualityError(s);
     const fail = isFailed(s);
-    const done = isCalibrated(s) && !isFailed(s);
-    return `<tr class="${fail ? 'failure-row' : done ? 'done-row' : ''}">
+    const done = isCalibrated(s) && !fail && !qualityError;
+    return `<tr class="${qualityError ? 'quality-error-row' : fail ? 'failure-row' : done ? 'done-row' : ''}">
       <td class="muted mono">#${s.sensor_id}</td>
       <td class="mono muted" title="${s.cp_address||''}">${s.cp_address || '<span class="muted">—</span>'}</td>
       <td title="${s.sensor_name||''}">${nameCell}${repeatBadge}</td>
@@ -1703,7 +1713,7 @@ function buildCheckTable(sensors) {
       ${thSort('Calibrated', '_calibrated',checkSort, 'sortCheck')}
       <th></th>
     </tr></thead>
-    <tbody>${rows.map(s => `<tr class="${s._resolved ? 'done-row' : ''}">
+    <tbody>${rows.map(s => `<tr class="${isQualityError(s) ? 'quality-error-row' : s._resolved ? 'done-row' : ''}">
       <td class="muted mono">#${s.sensor_id}</td>
       <td class="mono muted">${s.cp_address || '—'}</td>
       <td title="${s.sensor_name||''}">${s.sensor_name || '—'}</td>
