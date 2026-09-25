@@ -15,6 +15,8 @@
   --bg-quality-error-hover: #363e49;
   --bg-success:    rgba(0, 150, 0, 0.1);
   --bg-success-hover: rgba(0, 198, 0, 0.2);
+  --bg-disabled-exception: rgba(140, 63, 199, 0.14);
+  --bg-disabled-exception-hover: rgba(140, 63, 199, 0.24);
   --bg-header:     #111115;
   --bg-tab-calibrated: rgb(0, 25, 0);
   --bg-tab-failures: rgb(25, 0, 0);
@@ -63,6 +65,8 @@
   --bg-quality-error-hover: #d4dbe3;
   --bg-success:    #c5e0b9;
   --bg-success-hover: #96ce7c;
+  --bg-disabled-exception: #eadcf4;
+  --bg-disabled-exception-hover: #dcc2ef;
   --bg-header:     #f1f3f5;
   --bg-tab-calibrated: #e8f4e3;
   --bg-tab-failures: #fae8e8;
@@ -1075,6 +1079,9 @@ table.rt tr.quality-error-row:hover td { background: var(--bg-quality-error-hove
 table.rt tr.quality-error-row td:first-child { box-shadow: inset 4px 0 var(--accent-quality-error); }
 table.rt tr.done-row td { background: var(--bg-success); }
 table.rt tr.done-row:hover td { background: var(--bg-success-hover); }
+table.rt tr.disabled-exception-row td { background: var(--bg-disabled-exception); }
+table.rt tr.disabled-exception-row:hover td { background: var(--bg-disabled-exception-hover); }
+table.rt tr.disabled-exception-row td:first-child { box-shadow: inset 4px 0 var(--accent-purple); }
 table.summary tr.done-row td { background: var(--bg-success); }
 table.summary tr.done-row:hover td { background: var(--bg-success-hover); }
 table.summary tr.quality-error-row td { background: var(--bg-quality-error); }
@@ -1100,6 +1107,11 @@ td.orange-val { color: var(--accent-orange); }
 .qual-network { background: #2b1700; color: #ffffff; }
 .qual-sensor  { background: #2b0000; color: #ffffff; }
 .qual-init  { background: #000000; color: #ffffff; }
+.exception-disabled-flag {
+  background: var(--accent-purple);
+  color: #fff;
+  white-space: nowrap;
+}
 
 :root[data-theme="light"] .qual-good { background: #eaf5e5; color: #315f19; }
 :root[data-theme="light"] .qual-link { background: #eee9fa; color: #6843a8; }

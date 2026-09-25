@@ -138,6 +138,13 @@ function isFailed(s) {
   return Math.abs(parseFloat(s.new_offset)) > max;
 }
 
+function findSensor(sensor_id, server) {
+  return allSensors.find(s =>
+    String(s.sensor_id) === String(sensor_id) &&
+    String(s.server) === String(server)
+  );
+}
+
 function getActiveSensors() {
   const showDisabled = document.getElementById('show-disabled')?.checked;
   return allSensors.filter(s =>
@@ -1033,7 +1040,10 @@ function buildSensorTable(rows) {
       : (s.sensor_name || '<span class="muted">—</span>');
     const excepted = isExcepted(s);
     const repeated = wasExceptedLastYear(s);
-    const excBtn = excepted
+    const disabled = s.status?.toUpperCase() === 'DISABLED';
+    const excBtn = disabled
+      ? `<span class="qual exception-disabled-flag" style="cursor:default;">${excepted ? 'disabled exception' : 'disabled'}</span>`
+      : excepted
       ? `<span class="qual qual-warn" style="cursor:default;">excepted</span>`
       : `<button onclick="openExceptionModal('${s.sensor_id}','${s.server}')"
           style="font-size:11px;padding:3px 8px;">+ exception</button>`;
@@ -1198,8 +1208,12 @@ function renderTable() {
     return;
   }
   if (currentTab === 'exceptions') {
+    const currentExceptions = allExceptions.filter(e => e.year === CURRENT_YEAR);
+    const disabledExceptionCount = currentExceptions.filter(e =>
+      findSensor(e.sensor_id, e.server)?.status?.toUpperCase() === 'DISABLED'
+    ).length;
     title.textContent = `Exceptions ${CURRENT_YEAR}`;
-    count.textContent = `${allExceptions.filter(e => e.year === CURRENT_YEAR).length}`;
+    count.textContent = `${currentExceptions.length}${disabledExceptionCount ? ` · ${disabledExceptionCount} disabled — remove` : ''}`;
     area.innerHTML = buildExceptionsTable();
     return;
   }
@@ -1641,10 +1655,12 @@ async function deleteServerConfig(server) {
 
 //Exception modal and save functions ======================
 function openExceptionModal(sensor_id, server) {
-  const sensor = allSensors.find(s =>
-    String(s.sensor_id) === String(sensor_id) && s.server === server
-  );
+  const sensor = findSensor(sensor_id, server);
   if (!sensor) return;
+  if (sensor.status?.toUpperCase() === 'DISABLED') {
+    alert('Disabled sensors cannot be added as exceptions.');
+    return;
+  }
 
   const lastYear = wasExceptedLastYear(sensor);
   const lastYearEx = allExceptions.find(e =>
@@ -1715,9 +1731,12 @@ function closeExceptionModal() {
 }
 
 async function saveException(sensor_id, server) {
-  const sensor = allSensors.find(s =>
-    String(s.sensor_id) === String(sensor_id) && s.server === server
-  );
+  const sensor = findSensor(sensor_id, server);
+  if (sensor?.status?.toUpperCase() === 'DISABLED') {
+    alert('This sensor is now disabled and cannot be saved as an exception.');
+    closeExceptionModal();
+    return;
+  }
   const reason   = document.getElementById('exc-reason').value.trim();
   const added_by = document.getElementById('exc-added-by').value;
   if (!reason || !added_by) {
@@ -1804,19 +1823,23 @@ function buildExceptionsTable() {
   }
 
   let rows = current.map(e => {
-    const sensor = allSensors.find(s =>
-      String(s.sensor_id) === String(e.sensor_id) &&
-      String(s.server) === String(e.server)
-    );
+    const sensor = findSensor(e.sensor_id, e.server);
     return {
       ...e,
       cp_address: sensor?.cp_address || e.cp_address || '',
+      _disabled: sensor?.status?.toUpperCase() === 'DISABLED',
       _failed: sensor ? isFailed(sensor) : false,
       _calibrated: sensor ? isCalibrated(sensor) : false,
       _repeat: prevIds.has(`${e.sensor_id}|${e.server}`),
     };
   });
   rows = applySummarySort(rows, excSort, 'sensor_id');
+  if (!excSort.col) {
+    rows.sort((a, b) =>
+      Number(b._disabled) - Number(a._disabled) ||
+      String(a.cp_address || '').localeCompare(String(b.cp_address || ''), undefined, { numeric: true })
+    );
+  }
 
   return `<div class="rt-wrap"><table class="rt">
     <thead><tr>
@@ -1829,9 +1852,10 @@ function buildExceptionsTable() {
       ${thSort('Added by', 'added_by',   excSort, 'sortExc')}
       ${thSort('Date',     'added_at',   excSort, 'sortExc')}
       ${thSort('Repeat',   '_repeat',    excSort, 'sortExc')}
+      ${thSort('Status',   '_disabled',  excSort, 'sortExc')}
       <th></th>
     </tr></thead>
-    <tbody>${rows.map(e => `<tr class="${e._failed ? 'failure-row' : e._calibrated ? 'done-row' : ''}">
+    <tbody>${rows.map(e => `<tr class="${e._disabled ? 'disabled-exception-row' : e._failed ? 'failure-row' : e._calibrated ? 'done-row' : ''}">
       <td class="muted mono">#${e.sensor_id}</td>
       <td class="mono muted" title="${e.cp_address || ''}">${e.cp_address || '—'}</td>
       <td>${e.sensor_name || '—'}</td>
@@ -1842,6 +1866,9 @@ function buildExceptionsTable() {
       <td class="muted">${fmtDate(e.added_at)}</td>
       <td>${e._repeat
         ? `<span class="qual qual-warn" title="Also excepted in ${CURRENT_YEAR-1}">repeat</span>`
+        : '<span class="muted">—</span>'}</td>
+      <td>${e._disabled
+        ? '<span class="qual exception-disabled-flag" title="Disabled sensors should not remain exceptions">Disabled — remove exception</span>'
         : '<span class="muted">—</span>'}</td>
       <td><button class="danger" onclick="removeException(${e.id})">Remove</button></td>
     </tr>`).join('')}</tbody>
