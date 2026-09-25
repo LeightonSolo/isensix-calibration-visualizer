@@ -1803,12 +1803,25 @@ function buildExceptionsTable() {
       No exceptions logged for ${CURRENT_YEAR}.</div>`;
   }
 
-  let rows = current.map(e => ({ ...e, _repeat: prevIds.has(`${e.sensor_id}|${e.server}`) }));
+  let rows = current.map(e => {
+    const sensor = allSensors.find(s =>
+      String(s.sensor_id) === String(e.sensor_id) &&
+      String(s.server) === String(e.server)
+    );
+    return {
+      ...e,
+      cp_address: sensor?.cp_address || e.cp_address || '',
+      _failed: sensor ? isFailed(sensor) : false,
+      _calibrated: sensor ? isCalibrated(sensor) : false,
+      _repeat: prevIds.has(`${e.sensor_id}|${e.server}`),
+    };
+  });
   rows = applySummarySort(rows, excSort, 'sensor_id');
 
   return `<div class="rt-wrap"><table class="rt">
     <thead><tr>
       ${thSort('ID',       'sensor_id',  excSort, 'sortExc')}
+      ${thSort('CP Addr',  'cp_address', excSort, 'sortExc')}
       ${thSort('Sensor',   'sensor_name',excSort, 'sortExc')}
       ${thSort('Zone',     'zone',       excSort, 'sortExc')}
       ${thSort('SID',      'server',     excSort, 'sortExc')}
@@ -1818,8 +1831,9 @@ function buildExceptionsTable() {
       ${thSort('Repeat',   '_repeat',    excSort, 'sortExc')}
       <th></th>
     </tr></thead>
-    <tbody>${rows.map(e => `<tr>
+    <tbody>${rows.map(e => `<tr class="${e._failed ? 'failure-row' : e._calibrated ? 'done-row' : ''}">
       <td class="muted mono">#${e.sensor_id}</td>
+      <td class="mono muted" title="${e.cp_address || ''}">${e.cp_address || '—'}</td>
       <td>${e.sensor_name || '—'}</td>
       <td class="muted">${e.zone || '—'}</td>
       <td class="muted mono">${e.server}</td>
