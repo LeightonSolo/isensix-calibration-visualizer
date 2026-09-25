@@ -4,9 +4,10 @@ import { CONFIG } from '../config.js';
 import { siteHeaders, siteToken } from '../utils/siteAuth.js';
 
 const KINDS = [
+  { key: 'flight', label: 'Flights', icon: '✈' },
   { key: 'hotel', label: 'Hotel', icon: '🏨' },
   { key: 'car', label: 'Rental car', icon: '🚗' },
-  { key: 'flight', label: 'Flights', icon: '✈' },
+ 
 ];
 
 const EMPTY_ITEM = kind => ({ kind, technician: '', status: 'needed', details: '', notes: '' });
