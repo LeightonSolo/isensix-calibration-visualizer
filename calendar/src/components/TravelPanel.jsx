@@ -34,10 +34,73 @@ function statusLabel(status) {
   return status === 'booked' ? 'Booked' : status === 'not_needed' ? 'Not needed' : 'Needs booking';
 }
 
-function TravelItemEditor({ item, onChange, onRemove }) {
+function bookingNotes(item) {
+  return [item.details, item.notes].filter(value => String(value || '').trim()).join('\n');
+}
+
+function flightSearchUrl(flight) {
+  return `https://www.google.com/search?q=${encodeURIComponent(`${flight.number} flight status`)}`;
+}
+
+function flightMatches(value) {
+  const matches = [];
+  const seen = new Set();
+  const pattern = /\b([A-Z]{2})[\s-]?(\d{1,4})\b/gi;
+  let match;
+  while ((match = pattern.exec(String(value || '')))) {
+    const number = `${match[1]}${match[2]}`.toUpperCase();
+    if (!seen.has(number)) {
+      seen.add(number);
+      matches.push({ label: match[0], number });
+    }
+  }
+  return matches;
+}
+
+function FlightLink({ flight, className = 'travel-flight-link', children = '↗' }) {
+  return flight ? (
+    <a className={className} href={flightSearchUrl(flight)} target="_blank" rel="noreferrer"
+      title={`Search flight status for ${flight.number}`} aria-label={`Search flight status for ${flight.number}`}>
+      {children}
+    </a>
+  ) : null;
+}
+
+function FlightLinks({ notes }) {
+  const flights = flightMatches(notes);
+  if (!flights.length) return null;
+  return (
+    <div className="travel-flight-links" aria-label="Flight status links">
+      {flights.map(flight => (
+        <FlightLink key={flight.number} flight={flight} className="travel-flight-number">
+          {flight.label}
+        </FlightLink>
+      ))}
+    </div>
+  );
+}
+
+function linkedFlightNotes(notes) {
+  if (!notes) return 'No booking notes';
+  const parts = [];
+  const pattern = /\b([A-Z]{2})[\s-]?(\d{1,4})\b/gi;
+  let lastIndex = 0;
+  let match;
+  while ((match = pattern.exec(String(notes)))) {
+    if (match.index > lastIndex) parts.push(String(notes).slice(lastIndex, match.index));
+    const flight = { label: match[0], number: `${match[1]}${match[2]}`.toUpperCase() };
+    parts.push(<FlightLink key={`${flight.number}-${match.index}`} flight={flight} className="travel-flight-number">{flight.label}</FlightLink>);
+    lastIndex = match.index + match[0].length;
+  }
+  parts.push(String(notes).slice(lastIndex));
+  return parts;
+}
+
+function TravelItemEditor({ item, kind, onChange, onRemove }) {
   const knownTechnicians = ['', ...CONFIG.TECHNICIANS];
   const manualTechnician = Boolean(item.manual || (item.technician && !knownTechnicians.includes(item.technician)));
-  const [showExtra, setShowExtra] = useState(Boolean(item.details || item.notes));
+  const notes = bookingNotes(item);
+  const [showNotes, setShowNotes] = useState(Boolean(notes));
 
   function updateTechnician(value) {
     if (value === '__manual__') {
@@ -76,6 +139,9 @@ function TravelItemEditor({ item, onChange, onRemove }) {
             </option>
           ))}
         </select>
+        <button type="button" className={`travel-notes-toggle${notes ? ' has-notes' : ''}`}
+          onClick={() => setShowNotes(current => !current)}
+          aria-expanded={showNotes} aria-label="Edit booking notes" title="Edit booking notes">...</button>
         <button type="button" className="travel-remove" onClick={onRemove} aria-label="Remove booking">×</button>
       </div>
       {manualTechnician && (
@@ -87,14 +153,10 @@ function TravelItemEditor({ item, onChange, onRemove }) {
             ...(event.target.value && item.status === 'needed' ? { status: 'booked' } : {}),
           })} />
       )}
-      <button type="button" className="travel-extra-toggle" onClick={() => setShowExtra(current => !current)}>
-        {showExtra ? 'Hide details' : (item.details || item.notes ? 'Edit details' : '+ details / notes')}
-      </button>
-      {showExtra && <>
-        <input value={item.details || ''} placeholder="Booking details"
-          onChange={event => onChange({ details: event.target.value })} />
-        <textarea rows={2} value={item.notes || ''} placeholder="Optional notes"
-          onChange={event => onChange({ notes: event.target.value })} />
+      {showNotes && <>
+        <textarea rows={2} value={notes} placeholder="Booking notes"
+          onChange={event => onChange({ details: event.target.value, notes: '' })} />
+        {kind === 'flight' && <FlightLinks notes={notes} />}
       </>}
     </div>
   );
@@ -105,6 +167,7 @@ export default function TravelPanel({ jobInfo, event, onTravelSaved }) {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
+  const [collapsedKinds, setCollapsedKinds] = useState({});
   const editable = Boolean(siteToken());
   const grouped = useMemo(() => KINDS.map(kind => ({
     ...kind,
@@ -138,10 +201,15 @@ export default function TravelPanel({ jobInfo, event, onTravelSaved }) {
 
   function addItem(kind) {
     setItems(current => [...current, EMPTY_ITEM(kind)]);
+    setCollapsedKinds(current => ({ ...current, [kind]: false }));
   }
 
   function removeItem(index) {
     setItems(current => current.filter((_, itemIndex) => itemIndex !== index));
+  }
+
+  function toggleKind(kind) {
+    setCollapsedKinds(current => ({ ...current, [kind]: !current[kind] }));
   }
 
   async function save() {
@@ -174,22 +242,25 @@ export default function TravelPanel({ jobInfo, event, onTravelSaved }) {
       {grouped.map(kind => (
         <section className="travel-card" key={kind.key}>
           <div className="travel-card-heading">
-            <strong>{kind.icon} {kind.label}<span className="travel-booked-count">: {kind.items.filter(item => item.status === 'booked').length} Booked</span></strong>
-            {editable && <button type="button" onClick={() => addItem(kind.key)}>+ booking</button>}
+            <button type="button" className="travel-kind-toggle" onClick={() => toggleKind(kind.key)}
+              aria-expanded={!collapsedKinds[kind.key]}>
+              <span className={`travel-kind-chevron${collapsedKinds[kind.key] ? ' is-collapsed' : ''}`} aria-hidden="true" />
+              <strong>{kind.icon} {kind.label}<span className="travel-booked-count">: {kind.items.filter(item => item.status === 'booked').length} Booked</span></strong>
+            </button>
+            {editable && <button type="button" className="travel-add-booking" onClick={() => addItem(kind.key)}>+ booking</button>}
           </div>
-          {kind.items.length ? kind.items.map(item => {
+          {!collapsedKinds[kind.key] && (kind.items.length ? kind.items.map(item => {
             const index = items.indexOf(item);
             return editable ? (
-              <TravelItemEditor key={`${kind.key}-${index}`} item={item}
+              <TravelItemEditor key={`${kind.key}-${index}`} item={item} kind={kind.key}
                 onChange={updates => updateItem(index, updates)} onRemove={() => removeItem(index)} />
             ) : (
               <div className="travel-item-readonly" key={`${kind.key}-${index}`}>
                 <b>{item.technician || 'Shared'} · {statusLabel(item.status)}</b>
-                <span>{item.details || 'No booking details'}</span>
-                {item.notes && <small>{item.notes}</small>}
+                <span>{kind.key === 'flight' ? linkedFlightNotes(bookingNotes(item)) : (bookingNotes(item) || 'No booking notes')}</span>
               </div>
             );
-          }) : <div className="travel-empty">No travel information added.</div>}
+          }) : <div className="travel-empty">No travel information added.</div>)}
         </section>
       ))}
       {editable && (

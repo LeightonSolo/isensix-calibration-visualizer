@@ -344,21 +344,28 @@ body,
 .travel-card-heading { align-items: center; color: var(--cal-text-secondary); display: flex; font-size: 12px; justify-content: space-between; margin-bottom: 7px; }
 .travel-card-heading strong { color: var(--cal-text); }
 .travel-booked-count { color: var(--cal-success); font-size: 11px; font-weight: 500; }
-.travel-card-heading button, .travel-save { background: var(--cal-input); border: .5px solid var(--cal-border-strong); border-radius: 4px; color: var(--cal-text); cursor: pointer; font-size: 11px; padding: 3px 7px; }
+.travel-add-booking, .travel-save { background: var(--cal-input); border: .5px solid var(--cal-border-strong); border-radius: 4px; color: var(--cal-text); cursor: pointer; font-size: 11px; padding: 3px 7px; }
+.travel-kind-toggle { align-items: center; background: transparent; border: 0; color: var(--cal-text); cursor: pointer; display: flex; flex: 1; font-size: 12px; gap: 7px; min-width: 0; padding: 0; text-align: left; }
+.travel-kind-chevron { border-bottom: 1.5px solid var(--cal-text-muted); border-right: 1.5px solid var(--cal-text-muted); flex: 0 0 7px; height: 7px; transform: rotate(45deg) translateY(-2px); transition: transform 120ms ease; width: 7px; }
+.travel-kind-chevron.is-collapsed { transform: rotate(-45deg) translate(-1px, 1px); }
 .travel-item-readonly { border-top: .5px solid var(--cal-border); display: grid; gap: 2px; margin-top: 6px; padding: 6px 0 0; }
 .travel-item-readonly span, .travel-item-readonly small { color: var(--cal-text-secondary); font-size: 11px; overflow-wrap: anywhere; }
 .travel-item-readonly small { color: var(--cal-text-muted); }
 .travel-empty, .travel-empty-panel { color: var(--cal-text-muted); font-size: 11px; }
 .travel-empty-panel { margin-top: 16px; }
 .travel-item-editor { border-top: .5px solid var(--cal-border); display: grid; gap: 6px; margin-top: 7px; padding-top: 7px; }
-.travel-editor-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 5px; }
+.travel-editor-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; gap: 5px; }
 .travel-panel input, .travel-panel select, .travel-panel textarea { background: var(--cal-input); border: .5px solid var(--cal-border-strong); border-radius: 4px; box-sizing: border-box; color: var(--cal-text); font: 11px Inter, system-ui, sans-serif; padding: 5px 6px; width: 100%; }
 .travel-panel textarea { resize: vertical; }
-.travel-extra-toggle { background: transparent; border: 0; color: var(--cal-accent); cursor: pointer; font-size: 11px; padding: 0; text-align: left; }
-.travel-extra-toggle:hover { text-decoration: underline; }
+.travel-flight-links { display: flex; flex-wrap: wrap; gap: 4px; margin-top: -2px; }
+.travel-notes-toggle { background: transparent; border: .5px solid var(--cal-border-strong); border-radius: 4px; color: var(--cal-text-muted); cursor: pointer; font-size: 13px; line-height: 1; min-width: 25px; padding: 3px 5px; }
+.travel-notes-toggle:hover, .travel-notes-toggle.has-notes { background: var(--cal-info-bg); border-color: var(--cal-info-border); color: var(--cal-accent); }
+.travel-flight-link { align-items: center; color: var(--cal-accent); display: inline-flex; font-size: 15px; justify-content: center; line-height: 1; min-width: 20px; text-decoration: none; }
+.travel-flight-link:hover, .travel-flight-number:hover { text-decoration: underline; }
+.travel-flight-number { background: var(--cal-info-bg); border: .5px solid var(--cal-info-border); border-radius: 4px; color: var(--cal-accent); padding: 2px 6px; text-decoration: none; text-underline-offset: 2px; }
 .travel-remove { background: transparent; border: 0; color: var(--cal-text-muted); cursor: pointer; font-size: 17px; line-height: 1; padding: 0 3px; }
 .travel-remove:hover { color: var(--cal-danger); }
-.travel-save-row { align-items: center; display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px; }
+.travel-save-row { align-items: center; background: var(--cal-sidebar); border-top: .5px solid var(--cal-border); bottom: 0; display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px; padding: 8px 0 2px; position: sticky; z-index: 2; }
 .travel-save { background: var(--cal-accent); border-color: var(--cal-accent); color: #fff; padding: 5px 10px; }
 .travel-save:disabled { cursor: wait; opacity: .65; }
 .travel-message { color: var(--cal-success); font-size: 11px; margin-right: auto; }
