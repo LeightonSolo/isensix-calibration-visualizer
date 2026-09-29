@@ -2324,7 +2324,7 @@ function buildJobInfoHTML() {
     <div class="job-info-actions" style="display:flex;gap:10px;align-items:center;padding:14px 9px 9px;">
       <button class="primary" onclick="saveJobInfo()">Save job info</button>
       <a href="jobs.html?job=${encodeURIComponent(currentCustomer || '')}" target="_blank" rel="noopener noreferrer" style="color:var(--accent-light-blue);font-size:12px;">Open full job record</a>
-      <span id="ji-save-status" style="font-size:12px;color:var(--accent-green);"></span>
+      <span id="ji-save-status" style="font-size:14px;color:var(--accent-green);font-weight:600;"></span>
       <button class="nav-btn job-info-about-button" type="button" data-page="about" onclick="showPage('about')"><i class="ti ti-info-circle"></i> About</button>
     </div>`;
 }
