@@ -126,7 +126,7 @@ html[data-theme="light"] #jobs-table tbody tr.inactive-job:hover td:first-child 
 .tech-values strong { color:var(--text-secondary); font-size:10px; font-weight:500; }
 .tech-values small { color:var(--text-muted); font-size:9px; }
 .drawer-backdrop { position:fixed; inset:0; z-index:50; background:rgba(0,0,0,.55); }
-.job-drawer { position:fixed; z-index:51; top:0; right:0; width:min(780px,96vw); height:100vh; display:flex; flex-direction:column; background:var(--bg-panel); border-left:1px solid var(--border); box-shadow:-12px 0 35px rgba(0,0,0,.35); transform:translateX(102%); transition:transform .18s ease; }
+.job-drawer { position:fixed; z-index:51; top:0; right:0; width:min(780px,96vw); height:100dvh; min-height:0; display:flex; flex-direction:column; background:var(--bg-panel); border-left:1px solid var(--border); box-shadow:-12px 0 35px rgba(0,0,0,.35); transform:translateX(102%); transition:transform .18s ease; }
 .job-drawer.open { transform:translateX(0); }
 .drawer-header { display:flex; align-items:center; justify-content:space-between; padding:15px 18px; border-bottom:1px solid var(--border); }
 .drawer-header span { color:var(--text-muted); font-size:10px; text-transform:uppercase; letter-spacing:.08em; }
@@ -183,7 +183,7 @@ html[data-theme="light"] #jobs-table tbody tr.inactive-job:hover td:first-child 
 .field small { color:var(--text-muted); font-size:10px; }
 .field-check { display:flex; align-items:center; gap:8px; padding-top:17px; }
 .field-check input { width:auto; }
-.drawer-footer { display:flex; align-items:center; justify-content:flex-end; gap:8px; padding:12px 18px; border-top:1px solid var(--border); background:var(--bg-header); }
+.drawer-footer { position:sticky; bottom:0; z-index:4; display:flex; align-items:center; justify-content:flex-end; gap:8px; flex-shrink:0; padding:12px 18px; border-top:1px solid var(--border); background:var(--bg-header); }
 .drawer-footer #save-status { margin-right:auto; }
 .drawer-message { margin:10px 18px 0; padding:9px 11px; border:1px solid var(--accent-orange); border-radius:var(--radius-sm); color:var(--accent-orange); font-size:11px; }
 .editor-dialog { width:min(380px,92vw); padding:20px; border:1px solid var(--border); border-radius:var(--radius-lg); background:var(--bg-panel); color:var(--text-primary); }
@@ -211,5 +211,5 @@ html[data-theme="light"] #jobs-table tbody tr.inactive-job:hover td:first-child 
 :root[data-theme="light"] .tone-tech-brendon { --tone-bg:#f8e5e5; --tone-fg:#a22e2e; --tone-border:#dda0a0; }
 :root[data-theme="light"] .tone-tech-matt { --tone-bg:#f0f2f0; --tone-fg:#374a37; --tone-border:#b8c0b8; }
 @media (max-width:1000px) { .analytics-cards{grid-template-columns:repeat(3,1fr)} .jobs-heading{align-items:flex-start;flex-direction:column} }
-@media (max-width:700px) { #jobs-app{padding:12px} .jobs-navbar{align-items:flex-start;gap:10px;flex-direction:column}.jobs-nav-links{flex-wrap:wrap}.jobs-search{min-width:100%}.analytics-cards{grid-template-columns:repeat(2,1fr)}.analytics-grid{grid-template-columns:1fr}.analytics-wide{grid-column:auto}.form-grid,.form-grid.compact{grid-template-columns:repeat(2,minmax(0,1fr))}.field.wide,.field.full{grid-column:1/-1}.tech-breakdown-row{grid-template-columns:1fr}.tech-measures{grid-template-columns:1fr}.tech-measure{grid-template-columns:64px 1fr minmax(95px,auto)} }
+@media (max-width:700px) { #jobs-app{padding:12px} .jobs-navbar{align-items:flex-start;gap:10px;flex-direction:column}.jobs-nav-links{flex-wrap:wrap}.jobs-search{min-width:100%}.analytics-cards{grid-template-columns:repeat(2,1fr)}.analytics-grid{grid-template-columns:1fr}.analytics-wide{grid-column:auto}.form-grid,.form-grid.compact{grid-template-columns:repeat(2,minmax(0,1fr))}.field.wide,.field.full{grid-column:1/-1}.tech-breakdown-row{grid-template-columns:1fr}.tech-measures{grid-template-columns:1fr}.tech-measure{grid-template-columns:64px 1fr minmax(95px,auto)} .job-drawer{width:100vw;max-width:none}.drawer-footer{padding-bottom:calc(12px + env(safe-area-inset-bottom));} }
 @media (max-width:480px) { .form-grid,.form-grid.compact{grid-template-columns:1fr}.field.wide,.field.full{grid-column:auto} }
