@@ -1276,6 +1276,14 @@ table.summary tr:hover td { background: var(--bg-row-hover); }
 .ji-input select:focus { border-color: var(--accent-blue); }
 .ji-input textarea { resize: vertical; }
 .ji-contact-links { margin-top: 4px; font-size: 11px; line-height: 1.4; }
+.ji-url-links { margin-top: 5px; color: var(--text-secondary); font-size: 11px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }
+.job-info-url-link { color: var(--accent-light-blue); text-decoration: underline; text-underline-offset: 2px; }
+.job-info-url-separator { color: var(--text-muted); margin: 0 3px; }
+.job-info-actions { position: sticky; bottom: 0; z-index: 4; background: var(--bg-panel); border-top: 1px solid var(--border); padding-bottom: calc(9px + env(safe-area-inset-bottom)) !important; }
+#main-panel.job-info-panel-active #table-area { padding-bottom: 76px; }
+#main-panel.job-info-panel-active .job-info-actions { position: fixed; left: 0; right: 0; bottom: 0; z-index: 1000; padding: 12px 24px calc(12px + env(safe-area-inset-bottom)) !important; background: var(--bg-panel); border-top: 1px solid var(--border); box-shadow: 0 -8px 24px rgba(0,0,0,.18); }
+.job-info-about-button { margin-left: auto; }
+body.job-info-open > #app > .nav-btn[data-page="about"] { display: none; }
 .contact-email-link { color: var(--accent-light-blue); text-decoration: underline; text-underline-offset: 2px; }
 .contact-email-separator { color: var(--text-muted); margin: 0 3px; }
 

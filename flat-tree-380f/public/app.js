@@ -66,6 +66,7 @@ let currentPage = "dashboard";
 function showPage(page) {
 
     currentPage = page;
+    document.body.classList.toggle('job-info-open', page === 'dashboard' && currentTab === 'jobinfo');
     closeServerOverview();
 
     document.querySelectorAll(".page").forEach(p => {
@@ -1188,6 +1189,8 @@ function renderTable() {
   const title = document.getElementById('panel-title');
   const count = document.getElementById('panel-count');
   const area  = document.getElementById('table-area');
+  document.getElementById('main-panel')?.classList.toggle('job-info-panel-active', currentTab === 'jobinfo');
+  document.body.classList.toggle('job-info-open', currentPage === 'dashboard' && currentTab === 'jobinfo');
   const panelHeader = title.closest('.panel-hdr');
   panelHeader?.removeAttribute('title');
 
@@ -1389,6 +1392,22 @@ function contactEmailLinksHtml(value) {
   ).join('<span class="contact-email-separator"> · </span>');
 }
 
+function urlLinksHtml(value) {
+  const text = String(value ?? '');
+  const urlPattern = /https?:\/\/[^\s<]+/gi;
+  const urls = [];
+  let match;
+  while ((match = urlPattern.exec(text))) {
+    let url = match[0];
+    const trailing = url.match(/[.,;:!?)}\]]+$/)?.[0] || '';
+    url = url.slice(0, url.length - trailing.length);
+    if (url && !urls.includes(url)) urls.push(url);
+  }
+  return urls.map(url =>
+    `<a class="job-info-url-link" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(url)}</a>`
+  ).join('<span class="job-info-url-separator"> · </span>');
+}
+
 function updateJobInfoContactLinks() {
   ['ji-main-contact', 'ji-other-contacts', 'ji-contact-notes'].forEach(id => {
     const input = document.getElementById(id);
@@ -1396,6 +1415,20 @@ function updateJobInfoContactLinks() {
     if (!input || !links) return;
     const update = () => {
       links.innerHTML = contactEmailLinksHtml(input.value);
+      links.hidden = !links.innerHTML;
+    };
+    input.addEventListener('input', update);
+    update();
+  });
+}
+
+function updateJobInfoUrlLinks() {
+  ['ji-offsites', 'ji-comments'].forEach(id => {
+    const input = document.getElementById(id);
+    const links = document.getElementById(`${id}-url-links`);
+    if (!input || !links) return;
+    const update = () => {
+      links.innerHTML = urlLinksHtml(input.value);
       links.hidden = !links.innerHTML;
     };
     input.addEventListener('input', update);
@@ -2170,6 +2203,7 @@ function buildJobInfoTab() {
   setVal('ji-report',         jobInfo.report);
   setVal('ji-credentials',    jobInfo.credentials);
   setVal('ji-comments',       jobInfo.comments);
+  updateJobInfoUrlLinks();
   setVal('ji-other',          jobInfo.other_notes);
   setVal('ji-primary-tech',   jobInfo.primary_tech);
 }
@@ -2209,6 +2243,9 @@ function buildJobInfoHTML() {
 
   const contactRow = (label, id, inputHtml) =>
     row(label, `<div class="ji-contact-control">${inputHtml}<div id="${id}-email-links" class="ji-contact-links" hidden></div></div>`);
+
+  const urlRow = (label, id, inputHtml) =>
+    row(label, `<div class="ji-url-control">${inputHtml}<div id="${id}-url-links" class="ji-url-links" hidden></div></div>`);
 
   // Read-only display row (for auto fields that shouldn't be edited)
   const roRow = (label, id, note='') =>
@@ -2259,7 +2296,7 @@ function buildJobInfoHTML() {
 
         ${section('Location')}
         ${row('Main site address', inp('ji-site-address'))}
-        ${row('Offsites',          inp('ji-offsites'))}
+        ${urlRow('Offsites',       'ji-offsites', inp('ji-offsites'))}
 
         ${section('Travel')}
         ${row('VPN works?',      dl('ji-vpn',     'ji-vpn-dl',     ['Yes','No']))}
@@ -2277,17 +2314,18 @@ function buildJobInfoHTML() {
           ['None','Vendormate','Symplr','Green Security','IntelliCentrics']))}
 
         ${section('Documentation')}
-        ${row('Comments',        ta('ji-comments', 3))}
+        ${urlRow('Comments',      'ji-comments', ta('ji-comments', 3))}
         ${row('Report',          ta('ji-report',   3))}
         ${row('Other notes',     ta('ji-other',    2))}
 
       </tbody>
     </table>
 
-    <div style="display:flex;gap:10px;align-items:center;padding:14px 9px 9px;">
+    <div class="job-info-actions" style="display:flex;gap:10px;align-items:center;padding:14px 9px 9px;">
       <button class="primary" onclick="saveJobInfo()">Save job info</button>
       <a href="jobs.html?job=${encodeURIComponent(currentCustomer || '')}" target="_blank" rel="noopener noreferrer" style="color:var(--accent-light-blue);font-size:12px;">Open full job record</a>
       <span id="ji-save-status" style="font-size:12px;color:var(--accent-green);"></span>
+      <button class="nav-btn job-info-about-button" type="button" data-page="about" onclick="showPage('about')"><i class="ti ti-info-circle"></i> About</button>
     </div>`;
 }
 
