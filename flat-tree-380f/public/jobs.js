@@ -775,8 +775,8 @@
     const cards = [
       ['Jobs', overview.total_jobs, `${Number(overview.total_sensors || 0).toLocaleString()} sensors`],
       ['Sensors', overview.total_sensors, 'Across all job records'],
-      ['Guardian', overview.guardian_jobs, `${Number(overview.guardian_sensors || 0).toLocaleString()} sensors`],
-      ['ARMS', overview.arms_jobs, `${Number(overview.arms_sensors || 0).toLocaleString()} sensors`],
+      ['Guardian Only', overview.guardian_jobs, `${Number(overview.guardian_sensors || 0).toLocaleString()} sensors`],
+      ['ARMS Only', overview.arms_jobs, `${Number(overview.arms_sensors || 0).toLocaleString()} sensors`],
       ['Mixed hardware', overview.mixed_jobs, `${Number(overview.mixed_sensors || 0).toLocaleString()} sensors`],
       ['Needs cleanup', Number(overview.hardware_missing || 0) + Number(overview.address_missing || 0) + Number(overview.calibration_date_missing || 0), 'Missing key values'],
     ];
