@@ -42,6 +42,20 @@ export type CmsSyncResult = {
   unmatchedServers: number;
 };
 
+export type CmsSensorSnapshot = {
+  snapshotDate: string;
+  capturedAt: string;
+  activeServers: number;
+  totalActiveSensors: number;
+  guardianSensors: number;
+  armsSensors: number;
+  unknownSensors: number;
+  serversSeen: number;
+  serversMissing: number;
+  profileAServers: number;
+  profileNServers: number;
+};
+
 type ProposedJobInfo = {
   job_name: string;
   servers: string;
@@ -233,6 +247,78 @@ function splitServerIds(value: string | null | undefined): string[] {
   return [...new Set(String(value || '').split(',').map(server => server.trim()).filter(Boolean))];
 }
 
+export function buildCmsSensorSnapshot(
+  rows: NormalizedCmsServer[],
+  capturedAt: string,
+  serversMissing = 0,
+): CmsSensorSnapshot {
+  const activeRows = rows.filter(row => row.active === 1 && row.sensorCount > 0);
+  const totalActiveSensors = activeRows.reduce((sum, row) => sum + row.sensorCount, 0);
+  const guardianSensors = activeRows.reduce((sum, row) => sum + row.guardianSensorCount, 0);
+  const armsSensors = activeRows.reduce((sum, row) => sum + row.armsSensorCount, 0);
+
+  return {
+    snapshotDate: capturedAt.slice(0, 10),
+    capturedAt,
+    activeServers: activeRows.length,
+    totalActiveSensors,
+    guardianSensors,
+    armsSensors,
+    unknownSensors: Math.max(0, totalActiveSensors - guardianSensors - armsSensors),
+    serversSeen: rows.length,
+    serversMissing,
+    profileAServers: activeRows.filter(row => row.profile === 'A').length,
+    profileNServers: activeRows.filter(row => row.profile === 'N').length,
+  };
+}
+
+async function countMissingServers(db: D1Database, rows: NormalizedCmsServer[]) {
+  const currentIds = new Set(rows.map(row => row.customerId));
+  const result = await db.prepare(`SELECT customer_id FROM cms_server_inventory`).all<{ customer_id: string }>();
+  return result.results.filter(row => !currentIds.has(String(row.customer_id).trim())).length;
+}
+
+async function saveCmsSensorSnapshot(
+  db: D1Database,
+  snapshot: CmsSensorSnapshot,
+  runId: number | null,
+) {
+  await db.prepare(`
+    INSERT INTO cms_sensor_snapshots (
+      snapshot_date, captured_at, cms_sync_run_id,
+      active_servers, total_active_sensors, guardian_sensors, arms_sensors,
+      unknown_sensors, servers_seen, servers_missing,
+      profile_a_servers, profile_n_servers, sync_complete
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+    ON CONFLICT(snapshot_date) DO UPDATE SET
+      captured_at = excluded.captured_at,
+      cms_sync_run_id = excluded.cms_sync_run_id,
+      active_servers = excluded.active_servers,
+      total_active_sensors = excluded.total_active_sensors,
+      guardian_sensors = excluded.guardian_sensors,
+      arms_sensors = excluded.arms_sensors,
+      unknown_sensors = excluded.unknown_sensors,
+      servers_seen = excluded.servers_seen,
+      servers_missing = excluded.servers_missing,
+      profile_a_servers = excluded.profile_a_servers,
+      profile_n_servers = excluded.profile_n_servers,
+      sync_complete = 1
+  `).bind(
+    snapshot.snapshotDate,
+    snapshot.capturedAt,
+    runId,
+    snapshot.activeServers,
+    snapshot.totalActiveSensors,
+    snapshot.guardianSensors,
+    snapshot.armsSensors,
+    snapshot.unknownSensors,
+    snapshot.serversSeen,
+    snapshot.serversMissing,
+    snapshot.profileAServers,
+    snapshot.profileNServers,
+  ).run();
+}
+
 function mergedServerIds(current: string | null | undefined, rows: NormalizedCmsServer[]): string[] {
   return [...new Set([...splitServerIds(current), ...sortedServerIds(rows)])].sort((left, right) => {
     const numericDifference = Number(left) - Number(right);
@@ -376,6 +462,7 @@ export async function syncCmsInventory(env: CmsSyncEnv): Promise<CmsSyncResult> 
     runId = Number(started.meta.last_row_id) || null;
 
     const rows = await fetchNormalizedCmsInventory(env.CMS_API_KEY);
+    const serversMissing = await countMissingServers(env.DB, rows);
 
     const inventoryStatements = rows.map(row => env.DB.prepare(`
       INSERT INTO cms_server_inventory (
@@ -466,6 +553,11 @@ export async function syncCmsInventory(env: CmsSyncEnv): Promise<CmsSyncResult> 
       jobsUpdated,
       unmatchedServers: preview.unmatchedServers.length,
     };
+    await saveCmsSensorSnapshot(
+      env.DB,
+      buildCmsSensorSnapshot(rows, new Date().toISOString(), serversMissing),
+      runId,
+    );
     if (runId !== null) {
       await env.DB.prepare(`
         UPDATE cms_sync_runs SET

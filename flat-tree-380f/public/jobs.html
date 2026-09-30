@@ -130,6 +130,16 @@
 
     <section id="analytics-view" hidden>
       <div id="analytics-cards" class="analytics-cards"></div>
+      <section class="panel cms-trends-panel" aria-labelledby="cms-trends-title">
+        <div class="analytics-title"><div><h2 id="cms-trends-title">CMS sensor trends</h2><span>Daily snapshots from active CMS profiles A/N with at least one Guardian or ARMS sensor</span></div></div>
+        <div id="cms-trend-cards" class="analytics-cards"></div>
+        <div class="cms-unassigned-table-wrap">
+          <table class="cms-unassigned-table"><caption>Daily active server and sensor totals</caption>
+            <thead><tr><th>Date</th><th>Active servers</th><th>Total sensors</th><th>Guardian</th><th>ARMS</th><th>Unknown</th><th>A profiles</th><th>N profiles</th><th>Servers seen</th><th>Missing servers</th><th>Sync</th></tr></thead>
+            <tbody id="cms-history-body"></tbody>
+          </table>
+        </div>
+      </section>
       <div class="analytics-grid">
         <article class="panel analytics-panel"><div class="analytics-title"><h2>Hardware</h2><span>Jobs and sensors</span></div><div id="hardware-chart"></div></article>
         <article class="panel analytics-panel"><div class="analytics-title"><h2>Software families</h2><span>Jobs and sensors grouped by version prefix</span></div><div id="software-chart"></div></article>

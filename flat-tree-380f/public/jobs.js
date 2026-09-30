@@ -7,7 +7,7 @@
     jobs: [], stats: null, events: [], assignments: [], filtered: [], view: 'directory',
     sortKey: 'job_name', sortDir: 1, preset: 'all',
     columnWidths: {},
-    selected: null, editing: false, dirty: false, pendingAction: null, serverMeta: {}, cmsUnassigned: null,
+    selected: null, editing: false, dirty: false, pendingAction: null, serverMeta: {}, cmsUnassigned: null, cmsSensorHistory: [],
     initialJob: new URLSearchParams(location.search).get('job'), initialJobOpened: false,
   };
 
@@ -387,15 +387,17 @@
           offsites: row.offsites ?? legacyByJob.get(row.job_name)?.offsites ?? null,
         }));
       });
-      const [jobs, stats, events, assignments, serverRows, cmsStatus, cmsUnassigned] = await Promise.all([
+      const [jobs, stats, events, assignments, serverRows, cmsStatus, cmsUnassigned, cmsSensorHistory] = await Promise.all([
         jobsRequest, api('/jobinfo/stats'),
         api('/calendar/events').catch(() => []), api('/calendar/assignments').catch(() => []),
         api('/servers').catch(() => []),
         api('/admin/cms-sync/status').catch(() => null),
         api('/admin/cms-unassigned').catch(() => null),
+        api('/jobinfo/cms-sensor-history?limit=365').catch(() => []),
       ]);
       state.serverMeta = Object.fromEntries((serverRows || []).map(row => [String(row.server), row]));
       state.cmsUnassigned = cmsUnassigned;
+      state.cmsSensorHistory = Array.isArray(cmsSensorHistory) ? cmsSensorHistory : [];
       renderCmsSyncStatus(cmsStatus);
       renderCmsUnassigned(cmsUnassigned);
       state.jobs = jobs.map(job => ({ ...job, location: locationLabel(job), state: parseState(job.site_address) }));
@@ -779,6 +781,7 @@
       ['Needs cleanup', Number(overview.hardware_missing || 0) + Number(overview.address_missing || 0) + Number(overview.calibration_date_missing || 0), 'Missing key values'],
     ];
     $('analytics-cards').innerHTML = cards.map(([label, value, detail]) => `<article class="panel analytics-card"><span>${label}</span><strong>${Number(value || 0).toLocaleString()}</strong><small>${detail}</small></article>`).join('');
+    renderCmsSensorHistory();
     barChart('hardware-chart', state.stats.hardware, label => filterFromChart('hardware-filter', label));
     barChart('software-chart', state.stats.software,
       label => filterFromChart('software-filter', label));
@@ -795,6 +798,45 @@
     monthChart('latest-chart', state.stats.latest_calibrations_by_month);
     barChart('airport-chart', aggregateJobCategories(airportCodes));
     barChart('hotel-chart', aggregateJobCategories(hotelParents));
+  }
+
+  function renderCmsSensorHistory() {
+    const history = [...(state.cmsSensorHistory || [])].sort((a, b) => String(a.snapshot_date).localeCompare(String(b.snapshot_date)));
+    const cards = $('cms-trend-cards');
+    const body = $('cms-history-body');
+    if (!history.length) {
+      cards.innerHTML = '<div class="jobs-empty">No CMS history is available yet. A snapshot will appear after the next successful CMS sync.</div>';
+      body.innerHTML = '<tr><td colspan="11">No CMS snapshots available.</td></tr>';
+      return;
+    }
+    const latest = history[history.length - 1];
+    const previous = history.length > 1 ? history[history.length - 2] : null;
+    const change = key => previous ? Number(latest[key] || 0) - Number(previous[key] || 0) : 0;
+    const detail = (key, suffix = '') => {
+      const delta = change(key);
+      return `${delta > 0 ? '+' : ''}${delta.toLocaleString()}${suffix} since prior snapshot`;
+    };
+    const summary = [
+      ['Active servers', latest.active_servers, detail('active_servers')],
+      ['Active sensors', latest.total_active_sensors, detail('total_active_sensors')],
+      ['Guardian sensors', latest.guardian_sensors, detail('guardian_sensors')],
+      ['ARMS sensors', latest.arms_sensors, detail('arms_sensors')],
+      ['Servers seen', latest.servers_seen, `${Number(latest.servers_missing || 0).toLocaleString()} missing`],
+    ];
+    cards.innerHTML = summary.map(([label, value, extra]) => `<article class="panel analytics-card"><span>${label}</span><strong>${Number(value || 0).toLocaleString()}</strong><small>${extra}</small></article>`).join('');
+    body.innerHTML = history.slice(-90).reverse().map(row => `<tr>
+      <td>${escapeHtml(row.snapshot_date)}</td>
+      <td>${Number(row.active_servers || 0).toLocaleString()}</td>
+      <td>${Number(row.total_active_sensors || 0).toLocaleString()}</td>
+      <td>${Number(row.guardian_sensors || 0).toLocaleString()}</td>
+      <td>${Number(row.arms_sensors || 0).toLocaleString()}</td>
+      <td>${Number(row.unknown_sensors || 0).toLocaleString()}</td>
+      <td>${Number(row.profile_a_servers || 0).toLocaleString()}</td>
+      <td>${Number(row.profile_n_servers || 0).toLocaleString()}</td>
+      <td>${Number(row.servers_seen || 0).toLocaleString()}</td>
+      <td>${Number(row.servers_missing || 0).toLocaleString()}</td>
+      <td>${Number(row.sync_complete) === 1 ? 'Complete' : 'Incomplete'}</td>
+    </tr>`).join('');
   }
 
   function filterFromChart(id, value) {

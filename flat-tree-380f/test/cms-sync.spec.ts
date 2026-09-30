@@ -1,8 +1,31 @@
 /** Tests CMS inventory normalization, equipment derivation, supplier mapping, and read-only Job Info previews. */
 import { describe, expect, it, vi } from 'vitest';
-import { buildJobInfoPreview, normalizeCmsInventoryRow, normalizeSupplierName } from '../src/cms-sync';
+import { buildCmsSensorSnapshot, buildJobInfoPreview, normalizeCmsInventoryRow, normalizeSupplierName } from '../src/cms-sync';
 
 describe('CMS inventory normalization', () => {
+  it('counts only active A/N profiles with sensors in the daily snapshot', () => {
+    const rows = [
+      normalizeCmsInventoryRow({ customer_id: 1, profile: 'A', sensor_count_guardian: 10 }),
+      normalizeCmsInventoryRow({ customer_id: 2, profile: 'N', sensor_count_arms: 20 }),
+      normalizeCmsInventoryRow({ customer_id: 3, profile: 'A', sensor_count_guardian: 0 }),
+      normalizeCmsInventoryRow({ customer_id: 4, profile: 'X', sensor_count_guardian: 50 }),
+    ].filter(Boolean);
+
+    expect(buildCmsSensorSnapshot(rows, '2026-09-30T12:00:00.000Z', 2)).toEqual({
+      snapshotDate: '2026-09-30',
+      capturedAt: '2026-09-30T12:00:00.000Z',
+      activeServers: 2,
+      totalActiveSensors: 30,
+      guardianSensors: 10,
+      armsSensors: 20,
+      unknownSensors: 0,
+      serversSeen: 4,
+      serversMissing: 2,
+      profileAServers: 1,
+      profileNServers: 1,
+    });
+  });
+
   it('combines Guardian and ARMS counts and derives equipment requirements', () => {
     const row = normalizeCmsInventoryRow({
       customer_id: 30,

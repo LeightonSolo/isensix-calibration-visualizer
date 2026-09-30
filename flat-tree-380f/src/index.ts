@@ -190,6 +190,25 @@ export default {
       return json(result || {});
     }
 
+    // GET /jobinfo/cms-sensor-history?limit=365
+    if (request.method === 'GET' && pathname === '/jobinfo/cms-sensor-history') {
+      const requestedLimit = Number(url.searchParams.get('limit') ?? '365');
+      const limit = Number.isInteger(requestedLimit)
+        ? Math.min(730, Math.max(1, requestedLimit))
+        : 365;
+      const { results } = await env.DB.prepare(`
+        SELECT snapshot_date, captured_at, cms_sync_run_id,
+               active_servers, total_active_sensors,
+               guardian_sensors, arms_sensors, unknown_sensors,
+               servers_seen, servers_missing,
+               profile_a_servers, profile_n_servers, sync_complete
+        FROM cms_sensor_snapshots
+        ORDER BY snapshot_date DESC
+        LIMIT ?
+      `).bind(limit).all();
+      return json(results.reverse());
+    }
+
     // GET /admin/cms-unassigned — current CMS servers not represented in Job Info.
     if (request.method === 'GET' && pathname === '/admin/cms-unassigned') {
       const latestSync = await env.DB.prepare(`
