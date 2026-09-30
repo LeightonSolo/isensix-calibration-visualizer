@@ -89,6 +89,9 @@ html[data-theme="light"] #jobs-table tbody tr.inactive-job:hover td:first-child 
 .analytics-card span { display:block; color:var(--text-muted); font-size:11px; margin-bottom:5px; }
 .analytics-card strong { display:block; font-size:25px; line-height:1.1; }
 .analytics-card small { color:var(--text-muted); }
+.cms-trends-panel { padding:14px; margin-bottom:10px; }
+.cms-trends-panel .analytics-title { margin-bottom:12px; }
+.cms-trends-panel .analytics-cards { margin-bottom:14px; }
 .analytics-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
 .analytics-panel { min-height:250px; padding:14px; }
 .analytics-wide { grid-column:1/-1; }
