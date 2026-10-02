@@ -281,6 +281,25 @@ input[type="number"]:focus,
 select:focus { border-color: var(--accent-blue); }
 select option { background: var(--bg-input); }
 
+@keyframes server-input-wiggle {
+  0%, 72%, 100% { transform: translateX(0); }
+  76% { transform: translateX(-4px); }
+  80% { transform: translateX(4px); }
+  84% { transform: translateX(-3px); }
+  88% { transform: translateX(3px); }
+  92% { transform: translateX(0); }
+}
+
+#server-input.server-input-attention {
+  animation: server-input-wiggle 3.2s ease-in-out infinite;
+  border-color: var(--accent-light-blue);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-light-blue) 18%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #server-input.server-input-attention { animation: none; }
+}
+
 button {
   background: var(--bg-input);
   border: 0.5px solid var(--border);

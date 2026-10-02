@@ -271,6 +271,7 @@ function setStatus(primaryText, timeString) {
 /* ─── Server tags ───────────────────────────────────────── */
 function renderServerTags() {
   const el = document.getElementById('server-tags');
+  document.getElementById('server-input')?.classList.toggle('server-input-attention', !servers.length);
   if (!servers.length) {
     el.innerHTML = '<span style="color:var(--text-muted);font-size:12px;">No servers added yet.</span>';
     return;
