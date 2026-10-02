@@ -335,7 +335,7 @@ export default function App() {
         </div>
         <div style={STYLES.globalLinks}>
           <a href="../index.html" style={STYLES.navLink()}>
-            <i className="ti ti-layout-dashboard" aria-hidden="true" /> Calibration
+            <i className="ti ti-activity-heartbeat" aria-hidden="true" /> Calibration
           </a>
           <a href="../jobs.html" style={STYLES.navLink()}>
             <i className="ti ti-briefcase" aria-hidden="true" /> Jobs
