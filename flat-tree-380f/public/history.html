@@ -4,6 +4,7 @@
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Calibration History</title>
   <script src="theme.js"></script><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="calibration-shell.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
+  <link rel="icon" type="image/png" href="favicon.png">
   <style>
     body { padding: 0; } .history-shell { max-width: 2000px; margin: auto; padding: 0 28px 28px; }
     .history-shell > .calibration-shell-nav { margin-left: -28px; margin-right: -28px; padding-left: 28px; padding-right: 28px; }
@@ -36,7 +37,7 @@
       <button class="calibration-shell-theme" type="button" data-theme-toggle onclick="IsensixTheme.toggle()"></button>
     </div>
   </nav>
-  <div class="history-head"><h1>Calibration History</h1><input id="search" placeholder="Search customer or job"></div>
+  <div class="history-head"><h1>Calibration History (Work in Progress)</h1><input id="search" placeholder="Search customer or job"></div>
   <p class="history-muted">Each entry is an immutable sensor snapshot captured during calibration.</p>
   <div id="state" class="history-muted">Loading history…</div>
   <table class="history-table" hidden><thead><tr><th>Date</th><th>Customer / Job</th><th>Servers</th><th>Sensors</th><th>Exceptions</th><th>Failed</th><th>View</th></tr></thead><tbody id="rows"></tbody></table>
