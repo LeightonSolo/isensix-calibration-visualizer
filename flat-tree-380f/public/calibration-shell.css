@@ -1,12 +1,25 @@
 /* Shared shell for calibration-only pages. */
+:root {
+  --calibration-nav-active: #3a7bd5;
+}
+:root[data-theme="light"] {
+  --calibration-nav-active: #1459ad;
+}
 .calibration-shell-nav {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
   gap: 28px;
   min-height: 58px;
   padding: 8px 28px;
   border-bottom: 0.5px solid var(--border);
-  font-family: var(--font, Inter, system-ui, sans-serif);
+  font-family: 'Inter', system-ui, sans-serif;
+}
+.calibration-shell-current {
+  justify-self: center;
+  color: var(--text-primary, var(--text, #e8e8f0));
+  font: 600 14px/1 'Inter', system-ui, sans-serif;
+  white-space: nowrap;
 }
 .calibration-shell-brand {
   display: flex;
@@ -15,9 +28,15 @@
   color: var(--text-primary, var(--text, #e8e8f0));
   font-size: 17px;
   font-weight: 600;
+  line-height: 1;
   white-space: nowrap;
 }
-.calibration-shell-brand i { color: var(--blue, #3a7bd5); }
+.calibration-shell-brand i,
+.nav-brand > i {
+  color: var(--calibration-nav-active);
+  font-size: 17px;
+  line-height: 1;
+}
 .calibration-menu {
   position: relative;
   z-index: 20;
@@ -29,8 +48,8 @@
   white-space: nowrap;
 }
 .calibration-menu-trigger.active {
-  background: var(--accent-blue, var(--blue, #3a7bd5));
-  border-color: var(--accent-blue, var(--blue, #3a7bd5));
+  background: var(--calibration-nav-active);
+  border-color: var(--calibration-nav-active);
   color: #fff;
 }
 .calibration-menu-panel {
@@ -60,7 +79,7 @@
   padding: 8px 9px;
   border-radius: 4px;
   color: var(--text-primary, var(--text, #e8e8f0)) !important;
-  font: 500 12px/1 var(--font-sans, var(--font, Inter, system-ui, sans-serif));
+  font: 500 12px/1 'Inter', system-ui, sans-serif;
   text-decoration: none;
   white-space: nowrap;
 }
@@ -76,6 +95,7 @@
   align-items: center;
   gap: 5px;
   margin-left: auto;
+  justify-self: end;
   flex-wrap: wrap;
 }
 .calibration-shell-links > .calibration-shell-link[href$="jobs.html"] {
@@ -83,6 +103,14 @@
   justify-content: center;
 }
 .calibration-shell-links > .calibration-shell-link[href$="calendar/"] {
+  min-width: 86px;
+  justify-content: center;
+}
+#navbar .nav-link[href$="jobs.html"] {
+  min-width: 68px;
+  justify-content: center;
+}
+#navbar .nav-link[href$="calendar/"] {
   min-width: 86px;
   justify-content: center;
 }
@@ -101,7 +129,7 @@
   border-radius: 5px;
   background: var(--bg-input, #1e1e24);
   color: var(--text-primary, var(--text, #e8e8f0));
-  font: 500 12px/1 var(--font, Inter, system-ui, sans-serif);
+  font: 500 12px/1 'Inter', system-ui, sans-serif;
   text-decoration: none;
   cursor: pointer;
 }
@@ -111,8 +139,8 @@
   border-color: var(--blue, #3a7bd5);
 }
 .calibration-shell-link.active {
-  background: var(--blue, #3a7bd5);
-  border-color: var(--blue, #3a7bd5);
+  background: var(--calibration-nav-active);
+  border-color: var(--calibration-nav-active);
   color: #fff;
 }
 .calibration-page-actions {
@@ -156,9 +184,24 @@
   border-color: var(--accent-blue, var(--blue, #3a7bd5));
   color: #fff;
 }
+@media (min-width: 761px) and (max-width: 980px) {
+  .calibration-shell-nav {
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: 10px;
+  }
+  .calibration-shell-current {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+  .calibration-shell-links {
+    grid-column: 2;
+    grid-row: 1;
+  }
+}
 @media (max-width: 760px) {
-  .calibration-shell-nav { align-items: flex-start; flex-direction: column; gap: 10px; padding-left: 16px; padding-right: 16px; }
-  .calibration-shell-links { margin-left: 0; }
+  .calibration-shell-nav { display: flex; align-items: flex-start; flex-direction: column; gap: 10px; padding-left: 16px; padding-right: 16px; }
+  .calibration-shell-current { align-self: center; }
+  .calibration-shell-links { margin-left: 0; justify-self: auto; }
   .calibration-page-actions .page-status { margin-left: 0; width: 100%; }
   .calibration-menu-panel {
     left: 0;

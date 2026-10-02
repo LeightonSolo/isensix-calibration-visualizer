@@ -167,7 +167,7 @@ button.active:hover {
     display: flex;
     align-items: center;
     flex-wrap: wrap;
-    gap: 4px;
+    gap: 5px;
     font-size: 10px;
     margin-left: 0;
     flex-shrink: 0;
@@ -182,10 +182,12 @@ button.active:hover {
   min-height: 29px;
   padding: 5px 10px;
   border: 0.5px solid var(--border);
-  border-radius: var(--radius-md);
+  border-radius: 5px;
   background: var(--bg-input);
   color: var(--text-primary);
   font-size: 12px;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-weight: 500;
   line-height: 1;
   text-decoration: none;
 }
@@ -196,14 +198,15 @@ button.active:hover {
   border-color: var(--border-strong);
 }
 
-.theme-nav-btn { margin-left: 8px; }
+.theme-nav-btn { margin-left: 0; min-width: 112px; justify-content: center; }
 
 .nav-brand {
     display: flex;
     align-items: center;
-    gap: 6px;
-    font-size: 15px;
+    gap: 7px;
+    font-size: 17px;
     font-weight: 600;
+    line-height: 1;
     margin-right: 6px;
     flex-shrink: 0;
 }
