@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Calibration History</title>
+  <script src="theme.js"></script><link rel="stylesheet" href="style.css">
+  <style>
+    body { padding: 28px; } .history-shell { max-width: 1200px; margin: auto; }
+    .history-head { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom:18px; }
+    .history-head h1 { margin:0; margin-right:auto; } .history-head input { min-width:260px; }
+    .history-table { width:100%; border-collapse:collapse; background:var(--bg-panel); }
+    .history-table th,.history-table td { padding:11px 12px; border-bottom:1px solid var(--border); text-align:left; }
+    .history-table th { color:var(--text-secondary); font-size:12px; text-transform:uppercase; }
+    .history-table td { font-size:13px; } .history-table a { color:var(--accent-light-blue); }
+    .history-muted { color:var(--text-muted); } .history-error { color:var(--accent-red); padding:12px 0; }
+  </style>
+</head>
+<body>
+<main class="history-shell">
+  <div class="history-head"><h1>Calibration History</h1><input id="search" placeholder="Search customer or job"><a href="index.html">Back to Dashboard</a></div>
+  <p class="history-muted">Each entry is an immutable sensor snapshot captured during calibration.</p>
+  <div id="state" class="history-muted">Loading history…</div>
+  <table class="history-table" hidden><thead><tr><th>Date</th><th>Customer / Job</th><th>Servers</th><th>Sensors</th><th>Exceptions</th><th>Failed</th><th>View</th></tr></thead><tbody id="rows"></tbody></table>
+</main>
+<script src="config.js"></script><script src="site-auth.js"></script>
+<script>
+siteAuth.init(CONFIG);
+const thresholds = JSON.parse(localStorage.getItem('cal_thresholds') || 'null') || CONFIG.DEFAULT_THRESHOLDS;
+let runs = [];
+const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+const fmtDate = value => value ? new Date(String(value).replace(' ', 'T') + (String(value).length === 16 ? ':00' : '')).toLocaleDateString() : '—';
+const serverList = run => { try { return JSON.parse(run.servers_json || '[]').join(', '); } catch (_) { return '—'; } };
+function failedCount(sensors) { return sensors.filter(s => { const max = thresholds[s.sensor_type]; return s.new_offset !== null && s.new_offset !== undefined && max !== undefined && Math.abs(Number(s.new_offset)) > max; }).length; }
+async function load() {
+  try {
+    await siteAuth.ensure();
+    const response = await fetch(`${CONFIG.WORKER_URL}/calibration-runs?limit=500`, { headers: siteApiHeaders() });
+    if (!response.ok) throw new Error('Could not load calibration history');
+    runs = await response.json();
+    const details = await Promise.all(runs.map(async run => {
+      try { const response = await fetch(`${CONFIG.WORKER_URL}/calibration-runs/${run.id}`, { headers: siteApiHeaders() }); return response.ok ? response.json() : { sensors: [] }; }
+      catch (_) { return { sensors: [] }; }
+    }));
+    runs = runs.map((run, index) => ({ ...run, _sensors: details[index].sensors || [] }));
+    render();
+  } catch (error) { document.getElementById('state').className = 'history-error'; document.getElementById('state').textContent = error.message; }
+}
+function render() {
+  const query = document.getElementById('search').value.trim().toLowerCase();
+  const visible = runs.filter(run => `${run.customer || ''} ${run.job_name || ''}`.toLowerCase().includes(query));
+  const table = document.querySelector('table'); const state = document.getElementById('state');
+  table.hidden = !visible.length; state.textContent = visible.length ? '' : (runs.length ? 'No matching calibration runs.' : 'No calibration history has been captured yet.');
+  document.getElementById('rows').innerHTML = visible.map(run => `<tr>
+    <td>${esc(fmtDate(run.calibration_date || run.completed_at))}</td><td><strong>${esc(run.customer || run.job_name || 'Unnamed job')}</strong>${run.customer && run.job_name && run.job_name !== run.customer ? `<br><span class="history-muted">${esc(run.job_name)}</span>` : ''}</td>
+    <td>${esc(serverList(run))}</td><td>${run.sensor_count || run._sensors.length}</td><td>${run.exception_count || 0}</td><td>${failedCount(run._sensors)}</td>
+    <td><a href="index.html?run_id=${encodeURIComponent(run.id)}">Dashboard</a> · <a target="_blank" href="report.html?run_id=${encodeURIComponent(run.id)}">Report</a></td></tr>`).join('');
+}
+document.getElementById('search').addEventListener('input', render); load();
+</script>
+</body></html>

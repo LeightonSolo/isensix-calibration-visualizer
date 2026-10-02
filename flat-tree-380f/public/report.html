@@ -377,6 +377,8 @@ let serverMeta    = {};
 let thresholds    = JSON.parse(localStorage.getItem('cal_thresholds') || 'null')
                     || { ...CONFIG.DEFAULT_THRESHOLDS };
 let servers       = JSON.parse(localStorage.getItem('cal_servers') || '[]');
+const historicalRunId = new URLSearchParams(window.location.search).get('run_id');
+let historicalRun = null;
 const CURRENT_YEAR = new Date().getFullYear();
 const reportSorts = Object.fromEntries(
   ['calibrated', 'exceptions', 'failures', 'check', 'remaining', 'disabled']
@@ -398,6 +400,7 @@ function getCutoff() {
 }
 function isCalibrated(s) {
   if (!s.calibrated_at) return false;
+  if (historicalRunId) return true;
   return new Date(s.calibrated_at) >= getCutoff();
 }
 function isFailed(s) {
@@ -407,6 +410,7 @@ function isFailed(s) {
   return Math.abs(parseFloat(s.new_offset)) > max;
 }
 function isExcepted(s) {
+  if (historicalRunId && s.exception_reason) return true;
   return allExceptions.some(e =>
     e.sensor_id === String(s.sensor_id) &&
     e.server    === s.server &&
@@ -414,6 +418,7 @@ function isExcepted(s) {
   );
 }
 function getExceptionReason(s) {
+  if (historicalRunId && s.exception_reason) return s.exception_reason;
   return allExceptions.find(e =>
     e.sensor_id === String(s.sensor_id) &&
     e.server    === s.server &&
@@ -624,6 +629,33 @@ async function loadServerMeta() {
 
 async function loadData() {
   try { await siteAuth.ensure(); } catch (_) { return; }
+  if (historicalRunId) {
+    document.getElementById('loading').style.display = 'block';
+    document.getElementById('report').style.display = 'none';
+    setStatus('Loading historical report…');
+    try {
+      const response = await fetch(`${CONFIG.WORKER_URL}/calibration-runs/${encodeURIComponent(historicalRunId)}`, { headers: siteApiHeaders() });
+      if (!response.ok) throw new Error('Could not load historical calibration');
+      const payload = await response.json();
+      historicalRun = payload.run;
+      allSensors = payload.sensors || [];
+      try { servers = JSON.parse(historicalRun.servers_json || '[]'); } catch (_) { servers = []; }
+      allExceptions = allSensors.filter(sensor => sensor.exception_reason).map(sensor => ({
+        sensor_id: String(sensor.sensor_id), server: sensor.server,
+        reason: sensor.exception_reason, year: Number(sensor.exception_year) || CURRENT_YEAR,
+      }));
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('report').style.display = 'flex';
+      document.getElementById('gen-time').textContent = new Date().toLocaleString();
+      renderReport();
+      setStatus('Historical report · read-only');
+      return;
+    } catch (error) {
+      document.getElementById('loading').textContent = error.message;
+      setStatus('Error loading historical report');
+      return;
+    }
+  }
   if (!servers.length) {
     document.getElementById('loading').textContent =
       'No servers selected. Go back to the dashboard and add servers first.';
@@ -692,8 +724,9 @@ function renderReport() {
   // Header
   document.getElementById('report-meta').textContent =
     `${jobName} · ${enabled.length} enabled sensors`;
-  document.getElementById('report-date').textContent =
-    `Generated ${new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}`;
+  document.getElementById('report-date').textContent = historicalRun
+    ? `Calibration from ${historicalRun.calibration_date || 'historical run'} · Read-only`
+    : `Generated ${new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}`;
   document.getElementById('report-servers').textContent =
     `Servers: ${servers.map(s=>`${s}`).join(', ')}`;
 

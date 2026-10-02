@@ -324,7 +324,7 @@ export default function JobModal({
               aria-autocomplete="list"
               aria-expanded={Boolean(jobOptionsMode)}
               aria-controls="job-info-name-options"
-              placeholder="e.g. Memorial Jacksonville, PTO" autoFocus/>
+              placeholder="e.g. UHHS Phase 1, UCI Maintenance, etc" autoFocus/>
             <button type="button" style={S.jobPickerArrow}
               aria-label={jobOptionsMode === 'all' ? 'Close job list' : 'Show all jobs'}
               onClick={() => setJobOptionsMode(mode => mode === 'all' ? null : 'all')}>

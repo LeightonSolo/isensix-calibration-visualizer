@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS calibrations (
   cal_cert TEXT,
   canned_msg TEXT,
   captured_at TEXT DEFAULT (datetime('now')),
-  UNIQUE(sensor_id, calibrated_at)
+  UNIQUE(sensor_id, server)
 );
 
 CREATE INDEX IF NOT EXISTS idx_calibrations_server_calibrated_at

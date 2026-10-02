@@ -18,6 +18,8 @@ let checkSort  = { col: null,    dir:  1 };
 let excSort    = { col: null,    dir:  1 };
 let activeServerOverview = null;
 let serverOverviewReturnFocus = null;
+const historicalRunId = new URLSearchParams(window.location.search).get('run_id');
+let historicalRun = null;
 const serverOverviewSorts = {
   zones:      { key: 'remaining', dir: -1 },
   types:      { key: 'remaining', dir: -1 },
@@ -113,6 +115,7 @@ function getCutoff() {
 
 function isCalibrated(s) {
   if (!s.calibrated_at) return false;
+  if (historicalRunId) return true;
   return new Date(s.calibrated_at) >= getCutoff();
 }
 
@@ -170,6 +173,7 @@ function getDisabledCalibrationTooltip(count) {
 const CURRENT_YEAR = new Date().getFullYear();
 
 function isExcepted(s) {
+  if (historicalRunId && s.exception_reason) return true;
   return allExceptions.some(e =>
     e.sensor_id === String(s.sensor_id) &&
     e.server === s.server &&
@@ -186,6 +190,9 @@ function wasExceptedLastYear(s) {
 }
 
 function getException(s) {
+  if (historicalRunId && s.exception_reason) {
+    return { sensor_id: s.sensor_id, server: s.server, reason: s.exception_reason, year: s.exception_year };
+  }
   return allExceptions.find(e =>
     e.sensor_id === String(s.sensor_id) &&
     e.server === s.server &&
@@ -683,6 +690,36 @@ function setButtonActive(id, active) {
 /* ─── Data loading ──────────────────────────────────────── */
 async function loadData() {
   try { await siteAuth.ensure(); } catch (_) { return; }
+  if (historicalRunId) {
+    showEmpty(false);
+    setStatus('Loading historical calibration…');
+    try {
+      const response = await fetch(`${CONFIG.WORKER_URL}/calibration-runs/${encodeURIComponent(historicalRunId)}`, {
+        headers: siteApiHeaders()
+      });
+      if (!response.ok) throw new Error('Could not load historical calibration');
+      const payload = await response.json();
+      historicalRun = payload.run;
+      allSensors = payload.sensors || [];
+      try { servers = JSON.parse(historicalRun.servers_json || '[]'); } catch (_) { servers = []; }
+      allExceptions = allSensors.filter(sensor => sensor.exception_reason).map(sensor => ({
+        sensor_id: String(sensor.sensor_id), server: sensor.server,
+        reason: sensor.exception_reason, year: Number(sensor.exception_year) || CURRENT_YEAR,
+      }));
+      await loadServerMeta();
+      const customer = historicalRun.customer || historicalRun.job_name || 'Historical calibration';
+      document.getElementById('customer-display').textContent = `${customer} · Historical`;
+      document.getElementById('latest-cal-msg').textContent = `Run ${historicalRun.calibration_date || ''} · Read-only`;
+      lastUpdated = Date.now();
+      setStatus(`${allSensors.length} historical`, new Date().toLocaleTimeString());
+      populateFilters(); renderMetrics(); renderTable(); updateLatestCalibration();
+      return;
+    } catch (error) {
+      setStatus('Error loading historical calibration');
+      console.error(error);
+      return;
+    }
+  }
   if (!servers.length) {
     allSensors = [];
     allExceptions = [];
@@ -1643,6 +1680,7 @@ async function saveEditedServerConfig() {
 }
 
 async function saveServerConfig() {
+  if (historicalRunId) return;
   const server   = document.getElementById('sc-server').value.trim();
   const version  = document.getElementById('sc-version').value;
   const hostname = document.getElementById('sc-hostname').value.trim();
@@ -1688,6 +1726,7 @@ async function deleteServerConfig(server) {
 
 //Exception modal and save functions ======================
 function openExceptionModal(sensor_id, server) {
+  if (historicalRunId) return;
   const sensor = findSensor(sensor_id, server);
   if (!sensor) return;
   if (sensor.status?.toUpperCase() === 'DISABLED') {
@@ -1764,6 +1803,7 @@ function closeExceptionModal() {
 }
 
 async function saveException(sensor_id, server) {
+  if (historicalRunId) return;
   const sensor = findSensor(sensor_id, server);
   if (sensor?.status?.toUpperCase() === 'DISABLED') {
     alert('This sensor is now disabled and cannot be saved as an exception.');
@@ -1909,6 +1949,7 @@ function buildExceptionsTable() {
 }
 
 async function removeException(id) {
+  if (historicalRunId) return;
   await fetch(`${CONFIG.WORKER_URL}/exceptions/${id}`, {
     method: 'DELETE',
       headers: siteApiHeaders()
@@ -2047,6 +2088,7 @@ async function loadJobInfo() {
 }
 
 async function saveJobInfo({ silent = false, lastCalibrated = null } = {}) {
+  if (historicalRunId) return;
   if (!currentCustomer) {
     if (!silent) {
       alert('No customer assigned to these servers. Set a customer in the Servers panel first.');
@@ -2322,7 +2364,7 @@ function buildJobInfoHTML() {
     </table>
 
     <div class="job-info-actions" style="display:flex;gap:10px;align-items:center;padding:14px 9px 9px;">
-      <button class="primary" onclick="saveJobInfo()">Save job info</button>
+      ${historicalRunId ? '<span style="font-size:12px;color:var(--text-muted);">Historical run · read-only</span>' : '<button class="primary" onclick="saveJobInfo()">Save job info</button>'}
       <a href="jobs.html?job=${encodeURIComponent(currentCustomer || '')}" target="_blank" rel="noopener noreferrer" style="color:var(--accent-light-blue);font-size:12px;">Open full job record</a>
       <span id="ji-save-status" style="font-size:14px;color:var(--accent-green);font-weight:600;"></span>
       <button class="nav-btn job-info-about-button" type="button" data-page="about" onclick="showPage('about')"><i class="ti ti-info-circle"></i> About</button>
