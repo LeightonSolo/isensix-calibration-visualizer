@@ -22,8 +22,9 @@ import { statusForShortcut } from '../utils/eventStatusShortcuts.js';
 
 const COL_W  = 130;
 const ROW_H  = 37;
-const DATE_W = 60;
+const DATE_W = 56;
 const RESOURCE_TECHNICIANS = CONFIG.CALENDAR_COLUMN_ORDER;
+const COMPACT_WEEKDAYS = ['Su', 'M', 'Tu', 'W', 'Th', 'F', 'Sa'];
 
 function getEventColor(ev) {
   // Ghost events get a distinct muted/dashed look
@@ -426,6 +427,7 @@ export default function ResourceGrid({
                 textAlign: 'left', borderBottom: '0.5px solid var(--cal-border)',
                 borderRight: '0.5px solid var(--cal-border)',
                 position: 'sticky', left: 0, zIndex: 7, background: 'var(--cal-header)',
+                overflow: 'hidden',
               }}>Date</th>
               {RESOURCE_TECHNICIANS.map((tech, i) => {
                 const tc = CONFIG.TECH_COLORS?.[tech] || { bg: 'var(--cal-card)', fg: 'var(--cal-text)', border: 'var(--cal-border)' };
@@ -468,27 +470,33 @@ export default function ResourceGrid({
                           : isMon ? 'var(--cal-text-soft-alt)' : 'var(--cal-text-secondary)',
                       fontWeight: isToday || isMon ? 600 : 400,
                       borderBottom: isToday ? '2px solid var(--cal-today-border)' : '0.5px solid var(--cal-row-alt)',
-                      borderRight: '0.5px solid var(--cal-border)',
+                      //borderLeft: '0.5px solid var(--cal-row-alt)',
+                      borderRight: '1px solid var(--cal-border)',
                       borderTop: isToday ? '2px solid var(--cal-today-border)'
-                        : isMon ? '1px solid var(--cal-border-week)' : undefined,
-                      boxShadow: isToday ? 'inset 3px 0 0 var(--cal-today-border)'
-                        : isSep ? 'inset 0 2px 0 var(--cal-menu-text)' : undefined,
+                        : isMon ? '1px solid var(--cal-border-week)' : '0.5px solid var(--cal-row-alt)',
+                      boxShadow: [
+                        'inset -1px 0 0 var(--cal-border)',
+                        isToday ? 'inset 3px 0 0 var(--cal-today-border)' : '',
+                        isSep ? 'inset 0 1px 0 var(--cal-menu-text)' : '',
+                      ].filter(Boolean).join(', '),
                       position: 'sticky', left: 0, zIndex: 5,
                       background: isToday ? 'var(--cal-today-bg)'
                         : isPast ? 'var(--cal-past-row-bg)'
                           : oddWeek ? 'var(--cal-week-alt)' : 'var(--cal-bg)',
                       whiteSpace: 'nowrap', verticalAlign: 'middle', height: rowH,
+                      overflow: 'hidden', maxWidth: DATE_W,
+                      backgroundClip: 'border-box', isolation: 'isolate',
                     }}>
                       {isSep && (
                         <div style={{
                           fontSize: 11, fontWeight: 500, lineHeight: 1.2,
                           color: 'var(--cal-menu-text)', letterSpacing: '0.01em',
                           textTransform: 'uppercase',
-                        }}>{format(d, 'MMM yyyy')}</div>
+                        }}>{format(d, 'MMM yy')}</div>
                       )}
                       <div style={{ lineHeight: 1.2 }}>
-                        <span style={{ fontWeight: 600 }}>{format(d, 'EEE')} </span>
-                        <span style={{ fontSize: 12 }}>{format(d, 'M/d')}</span>
+                        <span style={{ fontWeight: 600 }}>{COMPACT_WEEKDAYS[d.getDay()]} </span>
+                        <span style={{ fontSize: 11 }}>{format(d, 'M/d')}</span>
                       </div>
                     </td>
 
@@ -522,7 +530,7 @@ export default function ResourceGrid({
                             borderLeft: isUnassigned ? '1px solid var(--tech-unassigned-border)' : undefined,
                             borderTop: isToday ? '2px solid var(--cal-today-border)'
                               : isMon ? '1px solid var(--cal-border-week)' : undefined,
-                            boxShadow: !isToday && isSep ? 'inset 0 2px 0 var(--cal-menu-text)' : undefined,
+                            boxShadow: !isToday && isSep ? 'inset 0 1px 0 var(--cal-menu-text)' : undefined,
                             cursor: editorToken && !activeOnDay.length && !techEvs.length ? 'pointer' : 'default',
                             padding: 0, verticalAlign: 'top',
                             background: cellBackground,
@@ -556,8 +564,8 @@ export default function ResourceGrid({
                                      fontWeight: 600, letterSpacing: '0.04em',
                                      whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'clip',
                                      minWidth: 0,
-                                    zIndex: 2,
-                                    opacity: isPast ? 0.5 : 1,
+                                    zIndex: 4,
+                                    opacity: isPast ? 0.45 : 0.80,
                                     filter: isPast ? 'saturate(0.35)' : 'none',
                                   }}>
                                   {techEventLabel(te.event_type)}
@@ -636,7 +644,7 @@ export default function ResourceGrid({
                                     : `3px solid ${accentColor}`,
                                   outline: isLocked ? `2px solid ${accentColor}` : 'none',
                                   outlineOffset: 1,
-                                  opacity: isPastEvent ? (isGhost ? 0.32 : 0.52) : isGhost ? 0.6 : 1,
+                                  opacity: isPastEvent ? (isGhost ? 0.32 : 0.52) : isGhost ? 0.5 : 0.80,
                                   filter: isPastEvent ? 'saturate(0.35)' : 'none',
                                   display: 'flex', flexDirection: 'column', justifyContent: 'center',
                                   paddingLeft: 3, paddingRight: 3,
