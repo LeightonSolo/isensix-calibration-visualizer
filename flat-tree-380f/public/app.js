@@ -87,17 +87,21 @@ function showPage(page) {
     document.getElementById("about-page").style.display =
         page === "about" ? "" : "none";
 
-    document.querySelectorAll(".nav-btn").forEach(b => {
-        b.classList.toggle("active", b.dataset.page === page);
+    document.querySelectorAll("#navbar .nav-btn[data-page]").forEach(b => {
+        b.classList.toggle("active", b.dataset.page === 'dashboard' && ['dashboard', 'resources'].includes(page));
     });
-
     document.getElementById("topbar").style.display =
         page === "dashboard" ? "" : "none";
 }
 
-document.querySelectorAll(".nav-btn[data-page]").forEach(btn => {
+document.querySelectorAll("#navbar .nav-btn[data-page]").forEach(btn => {
     btn.onclick = () => showPage(btn.dataset.page);
 });
+const resourcesViewRequested = new URLSearchParams(window.location.search).get('view') === 'resources';
+if (resourcesViewRequested || window.location.hash === '#resources-page' || window.location.hash === '#resources') {
+    if (window.location.hash) history.replaceState(null, '', window.location.pathname + window.location.search);
+    showPage('resources');
+}
 
 
 

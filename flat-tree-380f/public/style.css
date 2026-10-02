@@ -125,6 +125,15 @@ html, body {
     gap: 16px;
 }
 
+#resources-page .panel {
+    width: 100%;
+    min-width: 0;
+}
+
+#resources-page ul {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)) !important;
+}
+
 
 button.active {
   background: var(--accent-blue);
@@ -1358,7 +1367,7 @@ body.job-info-open > #app > .nav-btn[data-page="about"] { display: none; }
     position: absolute;
     top: 20px;
     right: 35px;
-    color: #e8e8f0;
+    color: #afafc1;
     font-size: 40px;
     font-weight: bold;
     cursor: pointer;

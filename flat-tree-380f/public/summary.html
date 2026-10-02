@@ -9,6 +9,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="calibration-shell.css"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css"/>
   <style>
     /* ─── Variables ───────────────────────────────────────── */
     :root {
@@ -67,10 +69,10 @@
     #page {
       max-width: 2000px;
       margin: 0 auto;
-      padding: 24px 28px 60px;
+      padding: 0px 26px 48px;
       display: flex;
       flex-direction: column;
-      gap: 20px;
+      gap: 12px;
     }
 
     /* ─── Top bar (screen only) ───────────────────────────── */
@@ -86,6 +88,19 @@
       text-decoration: none;
     }
     #top-bar a:hover { color: var(--text); }
+    #top-bar a.dashboard-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      min-height: 29px;
+      padding: 5px 10px;
+      border: 0.5px solid var(--border);
+      border-radius: 4px;
+      background: var(--bg-input);
+      color: var(--text);
+      line-height: 1;
+    }
+    #top-bar a.dashboard-back:hover { background: var(--bg-row-alt); border-color: var(--blue); }
     #status-msg { font-size: 11px; color: var(--text-muted); margin-left: auto; }
 
     button {
@@ -414,12 +429,28 @@
   </style>
 </head>
 <body>
-<div id="page">
+<nav class="calibration-shell-nav noprint" aria-label="Main navigation">
+    <div class="calibration-shell-brand"><i class="ti ti-activity-heartbeat"></i> Isensix Calibration</div>
+    <div class="calibration-shell-links">
+      <div class="calibration-menu">
+        <a class="calibration-shell-link calibration-menu-trigger active" href="index.html" aria-haspopup="true"><i class="ti ti-activity-heartbeat"></i> Calibration <i class="ti ti-chevron-down" aria-hidden="true"></i></a>
+        <div class="calibration-menu-panel" role="menu" aria-label="Calibration views">
+          <a href="index.html" role="menuitem"><i class="ti ti-layout-dashboard"></i> Overview</a>
+          <a href="resources.html" role="menuitem"><i class="ti ti-books"></i> Resources</a>
+          <a href="summary.html" role="menuitem"><i class="ti ti-file-text"></i> Summary</a>
+          <a href="report.html" role="menuitem"><i class="ti ti-file-description"></i> Full Report</a>
+          <a href="history.html" role="menuitem"><i class="ti ti-history"></i> History</a>
+        </div>
+      </div>
+      <a class="calibration-shell-link" href="jobs.html"><i class="ti ti-briefcase"></i> Jobs</a>
+      <a class="calibration-shell-link" href="calendar/"><i class="ti ti-calendar"></i> Calendar</a>
+      <button class="calibration-shell-theme" type="button" data-theme-toggle onclick="IsensixTheme.toggle()"></button>
+    </div>
+  </nav>
 
+<div id="page">
   <!-- Top bar (screen only) -->
-  <div id="top-bar" class="noprint">
-    <a href="index.html">← Back to Dashboard</a>
-    <button type="button" data-theme-toggle onclick="IsensixTheme.toggle()"></button>
+  <div id="top-bar" class="calibration-page-actions noprint">
     <span id="status-msg"></span>
     <button class="primary" onclick="window.print()">⬇ Download / Print PDF</button>
     <button onclick="loadData()">↻ Refresh</button>

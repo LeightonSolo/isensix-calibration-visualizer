@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Isensix Calibration Resources</title>
+  <script src="theme.js"></script>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="calibration-shell.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
+  <style>
+    body { min-height: 100vh; }
+    .resources-shell { max-width: 2000px; margin: 0 auto; padding: 0 28px 40px; }
+    .resources-shell > .calibration-shell-nav { margin-left: -28px; margin-right: -28px; }
+    #resources-content { min-width: 0; }
+    #resources-content > .panel { width: 100%; }
+    #resources-content ul { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)) !important; }
+    @media (max-width: 760px) {
+      .resources-shell { padding-left: 16px; padding-right: 16px; }
+      .resources-shell > .calibration-shell-nav { margin-left: -16px; margin-right: -16px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="resources-shell">
+    <nav class="calibration-shell-nav" aria-label="Main navigation">
+      <div class="calibration-shell-brand"><i class="ti ti-activity-heartbeat"></i> Isensix Calibration</div>
+      <div class="calibration-shell-links">
+        <div class="calibration-menu">
+          <a class="calibration-shell-link calibration-menu-trigger active" href="index.html" aria-haspopup="true"><i class="ti ti-activity-heartbeat"></i> Calibration <i class="ti ti-chevron-down" aria-hidden="true"></i></a>
+          <div class="calibration-menu-panel" role="menu" aria-label="Calibration views">
+            <a href="index.html" role="menuitem"><i class="ti ti-layout-dashboard"></i> Overview</a>
+            <a href="resources.html" role="menuitem"><i class="ti ti-books"></i> Resources</a>
+            <a href="summary.html" role="menuitem"><i class="ti ti-file-text"></i> Summary</a>
+            <a href="report.html" role="menuitem"><i class="ti ti-file-description"></i> Full Report</a>
+            <a href="history.html" role="menuitem"><i class="ti ti-history"></i> History</a>
+          </div>
+        </div>
+        <a class="calibration-shell-link" href="jobs.html"><i class="ti ti-briefcase"></i> Jobs</a>
+        <a class="calibration-shell-link" href="calendar/"><i class="ti ti-calendar"></i> Calendar</a>
+        <button class="calibration-shell-theme" type="button" data-theme-toggle onclick="IsensixTheme.toggle()"></button>
+      </div>
+    </nav>
+    <section id="resources-content" aria-live="polite">Loading resources…</section>
+  </main>
+  <div id="image-modal" class="modal-overlay" style="display: none;" role="dialog" aria-modal="true" aria-label="Expanded resource image">
+    <button class="close-modal" type="button" aria-label="Close expanded image">&times;</button>
+    <img id="modal-image-content" class="modal-content" src="" alt="">
+  </div>
+  <script>
+    const imageModal = document.getElementById('image-modal');
+    const modalImage = document.getElementById('modal-image-content');
+    const closeImageModal = () => {
+      imageModal.style.display = 'none';
+      modalImage.src = '';
+    };
+
+    fetch('index.html')
+      .then(response => response.text())
+      .then(html => {
+        const source = new DOMParser().parseFromString(html, 'text/html');
+        const resources = source.querySelector('#resources-page');
+        if (!resources) throw new Error('Resources content is unavailable.');
+        document.getElementById('resources-content').innerHTML = resources.innerHTML;
+      })
+      .catch(error => {
+        document.getElementById('resources-content').textContent = error.message;
+      });
+
+    document.addEventListener('click', event => {
+      const thumbnail = event.target.closest('.clickable-thumbnail');
+      if (thumbnail) {
+        modalImage.src = thumbnail.src;
+        modalImage.alt = thumbnail.alt || 'Expanded resource image';
+        imageModal.style.display = 'flex';
+      } else if (event.target === imageModal || event.target.closest('.close-modal')) {
+        closeImageModal();
+      }
+    });
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape' && imageModal.style.display !== 'none') closeImageModal();
+    });
+  </script>
+</body>
+</html>

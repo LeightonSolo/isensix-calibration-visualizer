@@ -1,0 +1,162 @@
+/* Shared shell for calibration-only pages. */
+.calibration-shell-nav {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  min-height: 58px;
+  padding: 8px 28px;
+  border-bottom: 0.5px solid var(--border);
+  font-family: var(--font, Inter, system-ui, sans-serif);
+}
+.calibration-shell-brand {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--text-primary, var(--text, #e8e8f0));
+  font-size: 17px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.calibration-shell-brand i { color: var(--blue, #3a7bd5); }
+.calibration-menu {
+  position: relative;
+  z-index: 20;
+  flex-shrink: 0;
+}
+.calibration-menu-trigger {
+  min-width: 116px;
+  justify-content: center;
+  white-space: nowrap;
+}
+.calibration-menu-trigger.active {
+  background: var(--accent-blue, var(--blue, #3a7bd5));
+  border-color: var(--accent-blue, var(--blue, #3a7bd5));
+  color: #fff;
+}
+.calibration-menu-panel {
+  display: none;
+  position: absolute;
+  top: 100%;
+  right: 0;
+  min-width: 170px;
+  padding: 5px;
+  border: 0.5px solid var(--border, #2a2a35);
+  border-radius: 6px;
+  background: var(--bg-panel, #16161a);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, .24);
+}
+.calibration-menu:hover .calibration-menu-panel,
+.calibration-menu:focus-within .calibration-menu-panel {
+  display: grid;
+  gap: 2px;
+}
+.calibration-menu-panel a,
+.calibration-menu-panel a:visited,
+.calibration-menu-panel a:active {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 9px;
+  border-radius: 4px;
+  color: var(--text-primary, var(--text, #e8e8f0)) !important;
+  font: 500 12px/1 var(--font-sans, var(--font, Inter, system-ui, sans-serif));
+  text-decoration: none;
+  white-space: nowrap;
+}
+.calibration-menu-panel a:hover,
+.calibration-menu-panel a:focus-visible,
+.calibration-menu-panel a:focus {
+  background: var(--bg-row-hover, var(--bg-row-alt, #1f1f26));
+  color: var(--text-primary, var(--text, #e8e8f0)) !important;
+  outline: none;
+}
+.calibration-shell-links {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+.calibration-shell-links > .calibration-shell-link[href$="jobs.html"] {
+  min-width: 68px;
+  justify-content: center;
+}
+.calibration-shell-links > .calibration-shell-link[href$="calendar/"] {
+  min-width: 86px;
+  justify-content: center;
+}
+.calibration-shell-theme {
+  min-width: 112px;
+  justify-content: center;
+}
+.calibration-shell-link,
+.calibration-shell-theme {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 29px;
+  padding: 5px 10px;
+  border: 0.5px solid var(--border, #2a2a35);
+  border-radius: 5px;
+  background: var(--bg-input, #1e1e24);
+  color: var(--text-primary, var(--text, #e8e8f0));
+  font: 500 12px/1 var(--font, Inter, system-ui, sans-serif);
+  text-decoration: none;
+  cursor: pointer;
+}
+.calibration-shell-link:hover,
+.calibration-shell-theme:hover {
+  background: var(--bg-row-hover, #1f1f26);
+  border-color: var(--blue, #3a7bd5);
+}
+.calibration-shell-link.active {
+  background: var(--blue, #3a7bd5);
+  border-color: var(--blue, #3a7bd5);
+  color: #fff;
+}
+.calibration-page-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 16px 0;
+  font-family: var(--font, Inter, system-ui, sans-serif);
+}
+.calibration-page-actions .page-status { margin-left: auto; }
+.calibration-tools-nav {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+  margin: 12px 0 16px;
+  font-family: var(--font, Inter, system-ui, sans-serif);
+}
+.calibration-tools-nav a,
+.calibration-tools-nav button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 29px;
+  padding: 5px 10px;
+  border: 0.5px solid var(--border, #2a2a35);
+  border-radius: 5px;
+  background: var(--bg-input, #1e1e24);
+  color: var(--text, #e8e8f0);
+  font-size: 12px;
+  text-decoration: none;
+  cursor: pointer;
+  font-family: var(--font, Inter, system-ui, sans-serif);
+}
+.calibration-tools-nav a:hover,
+.calibration-tools-nav button:hover,
+.calibration-tools-nav a.active,
+.calibration-tools-nav button.active {
+  background: var(--accent-blue, var(--blue, #3a7bd5));
+  border-color: var(--accent-blue, var(--blue, #3a7bd5));
+  color: #fff;
+}
+@media (max-width: 760px) {
+  .calibration-shell-nav { align-items: flex-start; flex-direction: column; gap: 10px; padding-left: 16px; padding-right: 16px; }
+  .calibration-shell-links { margin-left: 0; }
+  .calibration-page-actions .page-status { margin-left: 0; width: 100%; }
+}

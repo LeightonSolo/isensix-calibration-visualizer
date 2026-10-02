@@ -3,9 +3,10 @@
 <head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Calibration History</title>
-  <script src="theme.js"></script><link rel="stylesheet" href="style.css">
+  <script src="theme.js"></script><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="calibration-shell.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
   <style>
-    body { padding: 28px; } .history-shell { max-width: 1200px; margin: auto; }
+    body { padding: 0; } .history-shell { max-width: 2000px; margin: auto; padding: 0 28px 28px; }
+    .history-shell > .calibration-shell-nav { margin-left: -28px; margin-right: -28px; padding-left: 28px; padding-right: 28px; }
     .history-head { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom:18px; }
     .history-head h1 { margin:0; margin-right:auto; } .history-head input { min-width:260px; }
     .history-table { width:100%; border-collapse:collapse; background:var(--bg-panel); }
@@ -17,7 +18,25 @@
 </head>
 <body>
 <main class="history-shell">
-  <div class="history-head"><h1>Calibration History</h1><input id="search" placeholder="Search customer or job"><a href="index.html">Back to Dashboard</a></div>
+  <nav class="calibration-shell-nav" aria-label="Main navigation">
+    <div class="calibration-shell-brand"><i class="ti ti-activity-heartbeat"></i> Isensix Calibration</div>
+    <div class="calibration-shell-links">
+      <div class="calibration-menu">
+        <a class="calibration-shell-link calibration-menu-trigger active" href="index.html" aria-haspopup="true"><i class="ti ti-activity-heartbeat"></i> Calibration <i class="ti ti-chevron-down" aria-hidden="true"></i></a>
+        <div class="calibration-menu-panel" role="menu" aria-label="Calibration views">
+          <a href="index.html" role="menuitem"><i class="ti ti-layout-dashboard"></i> Overview</a>
+          <a href="resources.html" role="menuitem"><i class="ti ti-books"></i> Resources</a>
+          <a href="summary.html" role="menuitem"><i class="ti ti-file-text"></i> Summary</a>
+          <a href="report.html" role="menuitem"><i class="ti ti-file-description"></i> Full Report</a>
+          <a href="history.html" role="menuitem"><i class="ti ti-history"></i> History</a>
+        </div>
+      </div>
+      <a class="calibration-shell-link" href="jobs.html"><i class="ti ti-briefcase"></i> Jobs</a>
+      <a class="calibration-shell-link" href="calendar/"><i class="ti ti-calendar"></i> Calendar</a>
+      <button class="calibration-shell-theme" type="button" data-theme-toggle onclick="IsensixTheme.toggle()"></button>
+    </div>
+  </nav>
+  <div class="history-head"><h1>Calibration History</h1><input id="search" placeholder="Search customer or job"></div>
   <p class="history-muted">Each entry is an immutable sensor snapshot captured during calibration.</p>
   <div id="state" class="history-muted">Loading history…</div>
   <table class="history-table" hidden><thead><tr><th>Date</th><th>Customer / Job</th><th>Servers</th><th>Sensors</th><th>Exceptions</th><th>Failed</th><th>View</th></tr></thead><tbody id="rows"></tbody></table>

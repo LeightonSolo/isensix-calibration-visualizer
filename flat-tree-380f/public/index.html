@@ -11,6 +11,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css"/>
   <link rel="stylesheet" href="style.css"/>
+  <link rel="stylesheet" href="calibration-shell.css"/>
 
 </head>
 <body>
@@ -20,7 +21,7 @@
   <nav id="navbar">
     <div class="nav-brand">
       <i class="ti ti-activity-heartbeat"></i>
-      <span>Isensix Calibration</span>
+      <span>Isensix</span>
       <span id="customer-display" style="font-size:16px;color:var(--text-muted);margin-left:20px;"></span>
     </div>
 
@@ -30,10 +31,19 @@
     </div>
 
     <div class="nav-links">
-      <button class="nav-btn active" data-page="dashboard" aria-current="page">
-        <i class="ti ti-layout-dashboard"></i>
-        Dashboard
-      </button>
+      <div class="calibration-menu">
+        <button class="nav-btn calibration-menu-trigger active" data-page="dashboard" aria-current="page" aria-haspopup="true">
+          <i class="ti ti-activity-heartbeat"></i>
+          Calibration <i class="ti ti-chevron-down" aria-hidden="true"></i>
+        </button>
+        <div class="calibration-menu-panel" role="menu" aria-label="Calibration views">
+          <a href="index.html" role="menuitem"><i class="ti ti-layout-dashboard"></i> Overview</a>
+          <a href="resources.html" role="menuitem"><i class="ti ti-books"></i> Resources</a>
+          <a href="summary.html" role="menuitem"><i class="ti ti-file-text"></i> Summary</a>
+          <a href="report.html" role="menuitem"><i class="ti ti-file-description"></i> Full Report</a>
+          <a href="history.html" role="menuitem"><i class="ti ti-history"></i> History</a>
+        </div>
+      </div>
 
       <a class="nav-link" href="jobs.html">
         <i class="ti ti-briefcase"></i> Jobs
@@ -59,20 +69,6 @@
     <!-- <button id="server-config-btn" onclick="toggleServerConfig()" title="Configure servers"><i class="ti ti-server-2"></i> All Servers</button> -->
     <button id="settings-btn" onclick="toggleSettings()"><i class="ti ti-settings"></i> Settings</button>
     <div id="server-tags"></div>
-    <div class="calibration-actions" aria-label="Calibration tools">
-      <button class="nav-btn" data-page="resources">
-        <i class="ti ti-books"></i> Resources
-      </button>
-      <a class="toolbar-link" href="summary.html">
-        <i class="ti ti-file-text"></i> Summary
-      </a>
-      <a class="toolbar-link" href="report.html" target="_blank">
-        <i class="ti ti-file-description"></i> Full Report
-      </a>
-      <a class="toolbar-link" href="history.html">
-        <i class="ti ti-history"></i> History
-      </a>
-    </div>
   </div>
 
   <!--<div id="settings-panel">
@@ -242,7 +238,6 @@
 </div>
 
 <div id="resources-page" class="page" style="display:none;">
-    <a href="index.html" style="color: #5a9e2f; text-decoration: underline; font-size: 16px; font-weight: 700;">← Back to Dashboard</a>
     <div class="panel" style="padding:16px;">
         
         <h2>Resources</h2>
@@ -260,16 +255,12 @@
                     <span style="color: #888; display: block; font-size: 1em;">Isensix Document Management System</span>
                 </li>
                 <li style="margin-bottom: 12px;">
-                    <a href="https://docs.google.com/document/d/1SPD0375j1HjBwO5maCj5_XXBmlDgxA0cy09b2oa6IgQ/edit?usp=sharing" target="_blank" style="color: #5a9e2f; text-decoration: underline; font-size: 16px; font-weight: 700;">Leighton's Tools Info and Download</a>
-                    <span style="color: #888; display: block; font-size: 1em;">Instructions on installing and the scripts to make your life easier</span>
-                </li>
-                <li style="margin-bottom: 12px;">
-                    <a href="jobs.html" style="color: #5a9e2f; text-decoration: underline; font-size: 16px; font-weight: 700;">Isensix Job Info</a>
-                    <span style="color: #888; display: block; font-size: 1em;">Search, edit, and analyze all job information</span>
+                    <a href="https://docs.google.com/document/d/1SPD0375j1HjBwO5maCj5_XXBmlDgxA0cy09b2oa6IgQ/edit?usp=sharing" target="_blank" style="color: #5a9e2f; text-decoration: underline; font-size: 16px; font-weight: 700;">Leighton's Tools</a>
+                    <span style="color: #888; display: block; font-size: 1em;">Instructions on installing and using the scripts to make your life easier</span>
                 </li>
                 <li style="margin-bottom: 12px;">
                     <a href="https://www.zeemaps.com/map?group=4965569#" target="_blank" style="color: #5a9e2f; text-decoration: underline; font-size: 16px; font-weight: 700;">Zeemaps of All Jobs</a>
-                    <span style="color: #888; display: block; font-size: 1em;">Interactive map showing all Isensix jobs geographically</span>
+                    <span style="color: #888; display: block; font-size: 1em;">Interactive map showing all Isensix jobs geographically. Work in progress...</span>
                 </li>
                 <li style="margin-bottom: 12px;">
                     <a href="http://172.16.64.2/sshto/ping.php" target="_blank" style="color: #5a9e2f; text-decoration: underline; font-size: 16px; font-weight: 700;">Ping Tool</a>
@@ -279,8 +270,14 @@
                     <a href="https://omegaeng.sharepoint.com/sites/IsensixCommonDrive/Common/Forms/AllItems.aspx?viewid=0e5507e1%2Dfa81%2D4cc4%2D8a83%2Daa9a33972e9a&newTargetListUrl=%2Fsites%2FIsensixCommonDrive%2FCommon&viewpath=%2Fsites%2FIsensixCommonDrive%2FCommon%2FForms%2FAllItems%2Easpx" target="_blank" style="color: #5a9e2f; text-decoration: underline; font-size: 16px; font-weight: 700;">Common Drive</a>
                     <span style="color: #888; display: block; font-size: 1em;">All internal Isensix shared documents</span>
                 </li>
-
-                
+                <li style="margin-bottom: 12px;">
+                    <a href="https://omegaeng.sharepoint.com/sites/IsensixCommonDrive/Common/Forms/AllItems.aspx?id=%2Fsites%2FIsensixCommonDrive%2FCommon%2FCustomer%20Calibration%20Documents&viewid=0e5507e1%2Dfa81%2D4cc4%2D8a83%2Daa9a33972e9a&newTargetListUrl=%2Fsites%2FIsensixCommonDrive%2FCommon&viewpath=%2Fsites%2FIsensixCommonDrive%2FCommon%2FForms%2FAllItems%2Easpx" target="_blank" style="color: #5a9e2f; text-decoration: underline; font-size: 16px; font-weight: 700;">Customer Calibration Documents</a>
+                    <span style="color: #888; display: block; font-size: 1em;">All customer-specific calibration documents. Put your reports here!</span>
+                </li>
+                <li style="margin-bottom: 12px;">
+                    <a href="https://omegaeng.sharepoint.com/sites/IsensixCommonDrive/Common/Forms/AllItems.aspx?id=%2Fsites%2FIsensixCommonDrive%2FCommon%2FField%20Technicians&viewid=0e5507e1%2Dfa81%2D4cc4%2D8a83%2Daa9a33972e9a&newTargetListUrl=%2Fsites%2FIsensixCommonDrive%2FCommon&viewpath=%2Fsites%2FIsensixCommonDrive%2FCommon%2FForms%2FAllItems%2Easpx" target="_blank" style="color: #5a9e2f; text-decoration: underline; font-size: 16px; font-weight: 700;">Field Technicians Folder</a>
+                    <span style="color: #888; display: block; font-size: 1em;">Files, Resources and information for field technicians</span>
+                </li>
         </div>
         <h3>Sensor Type Specifications</h3>
         <div style="overflow-x: auto; margin-bottom: 32px;">
