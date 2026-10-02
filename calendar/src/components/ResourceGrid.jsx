@@ -419,13 +419,13 @@ export default function ResourceGrid({
             {RESOURCE_TECHNICIANS.map(t => <col key={t} style={{ width: COL_W }}/>)}
           </colgroup>
 
-          <thead style={{ position: 'sticky', top: 0, zIndex: 4 }}>
+          <thead style={{ position: 'sticky', top: 0, zIndex: 6 }}>
             <tr style={{ background: 'var(--cal-header)' }}>
               <th style={{
                 padding: '8px 4px', fontSize: 12, fontWeight: 500, color: 'var(--cal-text-muted)',
                 textAlign: 'left', borderBottom: '0.5px solid var(--cal-border)',
                 borderRight: '0.5px solid var(--cal-border)',
-                position: 'sticky', left: 0, zIndex: 5, background: 'var(--cal-header)',
+                position: 'sticky', left: 0, zIndex: 7, background: 'var(--cal-header)',
               }}>Date</th>
               {RESOURCE_TECHNICIANS.map((tech, i) => {
                 const tc = CONFIG.TECH_COLORS?.[tech] || { bg: 'var(--cal-card)', fg: 'var(--cal-text)', border: 'var(--cal-border)' };
@@ -473,7 +473,7 @@ export default function ResourceGrid({
                         : isMon ? '1px solid var(--cal-border-week)' : undefined,
                       boxShadow: isToday ? 'inset 3px 0 0 var(--cal-today-border)'
                         : isSep ? 'inset 0 2px 0 var(--cal-menu-text)' : undefined,
-                      position: 'sticky', left: 0, zIndex: 2,
+                      position: 'sticky', left: 0, zIndex: 5,
                       background: isToday ? 'var(--cal-today-bg)'
                         : isPast ? 'var(--cal-past-row-bg)'
                           : oddWeek ? 'var(--cal-week-alt)' : 'var(--cal-bg)',
@@ -709,8 +709,10 @@ export default function ResourceGrid({
                                       </span>
                                     )}
                                     {showStatus && (
-                                      <span style={{
-                                        flexShrink: 0, maxWidth: '45%', overflow: 'hidden',
+                                      <span title={statusLabel} style={{
+                                        flex: showNotes ? '0 1 auto' : '1 1 auto',
+                                        minWidth: 0,
+                                        maxWidth: '100%', overflow: 'hidden',
                                         textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                                       }}>
                                         {statusLabel}
