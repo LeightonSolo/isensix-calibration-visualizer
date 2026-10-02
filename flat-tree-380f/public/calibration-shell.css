@@ -46,7 +46,8 @@
   box-shadow: 0 10px 24px rgba(0, 0, 0, .24);
 }
 .calibration-menu:hover .calibration-menu-panel,
-.calibration-menu:focus-within .calibration-menu-panel {
+.calibration-menu:focus-within .calibration-menu-panel,
+.calibration-menu.menu-open .calibration-menu-panel {
   display: grid;
   gap: 2px;
 }
@@ -159,4 +160,10 @@
   .calibration-shell-nav { align-items: flex-start; flex-direction: column; gap: 10px; padding-left: 16px; padding-right: 16px; }
   .calibration-shell-links { margin-left: 0; }
   .calibration-page-actions .page-status { margin-left: 0; width: 100%; }
+  .calibration-menu-panel {
+    left: 0;
+    right: auto;
+    width: max-content;
+    max-width: calc(100vw - 32px);
+  }
 }
