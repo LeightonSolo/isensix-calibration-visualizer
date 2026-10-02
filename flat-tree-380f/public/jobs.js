@@ -29,7 +29,7 @@
       ['vpn_works', 'VPN'], ['scheduled_with', 'Technicians'],
     ],
     all: [
-      ['job_name', 'Job'], ['customer', 'Customer'], ['servers', 'Servers'],
+      ['job_name', 'Job'], ['servers', 'Servers'],
       ['last_calibrated', 'Last calibrated'], ['status', 'Calendar status'],
       ['scheduled_start_date', 'Scheduled start'], ['scheduled_end_date', 'Scheduled end'],
       ['sensors', 'Sensors'], ['num_tech', 'Techs'], ['meters', 'Meters'],
@@ -37,7 +37,7 @@
       ['primary_tech', 'Primary tech'], ['hardware', 'Hardware'], ['server_version', 'Software'],
       ['location', 'Location'], ['site_address', 'Address'], ['offsites', 'Offsites'], ['vpn_works', 'VPN'],
       ['airport_info', 'Airport'], ['emerald_aisle', 'Emerald Aisle'], ['main_contact', 'Main contact'], ['other_contacts', 'Other contacts'], ['contact_notes', 'Contact notes'],
-       ['prev_hotel', 'Previous hotel'], ['hotel_comments', 'Hotel comments'], ['restaurants', 'Restaurants and attractions'], ['updated_at', 'Updated'], ['active', 'Active?'],
+       ['prev_hotel', 'Previous hotel'], ['hotel_comments', 'Hotel comments'], ['restaurants', 'Restaurants and attractions'],  ['customer', 'Customer'], ['updated_at', 'Updated'], ['active', 'Active?'],
     ],
   };
 
