@@ -18,7 +18,7 @@
 .calibration-shell-current {
   justify-self: center;
   color: var(--text-primary, var(--text, #e8e8f0));
-  font: 600 14px/1 'Inter', system-ui, sans-serif;
+  font: 600 18px/1 'Inter', system-ui, sans-serif;
   white-space: nowrap;
 }
 .calibration-shell-brand {
@@ -199,14 +199,41 @@
   }
 }
 @media (max-width: 760px) {
-  .calibration-shell-nav { display: flex; align-items: flex-start; flex-direction: column; gap: 10px; padding-left: 16px; padding-right: 16px; }
+  .calibration-shell-nav { display: flex; align-items: flex-start; flex-direction: column; gap: 10px; padding-left: 12px; padding-right: 12px; }
   .calibration-shell-current { align-self: center; }
-  .calibration-shell-links { margin-left: 0; justify-self: auto; }
+  .calibration-shell-links {
+    width: 100%;
+    margin-left: 0;
+    justify-self: auto;
+    flex-wrap: nowrap;
+    gap: 4px;
+  }
+  .calibration-menu-trigger,
+  .calibration-shell-links > .calibration-shell-link[href$="jobs.html"],
+  .calibration-shell-links > .calibration-shell-link[href$="calendar/"],
+  .calibration-shell-theme {
+    min-width: 0;
+  }
+  .calibration-shell-link,
+  .calibration-shell-theme {
+    padding-left: 7px;
+    padding-right: 7px;
+    font-size: 11px;
+  }
   .calibration-page-actions .page-status { margin-left: 0; width: 100%; }
   .calibration-menu-panel {
     left: 0;
     right: auto;
     width: max-content;
     max-width: calc(100vw - 32px);
+  }
+}
+@media (max-width: 380px) {
+  .calibration-shell-links { gap: 3px; }
+  .calibration-shell-link,
+  .calibration-shell-theme {
+    padding-left: 6px;
+    padding-right: 6px;
+    font-size: 10px;
   }
 }
