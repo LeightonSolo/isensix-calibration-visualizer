@@ -23,7 +23,7 @@ import { statusForShortcut } from '../utils/eventStatusShortcuts.js';
 const COL_W  = 130;
 const ROW_H  = 37;
 const DATE_W = 60;
-const RESOURCE_TECHNICIANS = [...CONFIG.TECHNICIANS, CONFIG.UNASSIGNED_TECHNICIAN];
+const RESOURCE_TECHNICIANS = CONFIG.CALENDAR_COLUMN_ORDER;
 
 function getEventColor(ev) {
   // Ghost events get a distinct muted/dashed look
