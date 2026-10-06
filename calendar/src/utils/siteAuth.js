@@ -15,7 +15,7 @@ export function siteHeaders(extra = {}) {
   return { ...headers, ...extra };
 }
 
-async function validate(token) {
+export async function validateSiteToken(token) {
   if (!token) return false;
   try {
     const response = await fetch(`${CONFIG.WORKER_URL}/auth/site`, {
@@ -30,19 +30,16 @@ async function validate(token) {
   }
 }
 
-export async function requireSiteToken() {
+export async function requireSiteToken(candidate) {
   const existing = siteToken();
-  if (existing && await validate(existing)) return existing;
+  if (existing && await validateSiteToken(existing)) return existing;
   sessionStorage.removeItem(SITE_TOKEN_KEY);
 
-  for (;;) {
-    const input = window.prompt('Enter the site password:');
-    if (input === null) throw new Error('Site login required');
-    const token = input.trim();
-    if (await validate(token)) {
-      sessionStorage.setItem(SITE_TOKEN_KEY, token);
-      return token;
-    }
-    window.alert('Incorrect site password. Contact Leighton for assistance.');
+  const token = candidate?.trim();
+  if (!token) throw new Error('Site login required');
+  if (await validateSiteToken(token)) {
+    sessionStorage.setItem(SITE_TOKEN_KEY, token);
+    return token;
   }
+  throw new Error('Incorrect site password. Contact Leighton for assistance.');
 }

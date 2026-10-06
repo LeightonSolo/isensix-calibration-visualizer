@@ -96,16 +96,22 @@ export default function App() {
   );
   const [siteAuthenticated, setSiteAuthenticated] = useState(false);
   const [siteError, setSiteError] = useState(null);
+  const [sitePassword, setSitePassword] = useState('');
+  const [siteSigningIn, setSiteSigningIn] = useState(false);
   const [showGate,      setShowGate]      = useState(false);
   const [pendingAction, setPendingAction] = useState(null);
 
-  const loginToSite = useCallback(async () => {
+  const loginToSite = useCallback(async password => {
+    setSiteSigningIn(true);
     try {
-      await requireSiteToken();
+      await requireSiteToken(password);
       setSiteAuthenticated(true);
       setSiteError(null);
+      setSitePassword('');
     } catch (error) {
       setSiteError(error.message);
+    } finally {
+      setSiteSigningIn(false);
     }
   }, []);
 
@@ -316,9 +322,43 @@ export default function App() {
 
   if (!siteAuthenticated) {
     return (
-      <div style={{ ...STYLES.app, alignItems: 'center', justifyContent: 'center', gap: 12 }}>
-        <div>{siteError || 'Waiting for site login…'}</div>
-        {siteError && <button style={STYLES.btnPrimary} onClick={loginToSite}>Sign in</button>}
+      <div className="site-login-screen">
+        <form
+          className="site-login-card"
+          autoComplete="on"
+          onSubmit={event => {
+            event.preventDefault();
+            loginToSite(sitePassword);
+          }}
+        >
+          <div className="site-login-brand">
+            <i className="ti ti-calendar" aria-hidden="true" /> Isensix Calendar
+          </div>
+          <h1>Sign in</h1>
+          <p>Enter the site password to continue.</p>
+          <label>
+            Account
+            <input name="username" type="text" value="Isensix" autoComplete="username" readOnly />
+          </label>
+          <label>
+            Password
+            <input
+              name="password"
+              type="password"
+              value={sitePassword}
+              autoComplete="current-password"
+              autoFocus
+              required
+              onChange={event => setSitePassword(event.target.value)}
+            />
+          </label>
+          <div className="site-login-error" role="alert" aria-live="polite">
+            {siteError === 'Site login required' ? '' : siteError}
+          </div>
+          <button type="submit" disabled={siteSigningIn}>
+            {siteSigningIn ? 'Signing in…' : 'Sign in'}
+          </button>
+        </form>
       </div>
     );
   }
