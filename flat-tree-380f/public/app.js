@@ -124,7 +124,7 @@ function isCalibrated(s) {
 }
 
 function isQualityError(s) {
-  return ['LINK', 'SENSOR', 'INIT', 'NETWORK'].includes(String(s.quality || '').toUpperCase());
+  return ['LINK', 'SENSOR', 'WIRE', 'INIT', 'NETWORK'].includes(String(s.quality || '').toUpperCase());
 }
 
 function getProgressBreakdown(sensors) {
@@ -243,7 +243,7 @@ function badge(t) {
 
 function qualBadge(q) {
   if (!q) return '<span class="muted">—</span>';
-  const map = { GOOD: 'qual-good', LINK: 'qual-link', NETWORK: 'qual-network', SENSOR: 'qual-sensor', INIT: 'qual-init' };
+  const map = { GOOD: 'qual-good', LINK: 'qual-link', NETWORK: 'qual-network', SENSOR: 'qual-sensor', WIRE: 'qual-sensor', INIT: 'qual-init' };
   const cls = map[q.toUpperCase()] || 'qual-network';
   return `<span class="qual ${cls}">${q}</span>`;
 }
