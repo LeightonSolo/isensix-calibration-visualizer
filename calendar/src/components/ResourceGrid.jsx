@@ -452,22 +452,23 @@ export default function ResourceGrid({
                   : oddWeek ? 'var(--cal-week-tint)' : 'transparent';
 
               return (
-                <tr key={ds} style={{ height: rowH, background: weekBg,
+                <tr key={ds} className={isToday ? 'calendar-today-row' : undefined}
+                  style={{ height: rowH, background: weekBg,
                   borderTop: isMon ? '1px solid var(--cal-border-week)' : undefined }}>
                     <td style={{
                       padding: '0 4px', fontSize: 12, letterSpacing: '-0.02em',
-                      color: isToday ? 'var(--cal-success-text)'
+                      color: isToday ? 'var(--cal-today-text)'
                         : isPast ? 'var(--cal-text-quieter)'
                           : isMon ? 'var(--cal-text-soft-alt)' : 'var(--cal-text-secondary)',
                       fontWeight: isToday || isMon ? 600 : 400,
-                      borderBottom: isToday ? '2px solid var(--cal-today-border)' : '0.5px solid var(--cal-row-alt)',
+                      borderBottom: isToday ? '1px solid var(--cal-today-border)' : '0.5px solid var(--cal-row-alt)',
                       //borderLeft: '0.5px solid var(--cal-row-alt)',
                       borderRight: '1px solid var(--cal-border)',
-                      borderTop: isToday ? '2px solid var(--cal-today-border)'
+                      borderTop: isToday ? '3px solid var(--cal-today-border)'
                         : isMon ? '1px solid var(--cal-border-week)' : '0.5px solid var(--cal-row-alt)',
                       boxShadow: [
                         'inset -1px 0 0 var(--cal-border)',
-                        isToday ? 'inset 3px 0 0 var(--cal-today-border)' : '',
+                        isToday ? 'inset 4px 0 0 var(--cal-today-border)' : '',
                         isSep ? 'inset 0 1px 0 var(--cal-menu-text)' : '',
                       ].filter(Boolean).join(', '),
                       position: 'sticky', left: 0, zIndex: 5,
@@ -485,10 +486,20 @@ export default function ResourceGrid({
                           textTransform: 'uppercase',
                         }}>{format(d, 'MMM yy')}</div>
                       )}
-                      <div style={{ lineHeight: 1.2 }}>
-                        <span style={{ fontWeight: 600 }}>{COMPACT_WEEKDAYS[d.getDay()]} </span>
-                        <span style={{ fontSize: 11 }}>{format(d, 'M/d')}</span>
-                      </div>
+                      {isToday ? (
+                        <div style={{ lineHeight: 1.05, paddingLeft: 3 }}>
+                          <div style={{
+                            fontSize: 9, fontWeight: 800, letterSpacing: '0.04em',
+                            textTransform: 'uppercase',
+                          }}>Today</div>
+                          <div style={{ fontSize: 11, marginTop: 2 }}>{format(d, 'M/d')}</div>
+                        </div>
+                      ) : (
+                        <div style={{ lineHeight: 1.2 }}>
+                          <span style={{ fontWeight: 600 }}>{COMPACT_WEEKDAYS[d.getDay()]} </span>
+                          <span style={{ fontSize: 11 }}>{format(d, 'M/d')}</span>
+                        </div>
+                      )}
                     </td>
 
                     {RESOURCE_TECHNICIANS.map((tech, ti) => {
@@ -516,10 +527,10 @@ export default function ResourceGrid({
                           }}
                           style={{
                             position: 'relative', height: rowH,
-                            borderBottom: isToday ? '2px solid var(--cal-today-border)' : '0.5px solid var(--cal-row-alt)',
+                            borderBottom: isToday ? '1px solid var(--cal-today-border)' : '0.5px solid var(--cal-row-alt)',
                             borderRight: !isLast ? '0.5px solid var(--cal-row-alt)' : 'none',
                             borderLeft: isUnassigned ? '1px solid var(--tech-unassigned-border)' : undefined,
-                            borderTop: isToday ? '2px solid var(--cal-today-border)'
+                            borderTop: isToday ? '3px solid var(--cal-today-border)'
                               : isMon ? '1px solid var(--cal-border-week)' : undefined,
                             boxShadow: !isToday && isSep ? 'inset 0 1px 0 var(--cal-menu-text)' : undefined,
                             cursor: editorToken && !activeOnDay.length && !techEvs.length ? 'pointer' : 'default',

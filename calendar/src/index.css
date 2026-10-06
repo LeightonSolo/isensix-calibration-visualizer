@@ -12,8 +12,9 @@
   --cal-sidebar-header: #0e0e15;
   --cal-week-alt: #151519;
   --cal-week-label: #0a0a0c;
-  --cal-today-bg: #22272c;
-  --cal-today-border: #adb7c4b4;
+  --cal-today-bg: rgba(52, 126, 216, .12);
+  --cal-today-border: #5aa5f8;
+  --cal-today-text: #82bdff;
   --cal-past-row-bg: #0b0b0d;
   --cal-unassigned-column-bg: #1b1b20;
   --cal-unassigned-column-past-bg: #111114;
@@ -138,8 +139,9 @@
   --cal-sidebar-header: #eef1f5;
   --cal-week-alt: #f7f8fa;
   --cal-week-label: #e9edf2;
-  --cal-today-bg: #d1d5df;
-  --cal-today-border: #495360;
+  --cal-today-bg: rgba(52, 126, 216, .10);
+  --cal-today-border: #236fc7;
+  --cal-today-text: #185fae;
   --cal-past-row-bg: #f0f1f3;
   --cal-unassigned-column-bg: #e8ebee;
   --cal-unassigned-column-past-bg: #e1e4e8;
@@ -380,6 +382,19 @@ body,
   background: var(--cal-bg);
   color: var(--cal-text);
   font-family: Inter, system-ui, sans-serif;
+}
+
+@keyframes calendar-today-arrive {
+  0% { background-color: rgba(52, 126, 216, .28); }
+  100% { background-color: var(--cal-today-bg); }
+}
+
+.calendar-today-row > td {
+  animation: calendar-today-arrive 800ms ease-out 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .calendar-today-row > td { animation: none; }
 }
 
 .site-login-card {
