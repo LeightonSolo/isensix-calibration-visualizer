@@ -58,14 +58,12 @@ export default function ResourceGrid({
   const [hoverCard, setHoverCard] = useState(null);
   const dragRef = useRef(null);
 
-  const rangeStart = startOfWeek(subWeeks(viewDate, 2), { weekStartsOn: 1 });
-  const rangeEnd   = endOfWeek(addWeeks(viewDate, 10),  { weekStartsOn: 1 });
-
-  const days = useMemo(() =>
-    eachDayOfInterval({ start: rangeStart, end: rangeEnd })
-      .filter(d => !isWeekend(d)),
-    [rangeStart.toISOString(), rangeEnd.toISOString()]
-  );
+  const days = useMemo(() => {
+    const rangeStart = startOfWeek(subWeeks(viewDate, 2), { weekStartsOn: 1 });
+    const rangeEnd = endOfWeek(addWeeks(viewDate, 10), { weekStartsOn: 1 });
+    return eachDayOfInterval({ start: rangeStart, end: rangeEnd })
+      .filter(d => !isWeekend(d));
+  }, [viewDate]);
   const dayStrs = useMemo(() => days.map(d => format(d, 'yyyy-MM-dd')), [days]);
   const today   = format(new Date(), 'yyyy-MM-dd');
 
@@ -123,13 +121,6 @@ export default function ResourceGrid({
     window.addEventListener('keydown', handleStatusShortcut);
     return () => window.removeEventListener('keydown', handleStatusShortcut);
   }, [editorToken, hoverCard, onSaveEvent, requireEditor]);
-
-  const techBusyDates = useMemo(() => {
-    const m = {};
-    RESOURCE_TECHNICIANS.forEach(t => { m[t] = new Set(); });
-    displayAssignments.forEach(a => { if (m[a.tech_name]) m[a.tech_name].add(a.date); });
-    return m;
-  }, [displayAssignments]);
 
   function getRowHeight() {
     return ROW_H;
@@ -447,7 +438,7 @@ export default function ResourceGrid({
           </thead>
 
           <tbody>
-            {days.map((d, di) => {
+            {days.map(d => {
               const ds      = format(d, 'yyyy-MM-dd');
               const isToday = ds === today;
               const isPast  = ds < today;

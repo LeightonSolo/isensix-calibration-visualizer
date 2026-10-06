@@ -156,28 +156,26 @@ export default function JobInfoPanel({
   const [fetchedJobInfo, setFetchedJobInfo] = useState(null);
   const [loading,  setLoading]  = useState(false);
   const [tab,      setTab]      = useState('summary');
-  const [lastTitle, setLastTitle] = useState(null);
   const [draft, setDraft] = useState(null);
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
   const abortRef = useRef(null);
   const hasJobInfoOverride = jobInfoOverride !== undefined;
   const jobInfo = hasJobInfoOverride ? jobInfoOverride : fetchedJobInfo;
+  const selectedTitle = selectedEvent?.title || null;
 
   useEffect(() => {
     if (hasJobInfoOverride) {
       setLoading(false);
       return;
     }
-    if (!selectedEvent) {
+    if (!selectedTitle) {
       setFetchedJobInfo(null);
-      setLastTitle(null);
       setTab('summary');
       setDraft(null);
       return;
     }
-    const title = selectedEvent.title;
-    if (title === lastTitle) return;
+    const title = selectedTitle;
 
     setTab('summary');
     setDraft(null);
@@ -189,7 +187,6 @@ export default function JobInfoPanel({
     abortRef.current = controller;
 
     setLoading(true);
-    setLastTitle(title);
 
     fetch(`${WORKER_URL}/jobinfo/${encodeURIComponent(title)}`, {
       headers: siteHeaders(),
@@ -205,7 +202,7 @@ export default function JobInfoPanel({
       .catch(e => { if (e.name !== 'AbortError') { setFetchedJobInfo(null); setLoading(false); } });
 
     return () => controller.abort();
-  }, [selectedEvent?.title, hasJobInfoOverride]);
+  }, [selectedTitle, hasJobInfoOverride]);
 
   // Tech assignments for this event
   const eventTechs = selectedEvent
