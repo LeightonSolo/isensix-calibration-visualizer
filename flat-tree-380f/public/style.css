@@ -1430,3 +1430,6 @@ body.job-info-open > #app > .nav-btn[data-page="about"] { display: none; }
     from { transform: scale(0.9); opacity: 0; }
     to { transform: scale(1); opacity: 1; }
 }
+.panel-count {
+  margin-left: 0.35rem;
+}
