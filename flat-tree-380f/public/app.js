@@ -1231,6 +1231,8 @@ function renderTable() {
   const title = document.getElementById('panel-title');
   const count = document.getElementById('panel-count');
   const area  = document.getElementById('table-area');
+  const panelActions = document.getElementById('panel-actions');
+  panelActions.innerHTML = '';
   document.getElementById('main-panel')?.classList.toggle('job-info-panel-active', currentTab === 'jobinfo');
   document.body.classList.toggle('job-info-open', currentPage === 'dashboard' && currentTab === 'jobinfo');
   const panelHeader = title.closest('.panel-hdr');
@@ -1259,6 +1261,9 @@ function renderTable() {
     ).length;
     title.textContent = `Exceptions ${CURRENT_YEAR}`;
     count.textContent = `${currentExceptions.length}${disabledExceptionCount ? ` · ${disabledExceptionCount} disabled — remove` : ''}`;
+    panelActions.innerHTML = historicalRunId
+      ? ''
+      : '<button class="primary" onclick="openAddExceptionModal()">Add Exception</button>';
     area.innerHTML = buildExceptionsTable();
     return;
   }
@@ -1890,6 +1895,144 @@ function buildCheckTable(sensors) {
 
 
 // exception tab rendering ==========================
+function openAddExceptionModal() {
+  if (historicalRunId) return;
+
+  const cpAddresses = [...new Set(allSensors
+    .filter(sensor => sensor.status?.toUpperCase() !== 'DISABLED' && sensor.cp_address)
+    .map(sensor => String(sensor.cp_address).trim())
+    .filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  const techOptions = CONFIG.TECHNICIANS
+    .map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`)
+    .join('');
+
+  const modal = document.createElement('div');
+  modal.id = 'exception-modal';
+  modal.style.cssText = `
+    position:fixed;inset:0;background:rgba(0,0,0,0.7);
+    display:flex;align-items:center;justify-content:center;z-index:1000;
+  `;
+  modal.innerHTML = `
+    <div style="background:var(--bg-panel);border:0.5px solid var(--border);
+      border-radius:var(--radius-lg);padding:24px;width:420px;display:flex;
+      flex-direction:column;gap:14px;">
+      <div style="font-size:14px;font-weight:600;">Add Exception</div>
+      <div style="font-size:12px;color:var(--text-secondary);">
+        Enter the CP address for the sensor you want to mark as an exception.
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <label style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.04em;">CP address</label>
+        <input id="new-exc-cp" type="text" placeholder="e.g. CP-1234" list="new-exc-cp-options" style="width:100%;"/>
+        <datalist id="new-exc-cp-options">
+          ${cpAddresses.map(cp => `<option value="${escapeHtml(cp)}">`).join('')}
+        </datalist>
+        <div id="new-exc-error" style="display:none;color:var(--accent-red);font-size:12px;"></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <label style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.04em;">Reason</label>
+        <input id="new-exc-reason" type="text" placeholder="e.g. No access, customer declined..." style="width:100%;" list="options"/>
+        <datalist id="options">
+          <option value="Sensor Removed">
+          <option value="Not in Use">
+          <option value="Check Network">
+          <option value="Check Sensor">
+          <option value="Bad CP">
+          <option value="No access to sensor">
+          <option value="Replacement sensor not arrived">
+          <option value="Will be calibrated by customer">
+        </datalist>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <label style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.04em;">Added by</label>
+        <select id="new-exc-added-by" style="width:100%;">
+          <option value="">Select technician...</option>
+          ${techOptions}
+        </select>
+      </div>
+      <div id="new-exc-server-wrap" style="display:none;flex-direction:column;gap:8px;">
+        <label style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.04em;">Server</label>
+        <select id="new-exc-server" style="width:100%;"></select>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px;">
+        <button onclick="closeExceptionModal()">Cancel</button>
+        <button class="primary" onclick="saveNewException()">Save exception</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  document.getElementById('new-exc-cp').addEventListener('input', updateNewExceptionServers);
+  document.getElementById('new-exc-cp').focus();
+}
+
+function updateNewExceptionServers() {
+  const cp = document.getElementById('new-exc-cp')?.value.trim().toLowerCase();
+  const matches = allSensors.filter(sensor =>
+    String(sensor.cp_address || '').trim().toLowerCase() === cp &&
+    sensor.status?.toUpperCase() !== 'DISABLED'
+  );
+  const wrap = document.getElementById('new-exc-server-wrap');
+  const select = document.getElementById('new-exc-server');
+  if (!wrap || !select) return;
+  if (matches.length > 1) {
+    select.innerHTML = matches.map(sensor =>
+      `<option value="${escapeHtml(String(sensor.server))}">${escapeHtml(String(sensor.server))}</option>`
+    ).join('');
+    wrap.style.display = 'flex';
+  } else {
+    wrap.style.display = 'none';
+    select.innerHTML = '';
+  }
+}
+
+async function saveNewException() {
+  if (historicalRunId) return;
+  const cpInput = document.getElementById('new-exc-cp');
+  const reasonInput = document.getElementById('new-exc-reason');
+  const addedByInput = document.getElementById('new-exc-added-by');
+  const error = document.getElementById('new-exc-error');
+  const cp = cpInput.value.trim();
+  const reason = reasonInput.value.trim();
+  const added_by = addedByInput.value;
+  const matches = allSensors.filter(sensor =>
+    String(sensor.cp_address || '').trim().toLowerCase() === cp.toLowerCase() &&
+    sensor.status?.toUpperCase() !== 'DISABLED'
+  );
+  const selectedServer = document.getElementById('new-exc-server')?.value;
+  const sensor = matches.length > 1
+    ? matches.find(candidate => String(candidate.server) === selectedServer)
+    : matches[0];
+
+  if (!sensor || !reason || !added_by) {
+    error.textContent = !sensor
+      ? (matches.length ? 'Select a server for this CP address.' : 'No enabled sensor found with that CP address.')
+      : 'Enter a reason and select a technician.';
+    error.style.display = 'block';
+    if (!sensor) cpInput.style.borderColor = 'var(--accent-red)';
+    return;
+  }
+
+  const response = await fetch(`${CONFIG.WORKER_URL}/exceptions`, {
+    method: 'POST',
+    headers: siteApiHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({
+      sensor_id: String(sensor.sensor_id),
+      server: sensor.server,
+      sensor_name: sensor.sensor_name ?? null,
+      zone: sensor.zone ?? null,
+      reason,
+      year: CURRENT_YEAR,
+      added_by,
+    })
+  });
+  if (!response.ok) {
+    error.textContent = 'Could not save exception. Please try again.';
+    error.style.display = 'block';
+    return;
+  }
+  closeExceptionModal();
+  window.location.reload();
+}
+
 function buildExceptionsTable() {
   const current  = allExceptions.filter(e => e.year === CURRENT_YEAR);
   const prevYear = allExceptions.filter(e => e.year === CURRENT_YEAR - 1);
