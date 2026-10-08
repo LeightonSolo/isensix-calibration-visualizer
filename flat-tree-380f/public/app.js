@@ -28,6 +28,7 @@ const detailSorts = {
   zone: { key: null, dir: 1 },
   type: { key: null, dir: 1 },
 };
+let hideCalibrated = false;
 const historicalRunId = new URLSearchParams(window.location.search).get('run_id');
 let historicalRun = null;
 const serverOverviewSorts = {
@@ -392,6 +393,35 @@ function getVisibleSensors(sensors = allSensors) {
   return sensors.filter(sensor => showDisabled || !sensor.status || sensor.status.toUpperCase() !== 'DISABLED');
 }
 
+function isCompletedSensor(sensor) {
+  return isCalibrated(sensor) && !isExcepted(sensor) && !isFailed(sensor);
+}
+
+function getBreakdownSensors(sensors = allSensors) {
+  return getVisibleSensors(sensors).filter(sensor => !hideCalibrated || !isCompletedSensor(sensor));
+}
+
+function hasBreakdownWork(sensors) {
+  return !hideCalibrated || getBreakdownSensors(sensors).length > 0;
+}
+
+function breakdownToggleHtml(id = '') {
+  return `<button type="button" class="breakdown-toggle"${id ? ` id="${id}"` : ''} aria-pressed="${hideCalibrated}" onclick="toggleHideCalibrated()">${hideCalibrated ? 'Show calibrated' : 'Hide calibrated'}</button>`;
+}
+
+function updateBreakdownToggle(id) {
+  const button = document.getElementById(id);
+  if (!button) return;
+  button.textContent = hideCalibrated ? 'Show calibrated' : 'Hide calibrated';
+  button.setAttribute('aria-pressed', String(hideCalibrated));
+}
+
+function toggleHideCalibrated() {
+  hideCalibrated = !hideCalibrated;
+  renderTable();
+  refreshDetailViews();
+}
+
 function groupServerOverviewRows(sensors, key) {
   const groups = new Map();
   sensors.forEach(sensor => {
@@ -399,7 +429,7 @@ function groupServerOverviewRows(sensors, key) {
     if (!groups.has(label)) groups.set(label, []);
     groups.get(label).push(sensor);
   });
-  return [...groups.entries()].map(([label, group]) => {
+  return [...groups.entries()].filter(([, group]) => hasBreakdownWork(group)).map(([label, group]) => {
     const progress = getProgressBreakdown(group);
     return {
       label,
@@ -450,6 +480,11 @@ function renderServerOverview(server) {
   title.innerHTML = tunnelUrl
     ? `Server <a class="server-overview-title-link" href="${escapeHtml(tunnelUrl)}" target="_blank" rel="noopener" title="Open Server ${escapeHtml(server)}">${escapeHtml(server)}</a> overview`
     : `Server ${escapeHtml(server)} overview`;
+  const serverToggle = document.getElementById('server-hide-calibrated');
+  if (serverToggle) {
+    serverToggle.textContent = hideCalibrated ? 'Show calibrated' : 'Hide calibrated';
+    serverToggle.setAttribute('aria-pressed', String(hideCalibrated));
+  }
   body.innerHTML = `
     <div class="server-overview-meta">
       <span><strong>${escapeHtml(meta.customer || 'Customer not assigned')}</strong></span>
@@ -480,7 +515,7 @@ function renderServerOverview(server) {
         { label: 'Fail', key: 'failures', render: row => row.failures ? `<span class="fail-val">${row.failures}</span>` : '0' },
       ], 'No enabled sensors have zone information.', 'overview-breakdown',
         row => row.remaining === 0 ? 'overview-done-row' : '',
-        activeServerZoneDetails ? buildZoneDetailsContent(activeServerZoneDetails, breakdownSensors, 'zone') : '')}
+        activeServerZoneDetails ? buildZoneDetailsContent(activeServerZoneDetails, getBreakdownSensors(all), 'zone') : '')}
 
       ${buildServerOverviewTable('types', 'Type breakdown', types, [
         { label: 'Type', key: 'label', render: row => `<button type="button" class="type-detail-trigger" data-server-type-detail="${escapeHtml(row.label)}" title="Show sensors of type ${escapeHtml(row.label)}"><span>${escapeHtml(row.label)}</span></button>` },
@@ -491,7 +526,7 @@ function renderServerOverview(server) {
         { label: 'Fail', key: 'failures', render: row => row.failures ? `<span class="fail-val">${row.failures}</span>` : '0' },
       ], 'No enabled sensors have type information.', 'overview-breakdown',
         row => row.remaining === 0 ? 'overview-done-row' : '',
-        activeServerTypeDetails ? buildTypeDetailsContent(activeServerTypeDetails, breakdownSensors, 'type') : '')}
+        activeServerTypeDetails ? buildTypeDetailsContent(activeServerTypeDetails, getBreakdownSensors(all), 'type') : '')}
 
       ${buildServerOverviewTable('calibrated', `Calibrated in the last ${CONFIG.ROLLING_DAYS} days`, calibrated, [
         { label: 'CP Addr', render: sensor => `<span class="mono">${escapeHtml(sensor.cp_address || '—')}</span>` },
@@ -1020,7 +1055,8 @@ function openZoneDetails(zone) {
   if (!modal || !body || !title) return;
   activeZoneDetails = String(zone);
   title.textContent = `Zone ${activeZoneDetails}`;
-  body.innerHTML = buildZoneDetailsContent(activeZoneDetails, getVisibleSensors(), 'zone');
+  updateBreakdownToggle('zone-hide-calibrated');
+  body.innerHTML = buildZoneDetailsContent(activeZoneDetails, getBreakdownSensors(), 'zone');
   modal.hidden = false;
   document.body.classList.add('server-overview-open');
   document.getElementById('zone-detail-close')?.focus();
@@ -1055,7 +1091,8 @@ function openTypeDetails(type) {
   if (!modal || !body || !title) return;
   activeTypeDetails = String(type);
   title.textContent = `Type ${activeTypeDetails}`;
-  body.innerHTML = buildTypeDetailsContent(activeTypeDetails, getVisibleSensors(), 'type');
+  updateBreakdownToggle('type-hide-calibrated');
+  body.innerHTML = buildTypeDetailsContent(activeTypeDetails, getBreakdownSensors(), 'type');
   modal.hidden = false;
   document.body.classList.add('server-overview-open');
   document.getElementById('type-detail-close')?.focus();
@@ -1070,11 +1107,14 @@ function closeTypeDetails() {
 }
 
 function refreshDetailViews() {
+  updateBreakdownToggle('zone-hide-calibrated');
+  updateBreakdownToggle('type-hide-calibrated');
+  updateBreakdownToggle('server-hide-calibrated');
   if (activeZoneDetails && !document.getElementById('zone-detail-modal')?.hidden) {
-    document.getElementById('zone-detail-body').innerHTML = buildZoneDetailsContent(activeZoneDetails, getVisibleSensors(), 'zone');
+    document.getElementById('zone-detail-body').innerHTML = buildZoneDetailsContent(activeZoneDetails, getBreakdownSensors(), 'zone');
   }
   if (activeTypeDetails && !document.getElementById('type-detail-modal')?.hidden) {
-    document.getElementById('type-detail-body').innerHTML = buildTypeDetailsContent(activeTypeDetails, getVisibleSensors(), 'type');
+    document.getElementById('type-detail-body').innerHTML = buildTypeDetailsContent(activeTypeDetails, getBreakdownSensors(), 'type');
   }
   if (activeServerOverview) renderServerOverview(activeServerOverview);
 }
@@ -1114,7 +1154,7 @@ function toggleSummarySort(state, col) {
 
 function applySummarySort(rows, state, key) {
   if (!state.col) return rows;
-  return [...rows].sort((a, b) => {
+  return rows.filter(Boolean).sort((a, b) => {
     let av = a[state.col] ?? '', bv = b[state.col] ?? '';
     const an = parseFloat(av), bn = parseFloat(bv);
     if (!isNaN(an) && !isNaN(bn)) { av = an; bv = bn; }
@@ -1205,9 +1245,9 @@ function sortDetailTable(detailKey, column) {
     return;
   }
   if (detailKey === 'zone' && activeZoneDetails) {
-    document.getElementById('zone-detail-body').innerHTML = buildZoneDetailsContent(activeZoneDetails, getVisibleSensors(), 'zone');
+    document.getElementById('zone-detail-body').innerHTML = buildZoneDetailsContent(activeZoneDetails, getBreakdownSensors(), 'zone');
   } else if (detailKey === 'type' && activeTypeDetails) {
-    document.getElementById('type-detail-body').innerHTML = buildTypeDetailsContent(activeTypeDetails, getVisibleSensors(), 'type');
+    document.getElementById('type-detail-body').innerHTML = buildTypeDetailsContent(activeTypeDetails, getBreakdownSensors(), 'type');
   }
 }
 
@@ -1277,6 +1317,7 @@ function buildTypesTable() {
   const types = [...new Set(sensors.map(s => s.sensor_type).filter(Boolean))].sort();
   let rows = types.map(t => {
     const g   = sensors.filter(s => s.sensor_type === t);
+    if (!hasBreakdownWork(g)) return null;
     const progress = getProgressBreakdown(g);
     const cal = progress.calibrated;
     const exc = progress.exceptions;
@@ -1284,7 +1325,7 @@ function buildTypesTable() {
     const left= progress.remaining;
     const srv = [...new Set(g.map(s => s.server).filter(Boolean))].join(', ');
     return { t, total: g.length, cal, exc, left, fail, srv, done: left === 0 };
-  });
+  }).filter(Boolean);
   rows = applySummarySort(rows, typeSort, 't');
 
   return `<div class="rt-wrap"><table class="rt">
@@ -1336,6 +1377,7 @@ function buildZonesTable() {
   const zones = [...new Set(sensors.map(s => s.zone).filter(Boolean))].sort();
   let rows = zones.map(z => {
     const g   = sensors.filter(s => s.zone === z);
+    if (!hasBreakdownWork(g)) return null;
     const progress = getProgressBreakdown(g);
     const cal = progress.calibrated;
     const exc = progress.exceptions;
@@ -1343,7 +1385,7 @@ function buildZonesTable() {
     const left= progress.remaining;
     const srv = [...new Set(g.map(s => s.server).filter(Boolean))].join(', ');
     return { z, srv, total: g.length, cal, exc, left, fail, done: left <= 0 };
-  });
+  }).filter(Boolean);
   rows = applySummarySort(rows, zoneSort, 'z');
 
   return `<div class="rt-wrap"><table class="rt">
@@ -1375,6 +1417,9 @@ function renderTable() {
   const area  = document.getElementById('table-area');
   const panelActions = document.getElementById('panel-actions');
   panelActions.innerHTML = '';
+  if (currentTab === 'types' || currentTab === 'zones') {
+    panelActions.innerHTML = breakdownToggleHtml();
+  }
   document.getElementById('main-panel')?.classList.toggle('job-info-panel-active', currentTab === 'jobinfo');
   document.body.classList.toggle('job-info-open', currentPage === 'dashboard' && currentTab === 'jobinfo');
   const panelHeader = title.closest('.panel-hdr');
@@ -2165,7 +2210,7 @@ async function saveNewException() {
       year: CURRENT_YEAR,
       added_by,
     })
-  });
+  }).filter(Boolean);
   if (!response.ok) {
     error.textContent = 'Could not save exception. Please try again.';
     error.style.display = 'block';

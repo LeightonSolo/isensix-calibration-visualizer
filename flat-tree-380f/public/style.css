@@ -1434,6 +1434,35 @@ body.job-info-open > #app > .nav-btn[data-page="about"] { display: none; }
   margin-left: 0.35rem;
 }
 
+.server-overview-heading-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.breakdown-toggle {
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-panel);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 11px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.breakdown-toggle:hover,
+.breakdown-toggle[aria-pressed="true"] {
+  border-color: var(--accent-light-blue);
+  color: var(--text-primary);
+}
+
+.breakdown-toggle:focus-visible {
+  outline: 2px solid var(--accent-light-blue);
+  outline-offset: 2px;
+}
+
 .zone-detail-trigger,
 .type-detail-trigger {
   display: flex;

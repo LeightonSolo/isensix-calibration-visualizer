@@ -530,7 +530,10 @@
         <div class="server-overview-eyebrow">Individual server</div>
         <h2 id="server-overview-title">Server overview</h2>
       </div>
-      <button id="server-overview-close" class="server-overview-close" type="button" aria-label="Close server overview">&times;</button>
+      <div class="server-overview-heading-actions">
+        <button id="server-hide-calibrated" class="breakdown-toggle" type="button" aria-pressed="false" onclick="toggleHideCalibrated()">Hide calibrated</button>
+        <button id="server-overview-close" class="server-overview-close" type="button" aria-label="Close server overview">&times;</button>
+      </div>
     </div>
     <div id="server-overview-body"></div>
   </section>
@@ -543,7 +546,10 @@
         <div class="server-overview-eyebrow">By Zone</div>
         <h2 id="zone-detail-title">Zone details</h2>
       </div>
-      <button id="zone-detail-close" class="server-overview-close" type="button" aria-label="Close zone details">&times;</button>
+      <div class="server-overview-heading-actions">
+        <button id="zone-hide-calibrated" class="breakdown-toggle" type="button" aria-pressed="false" onclick="toggleHideCalibrated()">Hide calibrated</button>
+        <button id="zone-detail-close" class="server-overview-close" type="button" aria-label="Close zone details">&times;</button>
+      </div>
     </div>
     <div id="zone-detail-body" class="zone-detail-modal-body"></div>
   </section>
@@ -556,7 +562,10 @@
         <div class="server-overview-eyebrow">By Type</div>
         <h2 id="type-detail-title">Type details</h2>
       </div>
-      <button id="type-detail-close" class="server-overview-close" type="button" aria-label="Close type details">&times;</button>
+      <div class="server-overview-heading-actions">
+        <button id="type-hide-calibrated" class="breakdown-toggle" type="button" aria-pressed="false" onclick="toggleHideCalibrated()">Hide calibrated</button>
+        <button id="type-detail-close" class="server-overview-close" type="button" aria-label="Close type details">&times;</button>
+      </div>
     </div>
     <div id="type-detail-body" class="zone-detail-modal-body"></div>
   </section>
