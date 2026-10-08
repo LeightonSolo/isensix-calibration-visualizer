@@ -1046,16 +1046,22 @@ function renderMetrics() {
       </div>
     </div>`;
 
-    if((left == 0) && (!hasCelebratedCompletion) && (cal > 0)) {
-      hasCelebratedCompletion = true;
-      fireConfettiFromElement('#donut-card');
-      const latestCalibration = sensors
-        .map(sensor => sensor.calibrated_at)
-        .filter(Boolean)
-        .sort()
-        .at(-1);
-      const lastCalibrated = String(latestCalibration || '').match(/^\d{4}-\d{2}-\d{2}/)?.[0] || null;
-      saveJobInfo({ silent: true, lastCalibrated });
+    if (left === 0 && cal > 0) {
+      if (!hasCelebratedCompletion) {
+        hasCelebratedCompletion = true;
+        fireConfettiFromElement('#donut-card');
+      }
+      const completionKey = JSON.stringify([currentCustomer, [...servers].sort()]);
+      if (autoSavedCompletionKey !== completionKey && jobInfoCoversSelectedServers()) {
+        autoSavedCompletionKey = completionKey;
+        const latestCalibration = sensors
+          .map(sensor => sensor.calibrated_at)
+          .filter(Boolean)
+          .sort()
+          .at(-1);
+        const lastCalibrated = String(latestCalibration || '').match(/^\d{4}-\d{2}-\d{2}/)?.[0] || null;
+        saveJobInfo({ silent: true, lastCalibrated });
+      }
     }
 }
 
@@ -2465,6 +2471,8 @@ document.addEventListener('visibilitychange', () => {
 // -===================== JOB INFO STUFF =========================
 let jobInfo = {};
 let currentCustomer = null;
+let jobInfoLoaded = false;
+let autoSavedCompletionKey = null;
 
 function detectHardware(sourceSensors = allSensors) {
   const active = sourceSensors.filter(s => s.status?.toUpperCase() === 'ENABLED');
@@ -2516,6 +2524,7 @@ function getCustomerWarning() {
 }
 
 async function loadJobInfo() {
+  jobInfoLoaded = false;
   const counts = {};
   servers.forEach(s => {
     const c = serverMeta[s]?.customer;
@@ -2528,7 +2537,9 @@ async function loadJobInfo() {
       `${CONFIG.WORKER_URL}/jobinfo/${encodeURIComponent(currentCustomer)}`,
       { headers: siteApiHeaders() }
     );
+    if (!res.ok) throw new Error(`Could not load job info (${res.status})`);
     jobInfo = await res.json();
+    jobInfoLoaded = true;
   } catch(e) {
     console.error('Failed to load job info', e);
     jobInfo = {};
@@ -2541,8 +2552,19 @@ async function loadJobInfo() {
   
 }
 
+function jobInfoCoversSelectedServers() {
+  if (!jobInfoLoaded) return false;
+  const recordedServers = String(jobInfo.servers || '')
+    .split(',')
+    .map(server => server.trim())
+    .filter(Boolean);
+  const selectedServers = new Set(servers.map(server => String(server).trim()));
+  return recordedServers.every(server => selectedServers.has(server));
+}
+
 async function saveJobInfo({ silent = false, lastCalibrated = null } = {}) {
   if (historicalRunId) return;
+  if (silent && !jobInfoCoversSelectedServers()) return;
   if (!currentCustomer) {
     if (!silent) {
       alert('No customer assigned to these servers. Set a customer in the Servers panel first.');
