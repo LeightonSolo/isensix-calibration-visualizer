@@ -1052,6 +1052,22 @@ table.rt {
   table-layout: fixed;
 }
 table.rt.sensor-detail-table { min-width: 0; }
+table.rt.zones-table {
+  width: 100%;
+  min-width: 660px;
+  table-layout: fixed;
+}
+table.rt.zones-table td:nth-child(2) { width: 48px; }
+table.rt.zones-table th:nth-child(2) {
+  width: 48px;
+  white-space: nowrap;
+}
+table.rt.zones-table th:nth-child(n+3),
+table.rt.zones-table td:nth-child(n+3) { width: 80px; }
+table.rt.zones-table th:nth-child(n+3) {
+  padding: 4px;
+  white-space: normal;
+}
 
 table.rt thead {
   position: sticky;
@@ -1478,6 +1494,26 @@ body.job-info-open > #app > .nav-btn[data-page="about"] { display: none; }
   font: inherit;
   text-align: left;
   cursor: pointer;
+}
+
+.zone-row-trigger {
+  min-width: 0;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+
+.zone-row-trigger > span:first-child {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 55%;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.zone-row-trigger > .status-progress {
+  flex: 1 1 48px;
+  min-width: 36px;
 }
 
 .zone-detail-trigger:hover span:first-child,

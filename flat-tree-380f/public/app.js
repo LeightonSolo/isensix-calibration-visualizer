@@ -21,6 +21,7 @@ let checkSort  = { col: null,    dir:  1 };
 let excSort    = { col: null,    dir:  1 };
 let activeServerOverview = null;
 let activeZoneDetails = null;
+let activeZoneServer = null;
 let activeServerZoneDetails = null;
 let activeTypeDetails = null;
 let activeServerTypeDetails = null;
@@ -123,7 +124,9 @@ function restoreTableColumnWidths(container) {
       });
       return;
     }
-    if (table.classList.contains('sensor-detail-table')) autoFitSensorTableColumns(table);
+    if (table.classList.contains('sensor-detail-table') && table.dataset.resizeKey === 'sensors') {
+      autoFitSensorTableColumns(table);
+    }
   });
 }
 
@@ -1101,12 +1104,16 @@ function applySort(rows) { //sort for main tables
   });
 }
 
-function buildZoneDetailsContent(zone, sensors, detailKey = 'zone') {
-  const matching = sensors.filter(sensor => String(sensor.zone || `No zone`).trim() === String(zone));
+function buildZoneDetailsContent(zone, sensors, detailKey = 'zone', server = null) {
+  const matching = sensors.filter(sensor =>
+    String(sensor.zone || `No zone`).trim() === String(zone) &&
+    (server === null || String(sensor.server ?? '') === String(server))
+  );
+  const serverLabel = server === null ? '' : ` on SID ${server || '—'}`;
   return `
     <div class="zone-details-content">
       <div class="zone-details-heading">
-        <h3>Sensors in zone ${escapeHtml(zone)}</h3>
+        <h3>Sensors in zone ${escapeHtml(zone)}${escapeHtml(serverLabel)}</h3>
         <button type="button" class="zone-details-close" data-zone-detail-close aria-label="Close zone details">&times;</button>
       </div>
       <div class="zone-details-table-wrap">
@@ -1115,15 +1122,16 @@ function buildZoneDetailsContent(zone, sensors, detailKey = 'zone') {
     </div>`;
 }
 
-function openZoneDetails(zone) {
+function openZoneDetails(zone, server = null) {
   const modal = document.getElementById('zone-detail-modal');
   const body = document.getElementById('zone-detail-body');
   const title = document.getElementById('zone-detail-title');
   if (!modal || !body || !title) return;
   activeZoneDetails = String(zone);
-  title.textContent = `Zone ${activeZoneDetails}`;
+  activeZoneServer = server === null ? null : String(server);
+  title.textContent = `Zone ${activeZoneDetails}${activeZoneServer === null ? '' : ` (SID ${activeZoneServer || '—'})`}`;
   updateBreakdownToggle('zone-hide-calibrated');
-  setTableContent(body, buildZoneDetailsContent(activeZoneDetails, getBreakdownSensors(), 'zone'));
+  setTableContent(body, buildZoneDetailsContent(activeZoneDetails, getBreakdownSensors(), 'zone', activeZoneServer));
   modal.hidden = false;
   document.body.classList.add('server-overview-open');
   document.getElementById('zone-detail-close')?.focus();
@@ -1134,6 +1142,7 @@ function closeZoneDetails() {
   if (!modal || modal.hidden) return;
   modal.hidden = true;
   activeZoneDetails = null;
+  activeZoneServer = null;
   document.body.classList.remove('server-overview-open');
 }
 
@@ -1178,7 +1187,7 @@ function refreshDetailViews() {
   updateBreakdownToggle('type-hide-calibrated');
   updateBreakdownToggle('server-hide-calibrated');
   if (activeZoneDetails && !document.getElementById('zone-detail-modal')?.hidden) {
-    setTableContent(document.getElementById('zone-detail-body'), buildZoneDetailsContent(activeZoneDetails, getBreakdownSensors(), 'zone'));
+    setTableContent(document.getElementById('zone-detail-body'), buildZoneDetailsContent(activeZoneDetails, getBreakdownSensors(), 'zone', activeZoneServer));
   }
   if (activeTypeDetails && !document.getElementById('type-detail-modal')?.hidden) {
     setTableContent(document.getElementById('type-detail-body'), buildTypeDetailsContent(activeTypeDetails, getBreakdownSensors(), 'type'));
@@ -1271,7 +1280,7 @@ const SENSOR_COLS = [
   { key: 'status',       label: 'Status',       defaultW: 66  },
   { key: 'old_offset',   label: 'Old',          defaultW: 40  },
   { key: 'new_offset',   label: 'New',          defaultW: 40  },
-  { key: 'calibrated_at',label: 'Calibrated',   defaultW: 102 },
+  { key: 'calibrated_at',label: 'Calibrated',   defaultW: 98 },
   { key: 'calibrated_by',label: 'By',           defaultW: 130 },
   { key: 'cal_cert',     label: 'Certificate',  defaultW: 215 },
   { key: '_exception',   label: 'Exception',    defaultW: 90 },
@@ -1317,7 +1326,7 @@ function sortDetailTable(detailKey, column) {
     return;
   }
   if (detailKey === 'zone' && activeZoneDetails) {
-    setTableContent(document.getElementById('zone-detail-body'), buildZoneDetailsContent(activeZoneDetails, getBreakdownSensors(), 'zone'));
+    setTableContent(document.getElementById('zone-detail-body'), buildZoneDetailsContent(activeZoneDetails, getBreakdownSensors(), 'zone', activeZoneServer));
   } else if (detailKey === 'type' && activeTypeDetails) {
     setTableContent(document.getElementById('type-detail-body'), buildTypeDetailsContent(activeTypeDetails, getBreakdownSensors(), 'type'));
   }
@@ -1328,7 +1337,7 @@ function buildSensorTable(rows, detailKey = null) {
   const displayRows = detailKey ? sortSensorDetailRows(rows, detailKey) : rows;
   const defaultTableWidth = SENSOR_COLS.reduce((width, column) => width + column.defaultW, 0);
   const resizeKey = detailKey
-    ? `${detailKey}:${detailKey === 'zone' ? activeZoneDetails : activeTypeDetails}`
+    ? `${detailKey}:${detailKey === 'zone' ? `${activeZoneDetails}:${activeZoneServer ?? ''}` : activeTypeDetails}`
     : 'sensors';
   const thead = `<thead><tr>${SENSOR_COLS.map(c => `
     <th style="width:${c.defaultW}px;"
@@ -1451,24 +1460,35 @@ function buildProgressBar(row) {
 
 function buildZonesTable() {
   const sensors = getVisibleSensors();
-  const zones = [...new Set(sensors.map(s => s.zone).filter(Boolean))].sort();
-  let rows = zones.map(z => {
-    const g   = sensors.filter(s => s.zone === z);
+  const zoneGroups = new Map();
+  sensors.forEach(sensor => {
+    if (!sensor.zone) return;
+    const z = String(sensor.zone);
+    const server = String(sensor.server ?? '');
+    const key = JSON.stringify([z, server]);
+    if (!zoneGroups.has(key)) zoneGroups.set(key, { z, server, sensors: [] });
+    zoneGroups.get(key).sensors.push(sensor);
+  });
+  let rows = [...zoneGroups.values()].map(({ z, server, sensors: group }) => {
+    const g = group;
     if (!hasBreakdownWork(g)) return null;
     const progress = getProgressBreakdown(g);
     const cal = progress.calibrated;
     const exc = progress.exceptions;
     const fail= progress.failures;
     const left= progress.remaining;
-    const srv = [...new Set(g.map(s => s.server).filter(Boolean))].join(', ');
-    return { z, srv, total: g.length, cal, exc, left, fail, done: left <= 0 };
+    return { z, server, total: g.length, cal, exc, left, fail, done: left <= 0 };
   }).filter(Boolean);
+  rows.sort((a, b) =>
+    a.z.localeCompare(b.z, undefined, { numeric: true, sensitivity: 'base' }) ||
+    a.server.localeCompare(b.server, undefined, { numeric: true })
+  );
   rows = applySummarySort(rows, zoneSort, 'z');
 
-  return `<div class="rt-wrap"><table class="rt" data-resize-key="zones">
+  return `<div class="rt-wrap"><table class="rt zones-table" data-resize-key="zones">
     <thead><tr>
       ${thSort('Zone',       'z',     zoneSort, 'sortZone')}
-      ${thSort('SID',        'srv',   zoneSort, 'sortZone')}
+      ${thSort('SID',        'server',zoneSort, 'sortZone')}
       ${thSort('Sensors',    'total', zoneSort, 'sortZone')}
       ${thSort('Calibrated', 'cal',   zoneSort, 'sortZone')}
       ${thSort('Exceptions', 'exc',   zoneSort, 'sortZone')}
@@ -1476,8 +1496,8 @@ function buildZonesTable() {
       ${thSort('Failures',   'fail',  zoneSort, 'sortZone')}
     </tr></thead>
     <tbody>${rows.map(r => `<tr class="${r.done ? 'done-row' : ''}">
-      <td title="${r.z}"><button type="button" class="zone-detail-trigger" data-zone-detail="${escapeHtml(r.z)}" title="Show sensors in ${escapeHtml(r.z)}"><span>${escapeHtml(r.z)}</span>${buildProgressBar(r)}</button></td>
-      <td class="muted">${r.srv}</td>
+      <td title="${escapeHtml(r.z)}"><button type="button" class="zone-detail-trigger zone-row-trigger" data-zone-detail="${escapeHtml(r.z)}" data-zone-server="${escapeHtml(r.server)}" title="Show sensors in ${escapeHtml(r.z)} on SID ${escapeHtml(r.server || '—')}"><span>${escapeHtml(r.z)}</span>${buildProgressBar(r)}</button></td>
+      <td class="muted">${escapeHtml(r.server || '—')}</td>
       <td>${r.total}</td>
       <td class="green-val">${r.cal}</td>
       <td class="${r.exc  > 0 ? 'orange-val' : 'muted'}">${r.exc}</td>
@@ -2209,7 +2229,7 @@ function openAddExceptionModal() {
       </div>
       <div style="display:flex;flex-direction:column;gap:8px;">
         <label style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.04em;">CP address</label>
-        <input id="new-exc-cp" type="text" placeholder="e.g. CP-1234" list="new-exc-cp-options" style="width:100%;"/>
+        <input id="new-exc-cp" type="text" placeholder="e.g. 62.4a.34" list="new-exc-cp-options" style="width:100%;"/>
         <datalist id="new-exc-cp-options">
           ${cpAddresses.map(cp => `<option value="${escapeHtml(cp)}">`).join('')}
         </datalist>
@@ -2970,7 +2990,7 @@ document.getElementById('table-area')?.addEventListener('click', event => {
   }
   const zoneTrigger = event.target.closest('[data-zone-detail]');
   if (zoneTrigger) {
-    openZoneDetails(zoneTrigger.dataset.zoneDetail);
+    openZoneDetails(zoneTrigger.dataset.zoneDetail, zoneTrigger.dataset.zoneServer ?? null);
   }
 });
 const zoneDetailModal = document.getElementById('zone-detail-modal');
