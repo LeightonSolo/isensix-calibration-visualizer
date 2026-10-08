@@ -5,7 +5,9 @@ let thresholds = JSON.parse(localStorage.getItem('cal_thresholds') || 'null')
                  || { ...CONFIG.DEFAULT_THRESHOLDS };
 let typeColors = JSON.parse(localStorage.getItem('cal_type_colors') || 'null')
                  || { ...CONFIG.DEFAULT_TYPE_COLORS };
-loadServerMeta(); // Load server metadata on startup
+// Load server metadata after authentication so server suggestions are available
+// even when no servers have been added to the dashboard yet.
+siteReady.then(() => loadServerMeta()).catch(error => console.error('Failed to initialize server suggestions', error));
                  
 let allSensors = [];
 let currentTab = 'left';
