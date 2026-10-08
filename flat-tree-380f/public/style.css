@@ -1434,7 +1434,8 @@ body.job-info-open > #app > .nav-btn[data-page="about"] { display: none; }
   margin-left: 0.35rem;
 }
 
-.zone-detail-trigger {
+.zone-detail-trigger,
+.type-detail-trigger {
   display: flex;
   width: 100%;
   min-width: 120px;
@@ -1450,12 +1451,15 @@ body.job-info-open > #app > .nav-btn[data-page="about"] { display: none; }
 }
 
 .zone-detail-trigger:hover span:first-child,
-.zone-detail-trigger:focus-visible span:first-child {
+.zone-detail-trigger:focus-visible span:first-child,
+.type-detail-trigger:hover span:first-child,
+.type-detail-trigger:focus-visible span:first-child {
   color: var(--accent-light-blue);
   text-decoration: underline;
 }
 
-.zone-detail-trigger:focus-visible {
+.zone-detail-trigger:focus-visible,
+.type-detail-trigger:focus-visible {
   outline: 2px solid var(--accent-light-blue);
   outline-offset: 2px;
   border-radius: 2px;

@@ -21,7 +21,13 @@ let excSort    = { col: null,    dir:  1 };
 let activeServerOverview = null;
 let activeZoneDetails = null;
 let activeServerZoneDetails = null;
+let activeTypeDetails = null;
+let activeServerTypeDetails = null;
 let serverOverviewReturnFocus = null;
+const detailSorts = {
+  zone: { key: null, dir: 1 },
+  type: { key: null, dir: 1 },
+};
 const historicalRunId = new URLSearchParams(window.location.search).get('run_id');
 let historicalRun = null;
 const serverOverviewSorts = {
@@ -381,6 +387,11 @@ function buildServerOverviewTable(sectionKey, title, rows, columns, emptyText, m
     </section>`;
 }
 
+function getVisibleSensors(sensors = allSensors) {
+  const showDisabled = document.getElementById('show-disabled')?.checked;
+  return sensors.filter(sensor => showDisabled || !sensor.status || sensor.status.toUpperCase() !== 'DISABLED');
+}
+
 function groupServerOverviewRows(sensors, key) {
   const groups = new Map();
   sensors.forEach(sensor => {
@@ -431,8 +442,9 @@ function renderServerOverview(server) {
   }).length;
   const meta = serverMeta[server] || {};
   const progress = getProgressBreakdown(enabled);
-  const zones = groupServerOverviewRows(enabled, 'zone');
-  const types = groupServerOverviewRows(enabled, 'sensor_type');
+  const breakdownSensors = getVisibleSensors(all);
+  const zones = groupServerOverviewRows(breakdownSensors, 'zone');
+  const types = groupServerOverviewRows(breakdownSensors, 'sensor_type');
 
   const tunnelUrl = serverTunnelUrl(server);
   title.innerHTML = tunnelUrl
@@ -468,17 +480,18 @@ function renderServerOverview(server) {
         { label: 'Fail', key: 'failures', render: row => row.failures ? `<span class="fail-val">${row.failures}</span>` : '0' },
       ], 'No enabled sensors have zone information.', 'overview-breakdown',
         row => row.remaining === 0 ? 'overview-done-row' : '',
-        activeServerZoneDetails ? buildZoneDetailsContent(activeServerZoneDetails, all) : '')}
+        activeServerZoneDetails ? buildZoneDetailsContent(activeServerZoneDetails, breakdownSensors, 'zone') : '')}
 
       ${buildServerOverviewTable('types', 'Type breakdown', types, [
-        { label: 'Type', key: 'label', render: row => escapeHtml(row.label) },
+        { label: 'Type', key: 'label', render: row => `<button type="button" class="type-detail-trigger" data-server-type-detail="${escapeHtml(row.label)}" title="Show sensors of type ${escapeHtml(row.label)}"><span>${escapeHtml(row.label)}</span></button>` },
         { label: 'Sensors', key: 'total', render: row => row.total },
         { label: 'Cal.', key: 'calibrated', render: row => `<span class="green-val">${row.calibrated}</span>` },
         { label: 'Exc.', key: 'exceptions', render: row => row.exceptions ? `<span class="orange-val">${row.exceptions}</span>` : '0' },
         { label: 'Left', key: 'remaining', render: row => row.remaining ? `<span class="orange-val">${row.remaining}</span>` : '0' },
         { label: 'Fail', key: 'failures', render: row => row.failures ? `<span class="fail-val">${row.failures}</span>` : '0' },
       ], 'No enabled sensors have type information.', 'overview-breakdown',
-        row => row.remaining === 0 ? 'overview-done-row' : '')}
+        row => row.remaining === 0 ? 'overview-done-row' : '',
+        activeServerTypeDetails ? buildTypeDetailsContent(activeServerTypeDetails, breakdownSensors, 'type') : '')}
 
       ${buildServerOverviewTable('calibrated', `Calibrated in the last ${CONFIG.ROLLING_DAYS} days`, calibrated, [
         { label: 'CP Addr', render: sensor => `<span class="mono">${escapeHtml(sensor.cp_address || '—')}</span>` },
@@ -525,6 +538,7 @@ function openServerOverview(server) {
   if (!modal) return;
   activeServerOverview = String(server);
   activeServerZoneDetails = null;
+  activeServerTypeDetails = null;
   serverOverviewReturnFocus = document.activeElement;
   renderServerOverview(activeServerOverview);
   modal.hidden = false;
@@ -538,6 +552,7 @@ function closeServerOverview() {
   modal.hidden = true;
   activeServerOverview = null;
   activeServerZoneDetails = null;
+  activeServerTypeDetails = null;
   document.body.classList.remove('server-overview-open');
   serverOverviewReturnFocus?.focus?.();
   serverOverviewReturnFocus = null;
@@ -984,7 +999,7 @@ function applySort(rows) { //sort for main tables
   });
 }
 
-function buildZoneDetailsContent(zone, sensors) {
+function buildZoneDetailsContent(zone, sensors, detailKey = 'zone') {
   const matching = sensors.filter(sensor => String(sensor.zone || `No zone`).trim() === String(zone));
   return `
     <div class="zone-details-content">
@@ -993,7 +1008,7 @@ function buildZoneDetailsContent(zone, sensors) {
         <button type="button" class="zone-details-close" data-zone-detail-close aria-label="Close zone details">&times;</button>
       </div>
       <div class="zone-details-table-wrap">
-        ${matching.length ? buildSensorTable(matching) : `<div class="server-overview-empty">No sensors found in this zone.</div>`}
+        ${matching.length ? buildSensorTable(matching, detailKey) : `<div class="server-overview-empty">No sensors found in this zone.</div>`}
       </div>
     </div>`;
 }
@@ -1005,7 +1020,7 @@ function openZoneDetails(zone) {
   if (!modal || !body || !title) return;
   activeZoneDetails = String(zone);
   title.textContent = `Zone ${activeZoneDetails}`;
-  body.innerHTML = buildZoneDetailsContent(activeZoneDetails, allSensors);
+  body.innerHTML = buildZoneDetailsContent(activeZoneDetails, getVisibleSensors(), 'zone');
   modal.hidden = false;
   document.body.classList.add('server-overview-open');
   document.getElementById('zone-detail-close')?.focus();
@@ -1017,6 +1032,51 @@ function closeZoneDetails() {
   modal.hidden = true;
   activeZoneDetails = null;
   document.body.classList.remove('server-overview-open');
+}
+
+function buildTypeDetailsContent(type, sensors, detailKey = 'type') {
+  const matching = sensors.filter(sensor => String(sensor.sensor_type || `No type`).trim() === String(type));
+  return `
+    <div class="zone-details-content type-details-content">
+      <div class="zone-details-heading">
+        <h3>Sensors of type ${escapeHtml(type)}</h3>
+        <button type="button" class="zone-details-close" data-type-detail-close aria-label="Close type details">&times;</button>
+      </div>
+      <div class="zone-details-table-wrap">
+        ${matching.length ? buildSensorTable(matching, detailKey) : `<div class="server-overview-empty">No sensors found of this type.</div>`}
+      </div>
+    </div>`;
+}
+
+function openTypeDetails(type) {
+  const modal = document.getElementById('type-detail-modal');
+  const body = document.getElementById('type-detail-body');
+  const title = document.getElementById('type-detail-title');
+  if (!modal || !body || !title) return;
+  activeTypeDetails = String(type);
+  title.textContent = `Type ${activeTypeDetails}`;
+  body.innerHTML = buildTypeDetailsContent(activeTypeDetails, getVisibleSensors(), 'type');
+  modal.hidden = false;
+  document.body.classList.add('server-overview-open');
+  document.getElementById('type-detail-close')?.focus();
+}
+
+function closeTypeDetails() {
+  const modal = document.getElementById('type-detail-modal');
+  if (!modal || modal.hidden) return;
+  modal.hidden = true;
+  activeTypeDetails = null;
+  document.body.classList.remove('server-overview-open');
+}
+
+function refreshDetailViews() {
+  if (activeZoneDetails && !document.getElementById('zone-detail-modal')?.hidden) {
+    document.getElementById('zone-detail-body').innerHTML = buildZoneDetailsContent(activeZoneDetails, getVisibleSensors(), 'zone');
+  }
+  if (activeTypeDetails && !document.getElementById('type-detail-modal')?.hidden) {
+    document.getElementById('type-detail-body').innerHTML = buildTypeDetailsContent(activeTypeDetails, getVisibleSensors(), 'type');
+  }
+  if (activeServerOverview) renderServerOverview(activeServerOverview);
 }
 //sort for the other tables
 function sortZone(col)  { toggleSummarySort(zoneSort,  col); }
@@ -1109,16 +1169,60 @@ const SENSOR_COLS = [
   { key: '_exception',   label: 'Exception',    defaultW: 90 },
 ];
 
-function buildSensorTable(rows) {
+function sensorDetailSortValue(sensor, key) {
+  if (key === '_exception') return isExcepted(sensor) ? 1 : 0;
+  return sensor[key] ?? '';
+}
+
+function sortSensorDetailRows(rows, detailKey) {
+  const sort = detailSorts[detailKey];
+  if (!sort?.key) return [...rows];
+  return [...rows].sort((a, b) => {
+    let av = sensorDetailSortValue(a, sort.key);
+    let bv = sensorDetailSortValue(b, sort.key);
+    const an = parseFloat(av);
+    const bn = parseFloat(bv);
+    if (!Number.isNaN(an) && !Number.isNaN(bn)) {
+      av = an;
+      bv = bn;
+    }
+    if (av < bv) return -sort.dir;
+    if (av > bv) return sort.dir;
+    return 0;
+  });
+}
+
+function sortDetailTable(detailKey, column) {
+  const sort = detailSorts[detailKey];
+  if (!sort) return;
+  if (sort.key === column) sort.dir *= -1;
+  else {
+    sort.key = column;
+    sort.dir = 1;
+  }
+  if (activeServerOverview && (detailKey === 'zone' ? activeServerZoneDetails : activeServerTypeDetails)) {
+    renderServerOverview(activeServerOverview);
+    return;
+  }
+  if (detailKey === 'zone' && activeZoneDetails) {
+    document.getElementById('zone-detail-body').innerHTML = buildZoneDetailsContent(activeZoneDetails, getVisibleSensors(), 'zone');
+  } else if (detailKey === 'type' && activeTypeDetails) {
+    document.getElementById('type-detail-body').innerHTML = buildTypeDetailsContent(activeTypeDetails, getVisibleSensors(), 'type');
+  }
+}
+
+function buildSensorTable(rows, detailKey = null) {
+  const sort = detailKey ? detailSorts[detailKey] : null;
+  const displayRows = detailKey ? sortSensorDetailRows(rows, detailKey) : rows;
   const thead = `<thead><tr>${SENSOR_COLS.map(c => `
     <th style="width:${c.defaultW}px;"
-        class="${sortCol===c.key ? (sortDir===1?'sort-asc':'sort-desc') : ''}"
-        onclick="sortBy('${c.key}')">
+        class="${(sort ? sort.key === c.key : sortCol === c.key) ? ((sort ? sort.dir : sortDir) === 1 ? 'sort-asc' : 'sort-desc') : ''}"
+        onclick="${detailKey ? `sortDetailTable('${detailKey}','${c.key}')` : `sortBy('${c.key}')`}">
       ${c.label}
       <span class="rt-resizer" onmousedown="startResize(event,this)"></span>
     </th>`).join('')}</tr></thead>`;
 
-  const tbody = `<tbody>${rows.map(s => {
+  const tbody = `<tbody>${displayRows.map(s => {
     const url = sensorUrl(s.sensor_id, s.server);
     const nameCell = url
       ? `<a href="${url}" target="_blank" style="color:var(--text-primary);text-decoration:underline;border-bottom:0.5px solid var(--border);" title="Open Calibration">${s.sensor_name || '—'}</a>`
@@ -1169,9 +1273,7 @@ function buildSensorTable(rows) {
 
 /* ─── Type breakdown table ──────────────────────────────── */
 function buildTypesTable() {
-  const sensors = allSensors.filter(s =>
-    !s.status || s.status.toUpperCase() !== 'DISABLED'
-  );
+  const sensors = getVisibleSensors();
   const types = [...new Set(sensors.map(s => s.sensor_type).filter(Boolean))].sort();
   let rows = types.map(t => {
     const g   = sensors.filter(s => s.sensor_type === t);
@@ -1197,7 +1299,7 @@ function buildTypesTable() {
     </tr></thead>
     <tbody>${rows.map(r => {
       return `<tr class="${r.done ? 'done-row' : ''}">
-        <td>${badge(r.t)}</td>
+        <td><button type="button" class="type-detail-trigger" data-type-detail="${escapeHtml(r.t)}" title="Show sensors of type ${escapeHtml(r.t)}">${badge(r.t)}</button></td>
         <td>${r.total}</td>
         <td class="green-val">${r.cal}</td>
         <td class="${r.exc  > 0 ? 'orange-val' : 'muted'}">${r.exc}</td>
@@ -1230,9 +1332,7 @@ function buildProgressBar(row) {
 }
 
 function buildZonesTable() {
-  const sensors = allSensors.filter(s =>
-    !s.status || s.status.toUpperCase() !== 'DISABLED'
-  );
+  const sensors = getVisibleSensors();
   const zones = [...new Set(sensors.map(s => s.zone).filter(Boolean))].sort();
   let rows = zones.map(z => {
     const g   = sensors.filter(s => s.zone === z);
@@ -2689,6 +2789,17 @@ serverTags.addEventListener('click', event => {
 const serverOverviewModal = document.getElementById('server-overview-modal');
 document.getElementById('server-overview-close')?.addEventListener('click', closeServerOverview);
 serverOverviewModal?.addEventListener('click', event => {
+  const typeTrigger = event.target.closest('[data-server-type-detail]');
+  if (typeTrigger) {
+    activeServerTypeDetails = typeTrigger.dataset.serverTypeDetail;
+    if (activeServerOverview) renderServerOverview(activeServerOverview);
+    return;
+  }
+  if (event.target.closest('[data-type-detail-close]')) {
+    activeServerTypeDetails = null;
+    if (activeServerOverview) renderServerOverview(activeServerOverview);
+    return;
+  }
   const zoneTrigger = event.target.closest('[data-server-zone-detail]');
   if (zoneTrigger) {
     activeServerZoneDetails = zoneTrigger.dataset.serverZoneDetail;
@@ -2708,6 +2819,11 @@ serverOverviewModal?.addEventListener('click', event => {
   if (event.target === serverOverviewModal) closeServerOverview();
 });
 document.getElementById('table-area')?.addEventListener('click', event => {
+  const typeTrigger = event.target.closest('[data-type-detail]');
+  if (typeTrigger) {
+    openTypeDetails(typeTrigger.dataset.typeDetail);
+    return;
+  }
   const zoneTrigger = event.target.closest('[data-zone-detail]');
   if (zoneTrigger) {
     openZoneDetails(zoneTrigger.dataset.zoneDetail);
@@ -2720,9 +2836,22 @@ zoneDetailModal?.addEventListener('click', event => {
     closeZoneDetails();
     return;
   }
-  if (event.target === zoneDetailModal) closeZoneDetails();
+if (event.target === zoneDetailModal) closeZoneDetails();
+});
+const typeDetailModal = document.getElementById('type-detail-modal');
+document.getElementById('type-detail-close')?.addEventListener('click', closeTypeDetails);
+typeDetailModal?.addEventListener('click', event => {
+  if (event.target.closest('[data-type-detail-close]')) {
+    closeTypeDetails();
+    return;
+  }
+  if (event.target === typeDetailModal) closeTypeDetails();
 });
 document.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && typeDetailModal && !typeDetailModal.hidden) {
+    closeTypeDetails();
+    return;
+  }
   if (event.key === 'Escape' && zoneDetailModal && !zoneDetailModal.hidden) {
     closeZoneDetails();
     return;
