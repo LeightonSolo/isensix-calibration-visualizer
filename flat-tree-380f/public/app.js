@@ -17,6 +17,8 @@ let typeSort   = { col: 'left',  dir: -1 };
 let checkSort  = { col: null,    dir:  1 };
 let excSort    = { col: null,    dir:  1 };
 let activeServerOverview = null;
+let activeZoneDetails = null;
+let activeServerZoneDetails = null;
 let serverOverviewReturnFocus = null;
 const historicalRunId = new URLSearchParams(window.location.search).get('run_id');
 let historicalRun = null;
@@ -345,7 +347,7 @@ function sortServerOverviewRows(rows, sectionKey, columns) {
   });
 }
 
-function buildServerOverviewTable(sectionKey, title, rows, columns, emptyText, modifier = '', rowClass = () => '') {
+function buildServerOverviewTable(sectionKey, title, rows, columns, emptyText, modifier = '', rowClass = () => '', footer = '') {
   const sortableColumns = columns.map(column => ({
     ...column,
     key: column.key || serverOverviewColumnKeys[column.label],
@@ -373,7 +375,7 @@ function buildServerOverviewTable(sectionKey, title, rows, columns, emptyText, m
               return `<tr class="${escapeHtml(classes)}"${qualityTitle ? ` title="${escapeHtml(qualityTitle)}"` : ''}>${sortableColumns.map(column => `<td>${column.render(row)}</td>`).join('')}</tr>`;
             }).join('')}</tbody>
           </table>` : `<div class="server-overview-empty">${escapeHtml(emptyText)}</div>`}
-      </div>
+      </div>${footer}
     </section>`;
 }
 
@@ -456,14 +458,15 @@ function renderServerOverview(server) {
 
     <div class="server-overview-grid">
       ${buildServerOverviewTable('zones', 'Zone breakdown', zones, [
-        { label: 'Zone', key: 'label', render: row => `<div class="zone-progress-cell"><span>${escapeHtml(row.label)}</span>${buildProgressBar(row)}</div>` },
+        { label: 'Zone', key: 'label', render: row => `<button type="button" class="zone-detail-trigger" data-server-zone-detail="${escapeHtml(row.label)}" title="Show sensors in ${escapeHtml(row.label)}"><span>${escapeHtml(row.label)}</span>${buildProgressBar(row)}</button>` },
         { label: 'Sensors', key: 'total', render: row => row.total },
         { label: 'Cal.', key: 'calibrated', render: row => `<span class="green-val">${row.calibrated}</span>` },
         { label: 'Exc.', key: 'exceptions', render: row => row.exceptions ? `<span class="orange-val">${row.exceptions}</span>` : '0' },
         { label: 'Left', key: 'remaining', render: row => row.remaining ? `<span class="orange-val">${row.remaining}</span>` : '0' },
         { label: 'Fail', key: 'failures', render: row => row.failures ? `<span class="fail-val">${row.failures}</span>` : '0' },
       ], 'No enabled sensors have zone information.', 'overview-breakdown',
-        row => row.remaining === 0 ? 'overview-done-row' : '')}
+        row => row.remaining === 0 ? 'overview-done-row' : '',
+        activeServerZoneDetails ? buildZoneDetailsContent(activeServerZoneDetails, all) : '')}
 
       ${buildServerOverviewTable('types', 'Type breakdown', types, [
         { label: 'Type', key: 'label', render: row => escapeHtml(row.label) },
@@ -519,6 +522,7 @@ function openServerOverview(server) {
   const modal = document.getElementById('server-overview-modal');
   if (!modal) return;
   activeServerOverview = String(server);
+  activeServerZoneDetails = null;
   serverOverviewReturnFocus = document.activeElement;
   renderServerOverview(activeServerOverview);
   modal.hidden = false;
@@ -531,6 +535,7 @@ function closeServerOverview() {
   if (!modal || modal.hidden) return;
   modal.hidden = true;
   activeServerOverview = null;
+  activeServerZoneDetails = null;
   document.body.classList.remove('server-overview-open');
   serverOverviewReturnFocus?.focus?.();
   serverOverviewReturnFocus = null;
@@ -976,6 +981,41 @@ function applySort(rows) { //sort for main tables
     return 0;
   });
 }
+
+function buildZoneDetailsContent(zone, sensors) {
+  const matching = sensors.filter(sensor => String(sensor.zone || `No zone`).trim() === String(zone));
+  return `
+    <div class="zone-details-content">
+      <div class="zone-details-heading">
+        <h3>Sensors in zone ${escapeHtml(zone)}</h3>
+        <button type="button" class="zone-details-close" data-zone-detail-close aria-label="Close zone details">&times;</button>
+      </div>
+      <div class="zone-details-table-wrap">
+        ${matching.length ? buildSensorTable(matching) : `<div class="server-overview-empty">No sensors found in this zone.</div>`}
+      </div>
+    </div>`;
+}
+
+function openZoneDetails(zone) {
+  const modal = document.getElementById('zone-detail-modal');
+  const body = document.getElementById('zone-detail-body');
+  const title = document.getElementById('zone-detail-title');
+  if (!modal || !body || !title) return;
+  activeZoneDetails = String(zone);
+  title.textContent = `Zone ${activeZoneDetails}`;
+  body.innerHTML = buildZoneDetailsContent(activeZoneDetails, allSensors);
+  modal.hidden = false;
+  document.body.classList.add('server-overview-open');
+  document.getElementById('zone-detail-close')?.focus();
+}
+
+function closeZoneDetails() {
+  const modal = document.getElementById('zone-detail-modal');
+  if (!modal || modal.hidden) return;
+  modal.hidden = true;
+  activeZoneDetails = null;
+  document.body.classList.remove('server-overview-open');
+}
 //sort for the other tables
 function sortZone(col)  { toggleSummarySort(zoneSort,  col); }
 function sortType(col)  { toggleSummarySort(typeSort,  col); }
@@ -1215,7 +1255,7 @@ function buildZonesTable() {
       ${thSort('Failures',   'fail',  zoneSort, 'sortZone')}
     </tr></thead>
     <tbody>${rows.map(r => `<tr class="${r.done ? 'done-row' : ''}">
-      <td title="${r.z}"><div class="zone-progress-cell"><span>${r.z}</span>${buildProgressBar(r)}</div></td>
+      <td title="${r.z}"><button type="button" class="zone-detail-trigger" data-zone-detail="${escapeHtml(r.z)}" title="Show sensors in ${escapeHtml(r.z)}"><span>${escapeHtml(r.z)}</span>${buildProgressBar(r)}</button></td>
       <td class="muted">${r.srv}</td>
       <td>${r.total}</td>
       <td class="green-val">${r.cal}</td>
@@ -2647,6 +2687,17 @@ serverTags.addEventListener('click', event => {
 const serverOverviewModal = document.getElementById('server-overview-modal');
 document.getElementById('server-overview-close')?.addEventListener('click', closeServerOverview);
 serverOverviewModal?.addEventListener('click', event => {
+  const zoneTrigger = event.target.closest('[data-server-zone-detail]');
+  if (zoneTrigger) {
+    activeServerZoneDetails = zoneTrigger.dataset.serverZoneDetail;
+    if (activeServerOverview) renderServerOverview(activeServerOverview);
+    return;
+  }
+  if (event.target.closest('[data-zone-detail-close]')) {
+    activeServerZoneDetails = null;
+    if (activeServerOverview) renderServerOverview(activeServerOverview);
+    return;
+  }
   const sortButton = event.target.closest('[data-overview-sort]');
   if (sortButton) {
     sortServerOverviewTable(sortButton.dataset.overviewSection, sortButton.dataset.overviewSort);
@@ -2654,7 +2705,26 @@ serverOverviewModal?.addEventListener('click', event => {
   }
   if (event.target === serverOverviewModal) closeServerOverview();
 });
+document.getElementById('table-area')?.addEventListener('click', event => {
+  const zoneTrigger = event.target.closest('[data-zone-detail]');
+  if (zoneTrigger) {
+    openZoneDetails(zoneTrigger.dataset.zoneDetail);
+  }
+});
+const zoneDetailModal = document.getElementById('zone-detail-modal');
+document.getElementById('zone-detail-close')?.addEventListener('click', closeZoneDetails);
+zoneDetailModal?.addEventListener('click', event => {
+  if (event.target.closest('[data-zone-detail-close]')) {
+    closeZoneDetails();
+    return;
+  }
+  if (event.target === zoneDetailModal) closeZoneDetails();
+});
 document.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && zoneDetailModal && !zoneDetailModal.hidden) {
+    closeZoneDetails();
+    return;
+  }
   if (event.key === 'Escape' && activeServerOverview) closeServerOverview();
 });
 
