@@ -1051,6 +1051,7 @@ table.rt {
   min-width: 100%;
   table-layout: fixed;
 }
+table.rt.sensor-detail-table { min-width: 0; }
 
 table.rt thead {
   position: sticky;
@@ -1061,7 +1062,7 @@ table.rt thead {
 
 table.rt th {
   position: relative;
-  padding: 6px 10px;
+  padding: 6px 6px;
   text-align: left;
   font-size: 11px;
   font-weight: 500;
@@ -1090,13 +1091,13 @@ table.rt th.sort-desc::after { content: " ↓"; color: var(--accent-blue); }
 .rt-resizer.resizing { background: var(--accent-blue); opacity: 0.5; }
 
 table.rt td {
-  padding: 6px 10px;
+  padding: 6px 6px;
   font-size: 12px;
   color: var(--text-primary);
   border-bottom: 0.5px solid var(--border-light);
   border-right: 0.5px solid var(--border-light);
   overflow: hidden;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: nowrap;
 }
 table.rt td:last-child { border-right: none; }

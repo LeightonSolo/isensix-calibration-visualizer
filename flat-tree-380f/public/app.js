@@ -11,6 +11,7 @@ siteReady.then(() => loadServerMeta()).catch(error => console.error('Failed to i
                  
 let allSensors = [];
 let currentTab = 'left';
+const tableResizeStates = new Map();
 let sortCol    = null;
 let sortDir    = 1;
 let allExceptions = [];
@@ -78,6 +79,10 @@ let currentPage = "dashboard";
 
 function showPage(page) {
 
+    if (page !== 'dashboard' && tableResizeStates.size) {
+        tableResizeStates.clear();
+        if (currentPage === 'dashboard' && currentTab !== 'jobinfo') renderTable();
+    }
     currentPage = page;
     document.body.classList.toggle('job-info-open', page === 'dashboard' && currentTab === 'jobinfo');
     closeServerOverview();
@@ -103,6 +108,68 @@ function showPage(page) {
     });
     document.getElementById("topbar").style.display =
         page === "dashboard" ? "" : "none";
+}
+
+function restoreTableColumnWidths(container) {
+  container.querySelectorAll('table.rt[data-resize-key]').forEach(table => {
+    const state = tableResizeStates.get(table.dataset.resizeKey);
+    const headers = [...table.rows[0].cells];
+    if (state) {
+      table.style.width = `${state.tableWidth}px`;
+      headers.forEach((header, index) => {
+        if (state.columnWidths[index] !== undefined) {
+          header.style.width = `${state.columnWidths[index]}px`;
+        }
+      });
+      return;
+    }
+    if (table.classList.contains('sensor-detail-table')) autoFitSensorTableColumns(table);
+  });
+}
+
+function autoFitSensorTableColumns(table) {
+  const headers = [...table.rows[0].cells];
+  const rows = [...table.rows].slice(1);
+  const widths = headers.map((header, index) => {
+    const headerStyle = getComputedStyle(header);
+    const headerRange = document.createRange();
+    headerRange.selectNodeContents(header);
+    const sortIndicatorWidth = header.matches('.sort-asc, .sort-desc') ? 12 : 0;
+    const headerContentWidth = headerRange.getBoundingClientRect().width
+      + parseFloat(headerStyle.paddingLeft)
+      + parseFloat(headerStyle.paddingRight)
+      + sortIndicatorWidth;
+    const cellContentWidth = rows.reduce((widest, row) => {
+      const cell = row.cells[index];
+      if (!cell) return widest;
+      const range = document.createRange();
+      range.selectNodeContents(cell);
+      const style = getComputedStyle(cell);
+      const contentWidth = range.getBoundingClientRect().width
+        + parseFloat(style.paddingLeft)
+        + parseFloat(style.paddingRight);
+      return Math.max(widest, contentWidth);
+    }, 0);
+    return Math.min(
+      SENSOR_COLS[index].defaultW,
+      Math.max(40, Math.ceil(Math.max(headerContentWidth, cellContentWidth)))
+    );
+  });
+
+  headers.forEach((header, index) => {
+    header.style.width = `${widths[index]}px`;
+  });
+  table.style.width = `${widths.reduce((total, width) => total + width, 0)}px`;
+}
+
+function setTableContent(container, markup) {
+  container.innerHTML = markup;
+  restoreTableColumnWidths(container);
+  container.querySelectorAll('table.rt td').forEach(cell => {
+    if (cell.title) return;
+    const text = cell.textContent.replace(/\s+/g, ' ').trim();
+    if (text) cell.title = text;
+  });
 }
 
 document.querySelectorAll("#navbar .nav-btn[data-page]").forEach(btn => {
@@ -1056,7 +1123,7 @@ function openZoneDetails(zone) {
   activeZoneDetails = String(zone);
   title.textContent = `Zone ${activeZoneDetails}`;
   updateBreakdownToggle('zone-hide-calibrated');
-  body.innerHTML = buildZoneDetailsContent(activeZoneDetails, getBreakdownSensors(), 'zone');
+  setTableContent(body, buildZoneDetailsContent(activeZoneDetails, getBreakdownSensors(), 'zone'));
   modal.hidden = false;
   document.body.classList.add('server-overview-open');
   document.getElementById('zone-detail-close')?.focus();
@@ -1092,7 +1159,7 @@ function openTypeDetails(type) {
   activeTypeDetails = String(type);
   title.textContent = `Type ${activeTypeDetails}`;
   updateBreakdownToggle('type-hide-calibrated');
-  body.innerHTML = buildTypeDetailsContent(activeTypeDetails, getBreakdownSensors(), 'type');
+  setTableContent(body, buildTypeDetailsContent(activeTypeDetails, getBreakdownSensors(), 'type'));
   modal.hidden = false;
   document.body.classList.add('server-overview-open');
   document.getElementById('type-detail-close')?.focus();
@@ -1111,10 +1178,10 @@ function refreshDetailViews() {
   updateBreakdownToggle('type-hide-calibrated');
   updateBreakdownToggle('server-hide-calibrated');
   if (activeZoneDetails && !document.getElementById('zone-detail-modal')?.hidden) {
-    document.getElementById('zone-detail-body').innerHTML = buildZoneDetailsContent(activeZoneDetails, getBreakdownSensors(), 'zone');
+    setTableContent(document.getElementById('zone-detail-body'), buildZoneDetailsContent(activeZoneDetails, getBreakdownSensors(), 'zone'));
   }
   if (activeTypeDetails && !document.getElementById('type-detail-modal')?.hidden) {
-    document.getElementById('type-detail-body').innerHTML = buildTypeDetailsContent(activeTypeDetails, getBreakdownSensors(), 'type');
+    setTableContent(document.getElementById('type-detail-body'), buildTypeDetailsContent(activeTypeDetails, getBreakdownSensors(), 'type'));
   }
   if (activeServerOverview) renderServerOverview(activeServerOverview);
 }
@@ -1126,6 +1193,7 @@ function sortExc(col)   { toggleSummarySort(excSort,   col); }
 
 /* ─── Tab switching ─────────────────────────────────────── */
 function switchTab(tab) {
+  if (tab === 'jobinfo' && currentTab !== 'jobinfo') tableResizeStates.clear();
   currentTab = tab;
   sortCol = null;
   sortDir = 1;
@@ -1167,7 +1235,7 @@ function applySummarySort(rows, state, key) {
 function thSort(label, col, state, toggleFn) {
   const cls = state.col === col ? (state.dir === 1 ? 'sort-asc' : 'sort-desc') : '';
   return `<th class="${cls}" onclick="${toggleFn}('${col}')" style="cursor:pointer;">
-    ${label}<span class="rt-resizer" onmousedown="startResize(event,this)"></span>
+    ${label}<span class="rt-resizer" onmousedown="startResize(event,this)" onclick="event.stopPropagation()"></span>
   </th>`;
 }
 //==============================================================
@@ -1191,21 +1259,21 @@ function isUnderWarranty(serial) {
 
 /* ─── Sensor columns definition ─────────────────────────── */
 const SENSOR_COLS = [
-  { key: 'sensor_id',    label: 'ID',          defaultW: 52  },
-  { key: 'cp_address',   label: 'CP Addr',      defaultW: 90  },
-  { key: 'sensor_name',  label: 'Sensor name',  defaultW: 200 },
-  { key: 'zone',         label: 'Zone',         defaultW: 140 },
-  { key: 'server',       label: 'SID',          defaultW: 48  },
-  { key: 'sensor_type',  label: 'Type',         defaultW: 110 },
-  { key: 'serial_number',label: 'Serial',       defaultW: 120 },
+  { key: 'sensor_id',    label: 'ID',          defaultW: 42  },
+  { key: 'cp_address',   label: 'CP Addr',      defaultW: 62  },
+  { key: 'sensor_name',  label: 'Sensor name',  defaultW: 320 },
+  { key: 'zone',         label: 'Zone',         defaultW: 210 },
+  { key: 'server',       label: 'SID',          defaultW: 36  },
+  { key: 'sensor_type',  label: 'Type',         defaultW: 79 },
+  { key: 'serial_number',label: 'Serial',       defaultW: 110 },
   { key: 'access_point', label: 'Access point', defaultW: 180 },
   { key: 'quality',      label: 'Qual',         defaultW: 70  },
-  { key: 'status',       label: 'Status',       defaultW: 75  },
-  { key: 'old_offset',   label: 'Old',          defaultW: 55  },
-  { key: 'new_offset',   label: 'New',          defaultW: 55  },
-  { key: 'calibrated_at',label: 'Calibrated',   defaultW: 92  },
+  { key: 'status',       label: 'Status',       defaultW: 66  },
+  { key: 'old_offset',   label: 'Old',          defaultW: 40  },
+  { key: 'new_offset',   label: 'New',          defaultW: 40  },
+  { key: 'calibrated_at',label: 'Calibrated',   defaultW: 102 },
   { key: 'calibrated_by',label: 'By',           defaultW: 130 },
-  { key: 'cal_cert',     label: 'Certificate',  defaultW: 180 },
+  { key: 'cal_cert',     label: 'Certificate',  defaultW: 215 },
   { key: '_exception',   label: 'Exception',    defaultW: 90 },
 ];
 
@@ -1249,27 +1317,31 @@ function sortDetailTable(detailKey, column) {
     return;
   }
   if (detailKey === 'zone' && activeZoneDetails) {
-    document.getElementById('zone-detail-body').innerHTML = buildZoneDetailsContent(activeZoneDetails, getBreakdownSensors(), 'zone');
+    setTableContent(document.getElementById('zone-detail-body'), buildZoneDetailsContent(activeZoneDetails, getBreakdownSensors(), 'zone'));
   } else if (detailKey === 'type' && activeTypeDetails) {
-    document.getElementById('type-detail-body').innerHTML = buildTypeDetailsContent(activeTypeDetails, getBreakdownSensors(), 'type');
+    setTableContent(document.getElementById('type-detail-body'), buildTypeDetailsContent(activeTypeDetails, getBreakdownSensors(), 'type'));
   }
 }
 
 function buildSensorTable(rows, detailKey = null) {
   const sort = detailKey ? detailSorts[detailKey] : null;
   const displayRows = detailKey ? sortSensorDetailRows(rows, detailKey) : rows;
+  const defaultTableWidth = SENSOR_COLS.reduce((width, column) => width + column.defaultW, 0);
+  const resizeKey = detailKey
+    ? `${detailKey}:${detailKey === 'zone' ? activeZoneDetails : activeTypeDetails}`
+    : 'sensors';
   const thead = `<thead><tr>${SENSOR_COLS.map(c => `
     <th style="width:${c.defaultW}px;"
         class="${(sort ? sort.key === c.key : sortCol === c.key) ? ((sort ? sort.dir : sortDir) === 1 ? 'sort-asc' : 'sort-desc') : ''}"
         onclick="${detailKey ? `sortDetailTable('${detailKey}','${c.key}')` : `sortBy('${c.key}')`}">
       ${c.label}
-      <span class="rt-resizer" onmousedown="startResize(event,this)"></span>
+      <span class="rt-resizer" onmousedown="startResize(event,this)" onclick="event.stopPropagation()"></span>
     </th>`).join('')}</tr></thead>`;
 
   const tbody = `<tbody>${displayRows.map(s => {
     const url = sensorUrl(s.sensor_id, s.server);
     const nameCell = url
-      ? `<a href="${url}" target="_blank" style="color:var(--text-primary);text-decoration:underline;border-bottom:0.5px solid var(--border);" title="Open Calibration">${s.sensor_name || '—'}</a>`
+      ? `<a href="${url}" target="_blank" style="color:var(--text-primary);text-decoration:underline;border-bottom:0.5px solid var(--border);" title="Open Calibration for ${escapeHtml(s.sensor_name || '—')}">${s.sensor_name || '—'}</a>`
       : (s.sensor_name || '<span class="muted">—</span>');
     const excepted = isExcepted(s);
     const repeated = wasExceptedLastYear(s);
@@ -1313,7 +1385,7 @@ function buildSensorTable(rows, detailKey = null) {
     </tr>`;
   }).join('')}</tbody>`;
 
-  return `<div class="rt-wrap"><table class="rt">${thead}${tbody}</table></div>`;
+  return `<div class="rt-wrap"><table class="rt sensor-detail-table" data-resize-key="${escapeHtml(resizeKey)}" style="width:${defaultTableWidth}px;">${thead}${tbody}</table></div>`;
 }
 
 /* ─── Type breakdown table ──────────────────────────────── */
@@ -1333,7 +1405,7 @@ function buildTypesTable() {
   }).filter(Boolean);
   rows = applySummarySort(rows, typeSort, 't');
 
-  return `<div class="rt-wrap"><table class="rt">
+  return `<div class="rt-wrap"><table class="rt" data-resize-key="types">
     <thead><tr>
       ${thSort('Type',       't',     typeSort, 'sortType')}
       ${thSort('Total',      'total', typeSort, 'sortType')}
@@ -1393,7 +1465,7 @@ function buildZonesTable() {
   }).filter(Boolean);
   rows = applySummarySort(rows, zoneSort, 'z');
 
-  return `<div class="rt-wrap"><table class="rt">
+  return `<div class="rt-wrap"><table class="rt" data-resize-key="zones">
     <thead><tr>
       ${thSort('Zone',       'z',     zoneSort, 'sortZone')}
       ${thSort('SID',        'srv',   zoneSort, 'sortZone')}
@@ -1437,13 +1509,13 @@ function renderTable() {
   if (currentTab === 'types') {
     title.textContent = 'Sensor type breakdown';
     count.textContent = '';
-    area.innerHTML = buildTypesTable();
+    setTableContent(area, buildTypesTable());
     return;
   }
   if (currentTab === 'zones') {
     title.textContent = 'Zones';
     count.textContent = '';
-    area.innerHTML = buildZonesTable();
+    setTableContent(area, buildZonesTable());
     return;
   }
   if (currentTab === 'exceptions') {
@@ -1456,7 +1528,7 @@ function renderTable() {
     panelActions.innerHTML = historicalRunId
       ? ''
       : '<button class="primary" onclick="openAddExceptionModal()">Add Exception</button>';
-    area.innerHTML = buildExceptionsTable();
+    setTableContent(area, buildExceptionsTable());
     return;
   }
     if (currentTab === 'jobinfo') {
@@ -1474,7 +1546,7 @@ function renderTable() {
     s.quality.toUpperCase() !== 'GOOD'
   );
   count.textContent = `${checkSensors.length} sensor${checkSensors.length !== 1 ? 's' : ''}`;
-  area.innerHTML = buildCheckTable(checkSensors);
+  setTableContent(area, buildCheckTable(checkSensors));
   return;
   }
 
@@ -1519,19 +1591,41 @@ function renderTable() {
       No sensors in this view.</div>`;
     return;
   }
-  area.innerHTML = buildSensorTable(rows);
+  setTableContent(area, buildSensorTable(rows));
 }
 
 /* ─── Column resizing ───────────────────────────────────── */
 function startResize(e, handle) {
   e.stopPropagation();
+  e.preventDefault();
   const th     = handle.closest('th');
   const startX = e.clientX;
   const startW = th.offsetWidth;
+  const table = th.closest('table.rt');
+  const tableWidth = table.offsetWidth;
+  const headers = [...table.rows[0].cells];
+  const headerWidths = headers.map(header => header.offsetWidth);
+  const resizeKey = table.dataset.resizeKey;
+  table.style.width = `${tableWidth}px`;
+  headers.forEach((header, index) => {
+    header.style.width = `${headerWidths[index]}px`;
+  });
   handle.classList.add('resizing');
 
   function onMove(e) {
-    th.style.width = Math.max(40, startW + e.clientX - startX) + 'px';
+    const width = Math.max(40, startW + e.clientX - startX);
+    const nextTableWidth = Math.max(
+      tableWidth + width - startW,
+      table.parentElement.clientWidth
+    );
+    th.style.width = `${width}px`;
+    table.style.width = `${nextTableWidth}px`;
+    const columnWidths = headerWidths.slice();
+    columnWidths[headers.indexOf(th)] = width;
+    tableResizeStates.set(resizeKey, {
+      tableWidth: nextTableWidth,
+      columnWidths,
+    });
   }
   function onUp() {
     handle.classList.remove('resizing');
@@ -2056,7 +2150,7 @@ function buildCheckTable(sensors) {
     rows.sort((a, b) => a._resolved - b._resolved || (a.zone||'').localeCompare(b.zone||''));
   }
 
-  return `<div class="rt-wrap"><table class="rt">
+  return `<div class="rt-wrap"><table class="rt" data-resize-key="check">
     <thead><tr>
       ${thSort('ID',         'sensor_id',  checkSort, 'sortCheck')}
       ${thSort('CP Addr',    'cp_address', checkSort, 'sortCheck')}
@@ -2254,7 +2348,7 @@ function buildExceptionsTable() {
     );
   }
 
-  return `<div class="rt-wrap"><table class="rt">
+  return `<div class="rt-wrap"><table class="rt" data-resize-key="exceptions">
     <thead><tr>
       ${thSort('ID',       'sensor_id',  excSort, 'sortExc')}
       ${thSort('CP Addr',  'cp_address', excSort, 'sortExc')}
