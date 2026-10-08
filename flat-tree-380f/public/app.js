@@ -1209,6 +1209,10 @@ const SENSOR_COLS = [
   { key: '_exception',   label: 'Exception',    defaultW: 90 },
 ];
 
+function displayCalibratedBy(value) {
+  return String(value ?? '').replace(/\s*[,-]\s*Isensix[\s\S]*$/i, '');
+}
+
 function sensorDetailSortValue(sensor, key) {
   if (key === '_exception') return isExcepted(sensor) ? 1 : 0;
   return sensor[key] ?? '';
@@ -1282,6 +1286,7 @@ function buildSensorTable(rows, detailKey = null) {
     const qualityError = isQualityError(s);
     const fail = isFailed(s);
     const done = isCalibrated(s) && !fail && !qualityError;
+    const calibratedBy = displayCalibratedBy(s.calibrated_by);
     return `<tr class="${qualityError ? 'quality-error-row' : fail ? 'failure-row' : done ? 'done-row' : ''}">
       <td class="muted mono">#${s.sensor_id}</td>
       <td class="mono muted" title="${s.cp_address||''}">${s.cp_address || '<span class="muted">—</span>'}</td>
@@ -1302,7 +1307,7 @@ function buildSensorTable(rows, detailKey = null) {
       <td class="mono muted">${fmtOffset(s.old_offset)}</td>
       <td class="${fail ? 'fail-val' : 'mono muted'}">${fmtOffset(s.new_offset)}</td>
       <td>${fmtDate(s.calibrated_at)}</td>
-      <td class="muted" title="${s.calibrated_by||''}">${s.calibrated_by || '—'}</td>
+      <td class="muted" title="${escapeHtml(calibratedBy)}">${escapeHtml(calibratedBy) || '—'}</td>
       <td class="muted" title="${s.cal_cert||''}">${s.cal_cert || '—'}</td>
       <td>${excBtn}</td>
     </tr>`;
