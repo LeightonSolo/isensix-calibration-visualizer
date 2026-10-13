@@ -216,6 +216,9 @@ export default function JobInfoPanel({
   const statusColor = selectedEvent
     ? (CONFIG.STATUS_COLORS[selectedEvent.status] || CONFIG.STATUS_COLORS.ticketed)
     : null;
+  const travelAvailable = selectedEvent && !['pto', 'holiday', 'office'].includes(
+    String(selectedEvent.event_type || '').trim().toLowerCase()
+  );
 
   function exportToOutlook() {
     if (!selectedEvent || selectedEvent.isGhost || embedded) return;
@@ -389,7 +392,8 @@ export default function JobInfoPanel({
           borderBottom: '0.5px solid var(--cal-surface-subtle)', flexShrink: 0 }}>
           {tabBtn('summary', 'Summary')}
           {tabBtn('details', 'Full details')}
-          {jobInfo && tabBtn('travel', 'Travel')}
+          {travelAvailable
+            && tabBtn('travel', 'Travel')}
           {jobInfo && requireEditor && tabBtn('edit', 'Edit')}
           {saveMessage && tab !== 'edit' && (
             <span style={{ alignSelf: 'center', color: saveMessage === 'Saved'

@@ -177,12 +177,15 @@ export default function TravelPanel({ jobInfo, event, onTravelSaved }) {
   useEffect(() => {
     let cancelled = false;
     setMessage('');
-    if (!jobInfo?.id) {
+    const scope = jobInfo?.id
+      ? `job_info_id=${encodeURIComponent(jobInfo.id)}`
+      : event?.id ? `event_id=${encodeURIComponent(event.id)}` : null;
+    if (!scope) {
       setItems([]);
       return undefined;
     }
     setLoading(true);
-    fetch(`${CONFIG.WORKER_URL}/calendar/travel?job_info_id=${encodeURIComponent(jobInfo.id)}`, {
+    fetch(`${CONFIG.WORKER_URL}/calendar/travel?${scope}`, {
       headers: siteHeaders(),
     })
       .then(response => {
@@ -193,7 +196,7 @@ export default function TravelPanel({ jobInfo, event, onTravelSaved }) {
       .catch(error => { if (!cancelled) setMessage(error.message); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [jobInfo?.id]);
+  }, [jobInfo?.id, event?.id]);
 
   function updateItem(index, updates) {
     setItems(current => current.map((item, itemIndex) => itemIndex === index ? { ...item, ...updates } : item));
@@ -213,14 +216,14 @@ export default function TravelPanel({ jobInfo, event, onTravelSaved }) {
   }
 
   async function save() {
-    if (!jobInfo?.id) return;
+    if (!jobInfo?.id && !event?.id) return;
     setSaving(true);
     setMessage('Saving…');
     try {
       const response = await fetch(`${CONFIG.WORKER_URL}/calendar/travel`, {
         method: 'POST',
         headers: siteHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify({ job_info_id: jobInfo.id, event_id: event?.id ?? null, items }),
+        body: JSON.stringify({ job_info_id: jobInfo?.id ?? null, event_id: event?.id ?? null, items }),
       });
       if (!response.ok) throw new Error(response.status === 403 ? 'Site access required.' : 'Could not save travel information.');
       const result = await response.json();
@@ -233,7 +236,7 @@ export default function TravelPanel({ jobInfo, event, onTravelSaved }) {
     }
   }
 
-  if (!jobInfo?.id) return <div className="travel-empty-panel">Travel can be added after this event is linked to a Job Info record.</div>;
+  if (!jobInfo?.id && !event?.id) return <div className="travel-empty-panel">Travel details are unavailable for this event.</div>;
   if (loading) return <div className="travel-empty-panel">Loading travel information…</div>;
 
   return (

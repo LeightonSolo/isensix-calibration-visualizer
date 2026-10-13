@@ -1,6 +1,7 @@
 /** Implements the Cloudflare Worker API for calibrations, servers, exceptions, Job Info, calendar data, and scheduled syncs. */
 import { previewCmsSync, syncCmsInventory } from './cms-sync';
 import { reconcileTentativeCalendar } from './calendar-scheduling';
+import { isTravelComplete } from './travel-status';
 
 export interface Env {
   DB: D1Database;
@@ -1102,21 +1103,49 @@ export default {
           updated_at TEXT DEFAULT (datetime('now'))
         )
       `).run();
+      await env.DB.prepare(`
+        CREATE TABLE IF NOT EXISTS calendar_event_travel_items (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          event_id INTEGER NOT NULL REFERENCES calendar_events(id) ON DELETE CASCADE,
+          kind TEXT NOT NULL CHECK (kind IN ('hotel', 'car', 'flight')),
+          technician TEXT,
+          status TEXT NOT NULL DEFAULT 'needed' CHECK (status IN ('needed', 'booked', 'not_needed')),
+          details TEXT,
+          notes TEXT,
+          updated_at TEXT DEFAULT (datetime('now'))
+        )
+      `).run();
 
-      const jobInfoId = Number(url.searchParams.get('job_info_id') || (request.method === 'POST'
-        ? ((await request.clone().json()) as Record<string, any>).job_info_id
-        : 0));
-      if (!Number.isInteger(jobInfoId) || jobInfoId < 1) {
-        return json({ error: 'A valid job_info_id is required' }, 400);
+      const requestBody = request.method === 'POST'
+        ? await request.clone().json() as Record<string, any>
+        : {};
+      const jobInfoId = Number(url.searchParams.get('job_info_id') || requestBody.job_info_id || 0);
+      const eventId = Number(url.searchParams.get('event_id') || requestBody.event_id || 0);
+      const hasJobInfoId = Number.isInteger(jobInfoId) && jobInfoId > 0;
+      const hasEventId = Number.isInteger(eventId) && eventId > 0;
+      if (!hasJobInfoId && !hasEventId) {
+        return json({ error: 'A valid job_info_id or event_id is required' }, 400);
       }
 
       if (request.method === 'GET') {
-        const { results } = await env.DB.prepare(`
-          SELECT id, job_info_id, kind, technician, status, details, notes, updated_at
-          FROM travel_items
-          WHERE job_info_id = ?
-          ORDER BY kind, technician, id
-        `).bind(jobInfoId).all();
+        const { results } = hasJobInfoId
+          ? await env.DB.prepare(`
+              SELECT id, job_info_id, kind, technician, status, details, notes, updated_at
+              FROM travel_items
+              WHERE job_info_id = ?
+              ORDER BY kind, technician, id
+            `).bind(jobInfoId).all()
+          : await env.DB.prepare(`
+              SELECT id, event_id, kind, technician, status, details, notes, updated_at
+              FROM calendar_event_travel_items item
+              WHERE event_id = ?
+                AND EXISTS (
+                  SELECT 1 FROM calendar_events event
+                  WHERE event.id = item.event_id
+                    AND lower(trim(event.event_type)) NOT IN ('pto', 'holiday', 'office')
+                )
+              ORDER BY kind, technician, id
+            `).bind(eventId).all();
         return json(results);
       }
 
@@ -1124,7 +1153,6 @@ export default {
       // changes remain protected by the separate calendar editor token.
       if (!hasSiteAccess(request, env)) return new Response('Forbidden', { status: 403, headers: corsHeaders() });
       const body = await request.json() as Record<string, any>;
-      const eventId = Number(body.event_id || 0);
       const items = Array.isArray(body.items) ? body.items : [];
       const validItems = items.filter((item: any) =>
         ['hotel', 'car', 'flight'].includes(String(item?.kind))
@@ -1132,29 +1160,55 @@ export default {
       );
       if (validItems.length !== items.length) return json({ error: 'Invalid travel item' }, 400);
 
-      const statements = [
-        env.DB.prepare(`DELETE FROM travel_items WHERE job_info_id = ?`).bind(jobInfoId),
-        ...validItems.map((item: any) => env.DB.prepare(`
-          INSERT INTO travel_items (job_info_id, kind, technician, status, details, notes, updated_at)
-          VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
-        `).bind(
-          jobInfoId,
-          String(item.kind),
-          String(item.technician || '').trim() || null,
-          String(item.status || 'needed'),
-          String(item.details || '').trim() || null,
-          String(item.notes || '').trim() || null,
-        )),
-      ];
+      const event = hasEventId
+        ? await env.DB.prepare(`
+            SELECT id FROM calendar_events
+            WHERE id = ?
+              AND lower(trim(event_type)) NOT IN ('pto', 'holiday', 'office')
+          `).bind(eventId).first()
+        : null;
+      if (hasEventId && !event) return json({ error: 'Calendar event not found or does not support travel' }, 404);
+
+      const statements = hasJobInfoId
+        ? [
+            env.DB.prepare(`DELETE FROM travel_items WHERE job_info_id = ?`).bind(jobInfoId),
+            ...validItems.map((item: any) => env.DB.prepare(`
+              INSERT INTO travel_items (job_info_id, kind, technician, status, details, notes, updated_at)
+              VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+            `).bind(
+              jobInfoId,
+              String(item.kind),
+              String(item.technician || '').trim() || null,
+              String(item.status || 'needed'),
+              String(item.details || '').trim() || null,
+              String(item.notes || '').trim() || null,
+            )),
+          ]
+        : [
+            env.DB.prepare(`DELETE FROM calendar_event_travel_items WHERE event_id = ?`).bind(eventId),
+            ...validItems.map((item: any) => env.DB.prepare(`
+              INSERT INTO calendar_event_travel_items (event_id, kind, technician, status, details, notes, updated_at)
+              VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+            `).bind(
+              eventId,
+              String(item.kind),
+              String(item.technician || '').trim() || null,
+              String(item.status || 'needed'),
+              String(item.details || '').trim() || null,
+              String(item.notes || '').trim() || null,
+            )),
+          ];
       await env.DB.batch(statements);
 
       // Travel users can trigger only this narrow automatic transition; they
       // still cannot edit calendar events generally.
       let autoBookedEventId: number | null = null;
-      if (Number.isInteger(eventId) && eventId > 0) {
-        const linkedEvent = await env.DB.prepare(`
-          SELECT id FROM calendar_events WHERE id = ? AND job_info_id = ?
-        `).bind(eventId, jobInfoId).first();
+      if (hasEventId) {
+        const linkedEvent = hasJobInfoId
+          ? await env.DB.prepare(`
+              SELECT id FROM calendar_events WHERE id = ? AND job_info_id = ?
+            `).bind(eventId, jobInfoId).first()
+          : event;
         if (linkedEvent) {
           const { results: assignmentRows } = await env.DB.prepare(`
             SELECT DISTINCT lower(trim(tech_name)) AS technician
@@ -1166,21 +1220,23 @@ export default {
           const assignedTechnicians = assignmentRows
             .map((row: any) => String(row.technician || '').trim().toLowerCase())
             .filter(Boolean);
-          const completeTravel = assignedTechnicians.length > 0
-            && ['hotel', 'car', 'flight'].every(kind => assignedTechnicians.every(technician =>
-              validItems.some((item: any) => {
-                const itemTechnician = String(item.technician || '').trim().toLowerCase();
-                return String(item.kind) === kind
-                  && ['booked', 'not_needed'].includes(String(item.status))
-                  && (!itemTechnician || itemTechnician === technician);
-              })
-            ));
+          const completeTravel = isTravelComplete(assignedTechnicians, validItems);
           if (completeTravel) {
-            await env.DB.prepare(`
-              UPDATE calendar_events
-              SET status = 'booked', updated_at = datetime('now')
-              WHERE id = ? AND job_info_id = ? AND status <> 'booked'
-            `).bind(eventId, jobInfoId).run();
+            if (hasJobInfoId) {
+              await env.DB.prepare(`
+                UPDATE calendar_events
+                SET status = 'booked', updated_at = datetime('now')
+                WHERE id = ? AND job_info_id = ? AND status <> 'booked'
+              `).bind(eventId, jobInfoId).run();
+            } else {
+              await env.DB.prepare(`
+                UPDATE calendar_events
+                SET status = 'booked', updated_at = datetime('now')
+                WHERE id = ?
+                  AND lower(trim(event_type)) NOT IN ('pto', 'holiday', 'office')
+                  AND status <> 'booked'
+              `).bind(eventId).run();
+            }
             autoBookedEventId = eventId;
           }
         }
