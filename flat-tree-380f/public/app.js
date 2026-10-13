@@ -578,7 +578,7 @@ function renderServerOverview(server) {
 
     <div class="server-overview-grid">
       ${buildServerOverviewTable('zones', 'Zone breakdown', zones, [
-        { label: 'Zone', key: 'label', render: row => `<button type="button" class="zone-detail-trigger" data-server-zone-detail="${escapeHtml(row.label)}" title="Show sensors in ${escapeHtml(row.label)}"><span>${escapeHtml(row.label)}</span>${buildProgressBar(row)}</button>` },
+        { label: 'Zone', key: 'label', render: row => `<button type="button" class="zone-detail-trigger zone-row-trigger" data-server-zone-detail="${escapeHtml(row.label)}" title="Show sensors in ${escapeHtml(row.label)}"><span>${escapeHtml(row.label)}</span>${buildProgressBar(row)}</button>` },
         { label: 'Sensors', key: 'total', render: row => row.total },
         { label: 'Cal.', key: 'calibrated', render: row => `<span class="green-val">${row.calibrated}</span>` },
         { label: 'Left', key: 'remaining', render: row => row.remaining ? `<span class="orange-val">${row.remaining}</span>` : '0' },
