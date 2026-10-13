@@ -242,6 +242,7 @@ const TENTATIVE_ASSIGNMENT_SQL = `
       WHEN 'joey' THEN 'Joey'
       WHEN 'kyle' THEN 'Kyle'
       WHEN 'matt' THEN 'Matt'
+      WHEN 'brendon' THEN 'Brendon'
       WHEN 'fernando' THEN 'Fernando'
       WHEN 'bissen' THEN 'Bissen'
       ELSE 'Unassigned'
