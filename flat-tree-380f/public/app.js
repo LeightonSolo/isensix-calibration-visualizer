@@ -680,14 +680,50 @@ function sortServerOverviewTable(sectionKey, key) {
   }
 }
 
-function addServer() {
-  const inp = document.getElementById('server-input').value;
-  const val = inp.split('-')[0].trim(); // This handles both "150 - University..." AND someone just typing "150"
-  if (!val || servers.includes(val)) { inp.value = ''; return; }
+async function addServer() {
+  const input = document.getElementById('server-input');
+  const val = input.value.split('-')[0].trim(); // Handles both "150 - University..." and a plain server ID.
+  if (!val || servers.includes(val)) { input.value = ''; return; }
   servers.push(val);
   saveServers();
   renderServerTags();
-  inp.value = '';
+  input.value = '';
+
+  try {
+    if (!serverMeta[val]) await loadServerMeta();
+    const customer = serverMeta[val]?.customer;
+    if (customer) {
+      const response = await fetch(
+        `${CONFIG.WORKER_URL}/jobinfo/summary`,
+        { headers: siteApiHeaders() }
+      );
+      if (!response.ok) throw new Error(`Could not load Job Info servers (${response.status})`);
+      const jobs = await response.json();
+      if (!Array.isArray(jobs)) throw new Error('Job Info server lookup returned an invalid response');
+      const customerJobs = jobs.filter(job =>
+        String(job.customer || '').trim().toLowerCase() === customer.trim().toLowerCase()
+      );
+      const relatedJob = customerJobs.find(job =>
+        String(job.servers || '').split(',').map(server => server.trim()).includes(val)
+      );
+      const jobServers = [...new Set(String(relatedJob?.servers || '')
+        .split(',')
+        .map(server => server.trim())
+        .filter(Boolean))];
+      const missingServers = jobServers.filter(server => !servers.includes(server));
+
+      if (missingServers.length && window.confirm(
+        `Would you like to add all servers for ${customer}?\n\n${jobServers.join(', ')}`
+      )) {
+        servers.push(...missingServers);
+        saveServers();
+        renderServerTags();
+      }
+    }
+  } catch (error) {
+    console.error('Failed to look up related Job Info servers', error);
+  }
+
   loadData();
 }
 
