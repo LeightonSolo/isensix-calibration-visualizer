@@ -445,13 +445,14 @@ function buildServerOverviewTable(sectionKey, title, rows, columns, emptyText, m
             <thead><tr>${sortableColumns.map(column => {
               const active = sort?.key === column.key;
               const direction = active ? (sort.dir === 1 ? 'ascending' : 'descending') : 'none';
-              return `<th aria-sort="${direction}"><button type="button" class="server-overview-sort${active ? ' is-active' : ''}" data-overview-section="${escapeHtml(sectionKey)}" data-overview-sort="${escapeHtml(column.key)}" title="Sort by ${escapeHtml(column.label)}">${escapeHtml(column.label)}<span aria-hidden="true">${active ? (sort.dir === 1 ? '&#9650;' : '&#9660;') : ''}</span></button></th>`;
+              const columnClass = column.label === 'CP Addr' ? ' class="cp-address-column"' : '';
+              return `<th${columnClass} aria-sort="${direction}"><button type="button" class="server-overview-sort${active ? ' is-active' : ''}" data-overview-section="${escapeHtml(sectionKey)}" data-overview-sort="${escapeHtml(column.key)}" title="Sort by ${escapeHtml(column.label)}">${escapeHtml(column.label)}<span aria-hidden="true">${active ? (sort.dir === 1 ? '&#9650;' : '&#9660;') : ''}</span></button></th>`;
             }).join('')}</tr></thead>
             <tbody>${sortedRows.map(row => {
               const qualityError = isQualityError(row);
               const classes = [rowClass(row), qualityError ? 'overview-quality-error-row' : ''].filter(Boolean).join(' ');
               const qualityTitle = qualityError ? `Qual: ${String(row.quality).toUpperCase()}` : '';
-              return `<tr class="${escapeHtml(classes)}"${qualityTitle ? ` title="${escapeHtml(qualityTitle)}"` : ''}>${sortableColumns.map(column => `<td>${column.render(row)}</td>`).join('')}</tr>`;
+              return `<tr class="${escapeHtml(classes)}"${qualityTitle ? ` title="${escapeHtml(qualityTitle)}"` : ''}>${sortableColumns.map(column => `<td${column.label === 'CP Addr' ? ' class="cp-address-column"' : ''}>${column.render(row)}</td>`).join('')}</tr>`;
             }).join('')}</tbody>
           </table>` : `<div class="server-overview-empty">${escapeHtml(emptyText)}</div>`}
       </div>${footer}
@@ -580,10 +581,10 @@ function renderServerOverview(server) {
         { label: 'Zone', key: 'label', render: row => `<button type="button" class="zone-detail-trigger" data-server-zone-detail="${escapeHtml(row.label)}" title="Show sensors in ${escapeHtml(row.label)}"><span>${escapeHtml(row.label)}</span>${buildProgressBar(row)}</button>` },
         { label: 'Sensors', key: 'total', render: row => row.total },
         { label: 'Cal.', key: 'calibrated', render: row => `<span class="green-val">${row.calibrated}</span>` },
-        { label: 'Exc.', key: 'exceptions', render: row => row.exceptions ? `<span class="orange-val">${row.exceptions}</span>` : '0' },
         { label: 'Left', key: 'remaining', render: row => row.remaining ? `<span class="orange-val">${row.remaining}</span>` : '0' },
+        { label: 'Exc.', key: 'exceptions', render: row => row.exceptions ? `<span class="orange-val">${row.exceptions}</span>` : '0' },
         { label: 'Fail', key: 'failures', render: row => row.failures ? `<span class="fail-val">${row.failures}</span>` : '0' },
-      ], 'No enabled sensors have zone information.', 'overview-breakdown',
+      ], 'No enabled sensors have zone information.', 'overview-breakdown overview-zone-breakdown',
         row => row.remaining === 0 ? 'overview-done-row' : '',
         activeServerZoneDetails ? buildZoneDetailsContent(activeServerZoneDetails, getBreakdownSensors(all), 'zone') : '')}
 
@@ -591,10 +592,10 @@ function renderServerOverview(server) {
         { label: 'Type', key: 'label', render: row => `<button type="button" class="type-detail-trigger" data-server-type-detail="${escapeHtml(row.label)}" title="Show sensors of type ${escapeHtml(row.label)}"><span>${escapeHtml(row.label)}</span></button>` },
         { label: 'Sensors', key: 'total', render: row => row.total },
         { label: 'Cal.', key: 'calibrated', render: row => `<span class="green-val">${row.calibrated}</span>` },
-        { label: 'Exc.', key: 'exceptions', render: row => row.exceptions ? `<span class="orange-val">${row.exceptions}</span>` : '0' },
         { label: 'Left', key: 'remaining', render: row => row.remaining ? `<span class="orange-val">${row.remaining}</span>` : '0' },
+        { label: 'Exc.', key: 'exceptions', render: row => row.exceptions ? `<span class="orange-val">${row.exceptions}</span>` : '0' },
         { label: 'Fail', key: 'failures', render: row => row.failures ? `<span class="fail-val">${row.failures}</span>` : '0' },
-      ], 'No enabled sensors have type information.', 'overview-breakdown',
+      ], 'No enabled sensors have type information.', 'overview-breakdown overview-type-breakdown',
         row => row.remaining === 0 ? 'overview-done-row' : '',
         activeServerTypeDetails ? buildTypeDetailsContent(activeServerTypeDetails, getBreakdownSensors(all), 'type') : '')}
 
@@ -602,7 +603,6 @@ function renderServerOverview(server) {
         { label: 'CP Addr', render: sensor => `<span class="mono">${escapeHtml(sensor.cp_address || '—')}</span>` },
         { label: 'Sensor', render: overviewSensorName },
         { label: 'Zone', render: sensor => escapeHtml(sensor.zone || '—') },
-        { label: 'Type', render: sensor => escapeHtml(sensor.sensor_type || '—') },
         { label: 'Calibrated', render: sensor => formatOverviewDate(sensor.calibrated_at) },
       ], 'No sensors calibrated in the current window.', 'overview-calibrated')}
 
