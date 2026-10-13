@@ -2374,7 +2374,7 @@ async function saveNewException() {
       year: CURRENT_YEAR,
       added_by,
     })
-  }).filter(Boolean);
+  });
   if (!response.ok) {
     error.textContent = 'Could not save exception. Please try again.';
     error.style.display = 'block';
