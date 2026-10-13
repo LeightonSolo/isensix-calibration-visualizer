@@ -1122,7 +1122,7 @@ const sensors = getActiveSensors();
 function applyFilters(rows) {
   const tf = document.getElementById('type-filter').value;
   const sf = document.getElementById('server-filter').value;
-  const q  = document.getElementById('search-input').value.toLowerCase();
+  const q  = getPanelSearchQuery();
   const showDisabled = document.getElementById('show-disabled').checked;
 
   return rows.filter(s =>
@@ -1135,6 +1135,24 @@ function applyFilters(rows) {
           || (s.access_point || '').toLowerCase().includes(q)
           || String(s.sensor_id).includes(q))
   );
+}
+
+function getPanelSearchQuery() {
+  return document.getElementById('search-input').value.trim().toLowerCase();
+}
+
+function matchesPanelSearch(values) {
+  const query = getPanelSearchQuery();
+  return !query || values.some(value => String(value ?? '').toLowerCase().includes(query));
+}
+
+function clearPanelSearch() {
+  const search = document.getElementById('search-input');
+  search.value = '';
+  renderTable();
+  if (document.getElementById('panel-search-wrap').style.display !== 'none') {
+    search.focus();
+  }
 }
 
 function applySort(rows) { //sort for main tables
@@ -1253,8 +1271,6 @@ function switchTab(tab) {
   sortDir = 1;
   document.querySelectorAll('.tab-btn').forEach(b =>
     b.classList.toggle('active', b.dataset.tab === tab));
-  const showFilter = ['left','calibrated','failures','all'].includes(tab);
-  document.getElementById('filter-bar').style.display = showFilter ? 'flex' : 'none';
   if(tab === 'jobinfo') {
     loadData(); //refresh job info when switching to that tab
   }
@@ -1457,6 +1473,9 @@ function buildTypesTable() {
     const srv = [...new Set(g.map(s => s.server).filter(Boolean))].join(', ');
     return { t, total: g.length, cal, exc, left, fail, srv, done: left === 0 };
   }).filter(Boolean);
+  rows = rows.filter(row => matchesPanelSearch([
+    row.t, row.total, row.cal, row.exc, row.left, row.fail, row.srv,
+  ]));
   rows = applySummarySort(rows, typeSort, 't');
 
   return `<div class="rt-wrap"><table class="rt" data-resize-key="types">
@@ -1469,7 +1488,7 @@ function buildTypesTable() {
       ${thSort('Failures',   'fail',  typeSort, 'sortType')}
       ${thSort('Servers',    'srv',   typeSort, 'sortType')}
     </tr></thead>
-    <tbody>${rows.map(r => {
+    <tbody>${rows.length ? rows.map(r => {
       return `<tr class="${r.done ? 'done-row' : ''}">
         <td><button type="button" class="type-detail-trigger" data-type-detail="${escapeHtml(r.t)}" title="Show sensors of type ${escapeHtml(r.t)}">${badge(r.t)}</button></td>
         <td>${r.total}</td>
@@ -1479,7 +1498,7 @@ function buildTypesTable() {
         <td class="${r.fail > 0 ? 'fail-val'   : 'muted'}">${r.fail}</td>
         <td class="muted">${r.srv}</td>
       </tr>`;
-    }).join('')}</tbody>
+    }).join('') : `<tr><td colspan="7" class="muted" style="text-align:center;">${getPanelSearchQuery() ? 'No types match your search.' : 'No type breakdown available.'}</td></tr>`}</tbody>
   </table></div>`;
 }
 
@@ -1529,6 +1548,9 @@ function buildZonesTable() {
     a.server.localeCompare(b.server, undefined, { numeric: true })
   );
   rows = applySummarySort(rows, zoneSort, 'z');
+  rows = rows.filter(row => matchesPanelSearch([
+    row.z, row.server, row.total, row.cal, row.exc, row.left, row.fail,
+  ]));
 
   return `<div class="rt-wrap"><table class="rt zones-table" data-resize-key="zones">
     <thead><tr>
@@ -1540,7 +1562,7 @@ function buildZonesTable() {
       ${thSort('Remaining',  'left',  zoneSort, 'sortZone')}
       ${thSort('Failures',   'fail',  zoneSort, 'sortZone')}
     </tr></thead>
-    <tbody>${rows.map(r => `<tr class="${r.done ? 'done-row' : ''}">
+    <tbody>${rows.length ? rows.map(r => `<tr class="${r.done ? 'done-row' : ''}">
       <td title="${escapeHtml(r.z)}"><button type="button" class="zone-detail-trigger zone-row-trigger" data-zone-detail="${escapeHtml(r.z)}" data-zone-server="${escapeHtml(r.server)}" title="Show sensors in ${escapeHtml(r.z)} on SID ${escapeHtml(r.server || '—')}"><span>${escapeHtml(r.z)}</span>${buildProgressBar(r)}</button></td>
       <td class="muted">${escapeHtml(r.server || '—')}</td>
       <td>${r.total}</td>
@@ -1548,7 +1570,7 @@ function buildZonesTable() {
       <td class="${r.exc  > 0 ? 'orange-val' : 'muted'}">${r.exc}</td>
       <td class="${r.left > 0 ? 'orange-val' : 'muted'}">${r.left}</td>
       <td class="${r.fail > 0 ? 'fail-val'   : 'muted'}">${r.fail}</td>
-    </tr>`).join('')}</tbody>
+    </tr>`).join('') : `<tr><td colspan="7" class="muted" style="text-align:center;">${getPanelSearchQuery() ? 'No zones match your search.' : 'No zones available.'}</td></tr>`}</tbody>
   </table></div>`;
 }
 
@@ -1567,9 +1589,19 @@ function renderTable() {
   const panelHeader = title.closest('.panel-hdr');
   panelHeader?.removeAttribute('title');
 
-  // sync filter bar visibility with current tab on every render
   const showFilter = ['left','calibrated','failures','all'].includes(currentTab);
   document.getElementById('filter-bar').style.display = showFilter ? 'flex' : 'none';
+  const showSearch = showFilter || ['exceptions', 'check', 'zones', 'types'].includes(currentTab);
+  const searchWrap = document.getElementById('panel-search-wrap');
+  const searchInput = document.getElementById('search-input');
+  const searchQuery = searchInput.value.trim();
+  searchWrap.style.display = showSearch ? 'flex' : 'none';
+  searchInput.classList.toggle('search-active', Boolean(searchQuery));
+  document.getElementById('search-filter-indicator').style.display = searchQuery ? 'flex' : 'none';
+  document.getElementById('search-filter-value').textContent = searchQuery;
+  searchInput.placeholder = showFilter
+    ? 'Search name, zone, CP addr, AP…'
+    : 'Search this table…';
 
   if (currentTab === 'types') {
     title.textContent = 'Sensor type breakdown';
@@ -1585,11 +1617,12 @@ function renderTable() {
   }
   if (currentTab === 'exceptions') {
     const currentExceptions = allExceptions.filter(e => e.year === CURRENT_YEAR);
-    const disabledExceptionCount = currentExceptions.filter(e =>
+    const matchingExceptions = currentExceptions.filter(exceptionMatchesPanelSearch);
+    const disabledExceptionCount = matchingExceptions.filter(e =>
       findSensor(e.sensor_id, e.server)?.status?.toUpperCase() === 'DISABLED'
     ).length;
     title.textContent = `Exceptions ${CURRENT_YEAR}`;
-    count.textContent = `${currentExceptions.length}${disabledExceptionCount ? ` · ${disabledExceptionCount} disabled — remove` : ''}`;
+    count.textContent = `${matchingExceptions.length}${disabledExceptionCount ? ` · ${disabledExceptionCount} disabled — remove` : ''}`;
     panelActions.innerHTML = historicalRunId
       ? ''
       : '<button class="primary" onclick="openAddExceptionModal()">Add Exception</button>';
@@ -1609,7 +1642,10 @@ function renderTable() {
     s.status?.toUpperCase() === 'ENABLED' &&
     s.quality &&
     s.quality.toUpperCase() !== 'GOOD'
-  );
+  ).filter(s => matchesPanelSearch([
+    s.sensor_id, s.cp_address, s.sensor_name, s.zone, s.server,
+    s.sensor_type, s.serial_number, s.access_point, s.quality,
+  ]));
   count.textContent = `${checkSensors.length} sensor${checkSensors.length !== 1 ? 's' : ''}`;
   setTableContent(area, buildCheckTable(checkSensors));
   return;
@@ -2201,7 +2237,7 @@ async function saveException(sensor_id, server) {
 function buildCheckTable(sensors) {
   if (!sensors.length) {
     return `<div style="padding:2.5rem;text-align:center;color:var(--text-muted);font-size:13px;">
-      No sensors in CHECK.</div>`;
+      ${getPanelSearchQuery() ? 'No CHECK sensors match your search.' : 'No sensors in CHECK.'}</div>`;
   }
 
   let rows = sensors.map(s => ({
@@ -2384,6 +2420,15 @@ async function saveNewException() {
   window.location.reload();
 }
 
+function exceptionMatchesPanelSearch(exception) {
+  const sensor = findSensor(exception.sensor_id, exception.server);
+  return matchesPanelSearch([
+    exception.sensor_id, exception.cp_address, sensor?.cp_address,
+    exception.sensor_name, sensor?.sensor_name, exception.zone, sensor?.zone,
+    exception.server, exception.reason, exception.added_by, exception.added_at,
+  ]);
+}
+
 function buildExceptionsTable() {
   const current  = allExceptions.filter(e => e.year === CURRENT_YEAR);
   const prevYear = allExceptions.filter(e => e.year === CURRENT_YEAR - 1);
@@ -2405,6 +2450,11 @@ function buildExceptionsTable() {
       _repeat: prevIds.has(`${e.sensor_id}|${e.server}`),
     };
   });
+  rows = rows.filter(exceptionMatchesPanelSearch);
+  if (!rows.length) {
+    return `<div style="padding:2.5rem;text-align:center;color:var(--text-muted);font-size:13px;">
+      No exceptions match your search.</div>`;
+  }
   rows = applySummarySort(rows, excSort, 'sensor_id');
   if (!excSort.col) {
     rows.sort((a, b) =>

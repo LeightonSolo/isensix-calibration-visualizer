@@ -195,20 +195,29 @@
     <button class="tab-btn right" data-tab="jobinfo">Job Info</button>
   </div>
 
-  <!-- Filter bar -->
-  <div id="filter-bar">
-    <select id="type-filter" onchange="renderTable()"><option value="">All types</option></select>
-    <select id="server-filter" onchange="renderTable()"><option value="">All servers</option></select>
-    <input id="search-input" type="text" placeholder="Search name, zone, CP addr, AP…"
-           style="width:220px;" oninput="renderTable()"/>
-  </div>
-
   <!-- Main panel -->
   <div id="main-panel" class="panel">
     <div class="panel-hdr">
-      <span class="panel-title" id="panel-title">Sensors left</span>
-      <span class="panel-count" id="panel-count"></span>
-      <span id="panel-actions" style="margin-left:auto;"></span>
+      <div class="panel-heading">
+        <span class="panel-title" id="panel-title">Sensors left</span>
+        <span class="panel-count" id="panel-count"></span>
+      </div>
+      <div id="panel-controls">
+        <div id="filter-bar">
+          <select id="type-filter" onchange="renderTable()"><option value="">All types</option></select>
+          <select id="server-filter" onchange="renderTable()"><option value="">All servers</option></select>
+        </div>
+        <label id="panel-search-wrap">
+          <input id="search-input" type="text" placeholder="Search name, zone, CP addr, AP…"
+                 aria-label="Search this table" oninput="renderTable()"/>
+        </label>
+        <div id="search-filter-indicator" role="status" aria-live="polite">
+          <span>Text filter:</span>
+          <strong id="search-filter-value"></strong>
+          <button type="button" onclick="clearPanelSearch()">Clear</button>
+        </div>
+      </div>
+      <span id="panel-actions"></span>
     </div>
     <div id="table-area"></div>
   </div>
