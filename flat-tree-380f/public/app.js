@@ -700,12 +700,15 @@ async function addServer() {
       if (!response.ok) throw new Error(`Could not load Job Info servers (${response.status})`);
       const jobs = await response.json();
       if (!Array.isArray(jobs)) throw new Error('Job Info server lookup returned an invalid response');
-      const customerJobs = jobs.filter(job =>
+      const matchingJobs = jobs.filter(job =>
+        String(job.servers || '')
+          .split(',')
+          .map(server => server.trim())
+          .includes(val)
+      );
+      const relatedJob = matchingJobs.find(job =>
         String(job.customer || '').trim().toLowerCase() === customer.trim().toLowerCase()
-      );
-      const relatedJob = customerJobs.find(job =>
-        String(job.servers || '').split(',').map(server => server.trim()).includes(val)
-      );
+      ) || matchingJobs[0];
       const jobServers = [...new Set(String(relatedJob?.servers || '')
         .split(',')
         .map(server => server.trim())
@@ -713,7 +716,7 @@ async function addServer() {
       const missingServers = jobServers.filter(server => !servers.includes(server));
 
       if (missingServers.length && window.confirm(
-        `Would you like to add all servers for ${customer}?\n\n${jobServers.join(', ')}`
+        `Would you like to add all servers for ${relatedJob.job_name || customer}?\n\n${jobServers.join(', ')}`
       )) {
         servers.push(...missingServers);
         saveServers();
