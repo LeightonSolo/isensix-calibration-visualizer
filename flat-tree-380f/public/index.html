@@ -206,6 +206,15 @@
         <div id="filter-bar">
           <select id="type-filter" onchange="renderTable()"><option value="">All types</option></select>
           <select id="server-filter" onchange="renderTable()"><option value="">All servers</option></select>
+          <select id="tech-filter" class="panel-filter-optional" aria-label="Filter by calibrated by" onchange="renderTable()">
+            <option value="">All Techs</option>
+          </select>
+          <select id="exception-added-by-filter" class="panel-filter-optional" aria-label="Filter exceptions by added by" onchange="renderTable()">
+            <option value="">All Added By</option>
+          </select>
+          <select id="check-quality-filter" class="panel-filter-optional" aria-label="Filter CHECK sensors by quality" onchange="renderTable()">
+            <option value="">All Quality</option>
+          </select>
         </div>
         <label id="panel-search-wrap">
           <input id="search-input" type="text" placeholder="Search name, zone, CP addr, AP…"

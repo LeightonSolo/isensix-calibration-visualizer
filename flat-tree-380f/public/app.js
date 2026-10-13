@@ -1106,8 +1106,7 @@ function renderMetrics() {
 
 /* ─── Filters ───────────────────────────────────────────── */
 function populateFilters() {
-const sensors = getActiveSensors();
-  const types = [...new Set(sensors.map(s => s.sensor_type).filter(Boolean))].sort();
+  const types = [...new Set(allSensors.map(s => s.sensor_type).filter(Boolean))].sort();
   const tf = document.getElementById('type-filter');
   const curType = tf.value;
   tf.innerHTML = '<option value="">All types</option>'
@@ -1117,11 +1116,158 @@ const sensors = getActiveSensors();
   const curSrv = sf.value;
   sf.innerHTML = '<option value="">All servers</option>'
     + servers.map(s => `<option value="${s}"${s === curSrv ? ' selected' : ''}>${s}</option>`).join('');
+
 }
 
-function applyFilters(rows) {
+function getSensorRowsForTab(tab) {
+  let rows = tab === 'calibrated'
+    ? allSensors.filter(sensor => isCalibrated(sensor) && !isExcepted(sensor))
+    : getActiveSensors();
+
+  if (tab === 'left') rows = rows.filter(sensor => !isCalibrated(sensor));
+  else if (tab === 'calibrated') rows = rows.filter(isCalibrated);
+  else if (tab === 'failures') rows = rows.filter(isFailed);
+
+  return rows;
+}
+
+function updateTechFilterOptions() {
+  const techFilter = document.getElementById('tech-filter');
+  const curTech = techFilter.value.trim().toLowerCase();
+  const matchingRows = applyFilters(getSensorRowsForTab(currentTab), { includeTech: false });
+  const techCounts = new Map();
+  allSensors.forEach(sensor => {
+    const technician = displayCalibratedBy(sensor.calibrated_by).trim();
+    if (!technician) return;
+    const key = technician.toLowerCase();
+    if (!techCounts.has(key)) techCounts.set(key, { name: technician, count: 0 });
+  });
+  matchingRows.forEach(sensor => {
+    const technician = displayCalibratedBy(sensor.calibrated_by).trim();
+    if (!technician) return;
+    const key = technician.toLowerCase();
+    const entry = techCounts.get(key) || { name: technician, count: 0 };
+    entry.count++;
+    techCounts.set(key, entry);
+  });
+  const technicians = [...techCounts.values()].sort((a, b) =>
+    b.count - a.count || a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+  );
+  techFilter.innerHTML = '<option value="">All Techs</option>'
+    + technicians.map(({ name, count }) =>
+      `<option value="${escapeHtml(name)}"${name.toLowerCase() === curTech.toLowerCase() ? ' selected' : ''}>${escapeHtml(name)} (${count})</option>`
+    ).join('');
+}
+
+function updateExceptionAddedByOptions() {
+  const filter = document.getElementById('exception-added-by-filter');
+  const selected = filter.value.toLowerCase();
+  const counts = new Map();
+  getCurrentExceptionRows()
+    .filter(exception => matchesExceptionFilters(exception, { includeAddedBy: false }))
+    .forEach(exception => {
+      const name = String(exception.added_by || '').trim();
+      if (!name) return;
+      const key = name.toLowerCase();
+      const entry = counts.get(key) || { name, count: 0 };
+      entry.count++;
+      counts.set(key, entry);
+    });
+  const options = [...counts.values()].sort((a, b) =>
+    b.count - a.count || a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+  );
+  filter.innerHTML = '<option value="">All Added By</option>'
+    + options.map(({ name, count }) =>
+      `<option value="${escapeHtml(name)}"${name.toLowerCase() === selected ? ' selected' : ''}>${escapeHtml(name)} (${count})</option>`
+    ).join('');
+}
+
+function updateCheckQualityOptions() {
+  const filter = document.getElementById('check-quality-filter');
+  const selected = filter.value.toLowerCase();
+  const counts = new Map();
+  getCheckSensorRows()
+    .filter(sensor => matchesCheckFilters(sensor, { includeQuality: false }))
+    .forEach(sensor => {
+      const quality = String(sensor.quality || '').trim();
+      if (!quality) return;
+      const key = quality.toLowerCase();
+      const entry = counts.get(key) || { quality, count: 0 };
+      entry.count++;
+      counts.set(key, entry);
+    });
+  const options = [...counts.values()].sort((a, b) =>
+    b.count - a.count || a.quality.localeCompare(b.quality, undefined, { sensitivity: 'base' })
+  );
+  filter.innerHTML = '<option value="">All Quality</option>'
+    + options.map(({ quality, count }) =>
+      `<option value="${escapeHtml(quality)}"${quality.toLowerCase() === selected ? ' selected' : ''}>${escapeHtml(quality)} (${count})</option>`
+    ).join('');
+}
+
+function updatePanelFilterOptions() {
+  if (['left', 'calibrated', 'failures', 'all'].includes(currentTab)) {
+    updateTechFilterOptions();
+  } else if (currentTab === 'exceptions') {
+    updateExceptionAddedByOptions();
+  } else if (currentTab === 'check') {
+    updateCheckQualityOptions();
+  }
+}
+
+function getCurrentExceptionRows() {
+  const prevYear = allExceptions.filter(e => e.year === CURRENT_YEAR - 1);
+  const prevIds = new Set(prevYear.map(e => `${e.sensor_id}|${e.server}`));
+  return allExceptions.filter(e => e.year === CURRENT_YEAR).map(exception => {
+    const sensor = findSensor(exception.sensor_id, exception.server);
+    return {
+      ...exception,
+      cp_address: sensor?.cp_address || exception.cp_address || '',
+      _sensor_type: sensor?.sensor_type || '',
+      _disabled: sensor?.status?.toUpperCase() === 'DISABLED',
+      _failed: sensor ? isFailed(sensor) : false,
+      _calibrated: sensor ? isCalibrated(sensor) : false,
+      _repeat: prevIds.has(`${exception.sensor_id}|${exception.server}`),
+    };
+  });
+}
+
+function matchesExceptionFilters(exception, { includeAddedBy = true } = {}) {
+  const selectedServer = document.getElementById('server-filter').value;
+  const selectedType = document.getElementById('type-filter').value;
+  const selectedAddedBy = document.getElementById('exception-added-by-filter').value.trim().toLowerCase();
+  const sensor = findSensor(exception.sensor_id, exception.server);
+  return (!selectedServer || String(exception.server) === selectedServer)
+    && (!selectedType || sensor?.sensor_type === selectedType)
+    && (!includeAddedBy || !selectedAddedBy || String(exception.added_by || '').trim().toLowerCase() === selectedAddedBy)
+    && exceptionMatchesPanelSearch(exception);
+}
+
+function getCheckSensorRows() {
+  return allSensors.filter(sensor =>
+    sensor.status?.toUpperCase() === 'ENABLED' &&
+    sensor.quality &&
+    sensor.quality.toUpperCase() !== 'GOOD'
+  );
+}
+
+function matchesCheckFilters(sensor, { includeQuality = true } = {}) {
+  const selectedServer = document.getElementById('server-filter').value;
+  const selectedType = document.getElementById('type-filter').value;
+  const selectedQuality = document.getElementById('check-quality-filter').value.trim().toLowerCase();
+  return (!selectedServer || String(sensor.server) === selectedServer)
+    && (!selectedType || sensor.sensor_type === selectedType)
+    && (!includeQuality || !selectedQuality || String(sensor.quality || '').trim().toLowerCase() === selectedQuality)
+    && matchesPanelSearch([
+      sensor.sensor_id, sensor.cp_address, sensor.sensor_name, sensor.zone, sensor.server,
+      sensor.sensor_type, sensor.serial_number, sensor.access_point, sensor.quality,
+    ]);
+}
+
+function applyFilters(rows, { includeTech = true } = {}) {
   const tf = document.getElementById('type-filter').value;
   const sf = document.getElementById('server-filter').value;
+  const tech = document.getElementById('tech-filter').value.trim().toLowerCase();
   const q  = getPanelSearchQuery();
   const showDisabled = document.getElementById('show-disabled').checked;
 
@@ -1129,6 +1275,7 @@ function applyFilters(rows) {
     (showDisabled || !s.status || s.status.toUpperCase() !== 'DISABLED') &&
     (!tf || s.sensor_type === tf) &&
     (!sf || s.server === sf) &&
+    (!includeTech || !tech || displayCalibratedBy(s.calibrated_by).trim().toLowerCase() === tech) &&
     (!q  || (s.sensor_name  || '').toLowerCase().includes(q)
           || (s.zone         || '').toLowerCase().includes(q)
           || (s.cp_address   || '').toLowerCase().includes(q)
@@ -1590,7 +1737,13 @@ function renderTable() {
   panelHeader?.removeAttribute('title');
 
   const showFilter = ['left','calibrated','failures','all'].includes(currentTab);
-  document.getElementById('filter-bar').style.display = showFilter ? 'flex' : 'none';
+  const showSharedFilters = showFilter || currentTab === 'exceptions' || currentTab === 'check';
+  document.getElementById('filter-bar').style.display = showSharedFilters ? 'flex' : 'none';
+  document.querySelector('#server-filter option[value=""]').textContent =
+    currentTab === 'exceptions' || currentTab === 'check' ? 'All SIDs' : 'All servers';
+  document.getElementById('tech-filter').style.display = showFilter ? 'inline-block' : 'none';
+  document.getElementById('exception-added-by-filter').style.display = currentTab === 'exceptions' ? 'inline-block' : 'none';
+  document.getElementById('check-quality-filter').style.display = currentTab === 'check' ? 'inline-block' : 'none';
   const showSearch = showFilter || ['exceptions', 'check', 'zones', 'types'].includes(currentTab);
   const searchWrap = document.getElementById('panel-search-wrap');
   const searchInput = document.getElementById('search-input');
@@ -1602,6 +1755,7 @@ function renderTable() {
   searchInput.placeholder = showFilter
     ? 'Search name, zone, CP addr, AP…'
     : 'Search this table…';
+  if (showSharedFilters) updatePanelFilterOptions();
 
   if (currentTab === 'types') {
     title.textContent = 'Sensor type breakdown';
@@ -1616,8 +1770,7 @@ function renderTable() {
     return;
   }
   if (currentTab === 'exceptions') {
-    const currentExceptions = allExceptions.filter(e => e.year === CURRENT_YEAR);
-    const matchingExceptions = currentExceptions.filter(exceptionMatchesPanelSearch);
+    const matchingExceptions = getCurrentExceptionRows().filter(matchesExceptionFilters);
     const disabledExceptionCount = matchingExceptions.filter(e =>
       findSensor(e.sensor_id, e.server)?.status?.toUpperCase() === 'DISABLED'
     ).length;
@@ -1638,27 +1791,13 @@ function renderTable() {
   }
   if (currentTab === 'check') {
   title.textContent = 'Sensors in CHECK';
-  const checkSensors = allSensors.filter(s =>
-    s.status?.toUpperCase() === 'ENABLED' &&
-    s.quality &&
-    s.quality.toUpperCase() !== 'GOOD'
-  ).filter(s => matchesPanelSearch([
-    s.sensor_id, s.cp_address, s.sensor_name, s.zone, s.server,
-    s.sensor_type, s.serial_number, s.access_point, s.quality,
-  ]));
+  const checkSensors = getCheckSensorRows().filter(matchesCheckFilters);
   count.textContent = `${checkSensors.length} sensor${checkSensors.length !== 1 ? 's' : ''}`;
   setTableContent(area, buildCheckTable(checkSensors));
   return;
   }
 
-  let rows = currentTab === 'calibrated'
-    ? allSensors.filter(s => isCalibrated(s) && !isExcepted(s))
-    : getActiveSensors();
-  if (currentTab === 'left')        rows = rows.filter(s => !isCalibrated(s));
-  else if (currentTab === 'calibrated') rows = rows.filter(isCalibrated);
-  else if (currentTab === 'failures')   rows = rows.filter(isFailed);
-
-  rows = applyFilters(rows);
+  let rows = applyFilters(getSensorRowsForTab(currentTab));
 
   if (!sortCol) {
     if (currentTab === 'calibrated')
@@ -2430,30 +2569,17 @@ function exceptionMatchesPanelSearch(exception) {
 }
 
 function buildExceptionsTable() {
-  const current  = allExceptions.filter(e => e.year === CURRENT_YEAR);
-  const prevYear = allExceptions.filter(e => e.year === CURRENT_YEAR - 1);
-  const prevIds  = new Set(prevYear.map(e => `${e.sensor_id}|${e.server}`));
+  let rows = getCurrentExceptionRows();
 
-  if (!current.length) {
+  if (!rows.length) {
     return `<div style="padding:2.5rem;text-align:center;color:var(--text-muted);font-size:13px;">
       No exceptions logged for ${CURRENT_YEAR}.</div>`;
   }
 
-  let rows = current.map(e => {
-    const sensor = findSensor(e.sensor_id, e.server);
-    return {
-      ...e,
-      cp_address: sensor?.cp_address || e.cp_address || '',
-      _disabled: sensor?.status?.toUpperCase() === 'DISABLED',
-      _failed: sensor ? isFailed(sensor) : false,
-      _calibrated: sensor ? isCalibrated(sensor) : false,
-      _repeat: prevIds.has(`${e.sensor_id}|${e.server}`),
-    };
-  });
-  rows = rows.filter(exceptionMatchesPanelSearch);
+  rows = rows.filter(matchesExceptionFilters);
   if (!rows.length) {
     return `<div style="padding:2.5rem;text-align:center;color:var(--text-muted);font-size:13px;">
-      No exceptions match your search.</div>`;
+      No exceptions match the selected filters.</div>`;
   }
   rows = applySummarySort(rows, excSort, 'sensor_id');
   if (!excSort.col) {
