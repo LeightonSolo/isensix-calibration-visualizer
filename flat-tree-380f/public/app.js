@@ -1765,6 +1765,9 @@ function renderTable() {
     ? 'Search name, zone, CP addr, AP…'
     : 'Search this table…';
   if (showSharedFilters) updatePanelFilterOptions();
+  document.querySelectorAll('#filter-bar select').forEach(filter => {
+    filter.classList.toggle('filter-active', Boolean(filter.value.trim()));
+  });
 
   if (currentTab === 'types') {
     title.textContent = 'Sensor type breakdown';

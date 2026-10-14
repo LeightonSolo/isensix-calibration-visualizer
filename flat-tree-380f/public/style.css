@@ -1075,6 +1075,10 @@ body.server-overview-open { overflow: hidden; }
   border-color: var(--accent-orange);
   box-shadow: 0 0 0 1px var(--accent-orange);
 }
+#filter-bar select.filter-active {
+  border-color: var(--accent-orange);
+  box-shadow: 0 0 0 1px var(--accent-orange);
+}
 #search-filter-indicator {
   display: none;
   align-items: center;
