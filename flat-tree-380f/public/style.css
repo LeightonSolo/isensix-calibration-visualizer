@@ -340,6 +340,8 @@ button.danger { color: var(--accent-red); }
   transition: border-color 0.15s ease, background 0.15s ease;
 }
 .server-tag:hover { border-color: var(--accent-blue); }
+.server-tag-complete { background: #14532d; border-color: #166534; }
+.server-tag-complete:hover { background: #166534; border-color: #15803d; }
 .server-tag:focus-within {
   outline: 2px solid var(--accent-blue);
   outline-offset: 2px;

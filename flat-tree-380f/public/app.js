@@ -357,16 +357,23 @@ function renderServerTags() {
     el.innerHTML = '<span style="color:var(--text-muted);font-size:12px;">No servers added yet.</span>';
     return;
   }
-  el.innerHTML = servers.map(s => `
-    <span class="server-tag">
+  el.innerHTML = servers.map(s => {
+    const sensors = serverOverviewRows(s).filter(sensor =>
+      !sensor.status || sensor.status.toUpperCase() !== 'DISABLED'
+    );
+    const complete = sensors.length > 0 && getProgressBreakdown(sensors).remaining === 0;
+    return `
+    <span class="server-tag${complete ? ' server-tag-complete' : ''}">
       <button class="server-overview-trigger" data-server-overview="${escapeHtml(s)}" type="button"
-              title="Open Server ${escapeHtml(s)} overview" aria-label="Open Server ${escapeHtml(s)} overview">
+              title="Open Server ${escapeHtml(s)} overview${complete ? ' — calibration complete' : ''}"
+              aria-label="Open Server ${escapeHtml(s)} overview${complete ? ', calibration complete' : ''}">
         <i class="ti ti-server-2" style="font-size:13px;"></i>
         Server ${escapeHtml(s)}
       </button>
       <button class="remove-btn" data-remove-server="${escapeHtml(s)}" type="button"
               title="Remove server ${escapeHtml(s)}" aria-label="Remove server ${escapeHtml(s)}">×</button>
-    </span>`).join('');
+    </span>`;
+  }).join('');
 }
 
 function serverOverviewRows(server) {
@@ -878,6 +885,7 @@ async function loadData() {
         reason: sensor.exception_reason, year: Number(sensor.exception_year) || CURRENT_YEAR,
       }));
       await loadServerMeta();
+      renderServerTags();
       const customer = historicalRun.customer || historicalRun.job_name || 'Historical calibration';
       document.getElementById('customer-display').textContent = `${customer} · Historical`;
       document.getElementById('latest-cal-msg').textContent = `Run ${historicalRun.calibration_date || ''} · Read-only`;
@@ -913,6 +921,7 @@ async function loadData() {
     // Job info needs server metadata in order to determine the customer.
     await loadJobInfo();
     allSensors = sensorResults.flat();
+    renderServerTags();
 
     lastUpdated = Date.now();
     //setStatus(`${allSensors.length} total sensors — updated ${new Date().toLocaleTimeString()}`);
