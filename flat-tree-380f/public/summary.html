@@ -261,9 +261,12 @@
     /* ─── Tables ──────────────────────────────────────────── */
     .summary-tables {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 16px;
       align-items: start;
+    }
+    .summary-tables.tables-stacked {
+      grid-template-columns: minmax(0, 1fr);
     }
 
     .summary-section-full {
@@ -273,6 +276,7 @@
     .summary-section {
       display: flex;
       flex-direction: column;
+      min-width: 0;
       /*gap: 2px;*/
     }
     .summary-section-header {
@@ -302,6 +306,9 @@
       font-size: 14px;
       border: 0.5px solid var(--border);
       
+    }
+    table.exceptions-table {
+      width: max-content;
     }
 
     .sum-table-wrap {
@@ -897,7 +904,35 @@ function renderTables() {
   ${buildFailTable(failures)}
   ${buildCheckTable(checkSensors)}
 `;
+  requestAnimationFrame(() => {
+    document.fonts.ready.then(updateSummaryTableLayout);
+  });
 }
+
+function updateSummaryTableLayout() {
+  const container = document.getElementById('summary-tables');
+  if (!container) return;
+  const tables = [...container.querySelectorAll('.failures-table, .errors-table')];
+  if (tables.length < 2 || !container.clientWidth) return;
+
+  const requiredWidth = tables.reduce((width, table) => {
+    const measurement = table.cloneNode(true);
+    measurement.style.position = 'absolute';
+    measurement.style.left = '-10000px';
+    measurement.style.top = '0';
+    measurement.style.visibility = 'hidden';
+    measurement.style.width = 'max-content';
+    measurement.style.maxWidth = 'none';
+    document.body.appendChild(measurement);
+    const tableWidth = measurement.getBoundingClientRect().width;
+    measurement.remove();
+    return width + tableWidth;
+  }, 0);
+  const styles = getComputedStyle(container);
+  const gap = parseFloat(styles.columnGap) || 0;
+  container.classList.toggle('tables-stacked', requiredWidth + gap > container.clientWidth);
+}
+window.addEventListener('resize', updateSummaryTableLayout);
 
 function buildExcTable(rows) {
   return `
@@ -907,7 +942,7 @@ function buildExcTable(rows) {
         <span class="summary-section-count">${rows.length}</span>
       </div>
       <div class="sum-table-wrap">
-      <table class="sum-table">
+      <table class="sum-table exceptions-table">
         <thead><tr>
           <th>CP Addr</th>
           <th>Sensor Name</th>
@@ -974,7 +1009,7 @@ function buildCheckTable(rows) {
         <span class="summary-section-count">${rows.length}</span>
       </div>
       <div class="sum-table-wrap">
-      <table class="sum-table">
+      <table class="sum-table errors-table">
         <thead><tr>
           <th style="width:70px;">CP Addr</th>
           <th>Sensor Name</th>
