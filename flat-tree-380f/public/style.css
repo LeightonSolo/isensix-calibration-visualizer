@@ -1275,6 +1275,18 @@ td.orange-val { color: var(--accent-orange); }
 
 .status-enabled  { color: var(--text-muted); font-size: 11px; }
 .status-disabled { color: var(--accent-red); font-size: 11px; font-weight: 500; }
+.status-in-range { color: var(--text-primary); font-size: 11px; }
+.status-too-hot { color: var(--accent-red); font-size: 11px; font-weight: 600; }
+.status-too-cold { color: var(--accent-blue); font-size: 11px; font-weight: 600; }
+.status-error {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: #000;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+}
 
 /* ─── Type badge (hashed color) ─────────────────────────── */
 .badge {

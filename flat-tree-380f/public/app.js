@@ -237,14 +237,14 @@ function findSensor(sensor_id, server) {
 function getActiveSensors() {
   const showDisabled = document.getElementById('show-disabled')?.checked;
   return allSensors.filter(s =>
-    (showDisabled || !s.status || s.status.toUpperCase() !== 'DISABLED') &&
+    (showDisabled || !isSensorDisabled(s)) &&
     !isExcepted(s)
   );
 }
 
 function getDisabledCalibratedSensors() {
   return allSensors.filter(s =>
-    s.status?.toUpperCase() === 'DISABLED' &&
+    isSensorDisabled(s) &&
     isCalibrated(s) &&
     !isExcepted(s)
   );
@@ -330,9 +330,36 @@ function qualBadge(q) {
 }
 
 function statusCell(s) {
-  if (!s) return '<span class="muted">—</span>';
-  const cls = s.toUpperCase() === 'ENABLED' ? 'status-enabled' : 'status-disabled';
-  return `<span class="${cls}">${s}</span>`;
+  const status = String(s ?? '').trim();
+  if (!status) return '<span class="muted">—</span>';
+
+  const normalized = status.toUpperCase();
+  if (isDisabledStatus(status)) {
+    return `<span class="status-disabled">DISABLED</span>`;
+  }
+  if (normalized === 'ENABLED') {
+    return `<span class="status-enabled">${escapeHtml(status)}</span>`;
+  }
+  if (/\bIN[\s-]+RANGE\b/.test(normalized)) {
+    return `<span class="status-in-range">${escapeHtml(status)}</span>`;
+  }
+  if (/\bTOO HOT\b/.test(normalized) || /\bHIGH\b/.test(normalized) || /^\s*\+/.test(status)) {
+    return `<span class="status-too-hot">${escapeHtml(status)}</span>`;
+  }
+  if (/\bTOO COLD\b/.test(normalized) || /\bLOW\b/.test(normalized) || /^\s*-/.test(status)) {
+    return `<span class="status-too-cold">${escapeHtml(status)}</span>`;
+  }
+  const errorStatus = status.replace(/^CHECK\s+/i, '');
+  return `<span class="status-error">${escapeHtml(errorStatus)}</span>`;
+}
+
+function isDisabledStatus(status) {
+  const normalized = String(status ?? '').trim().toUpperCase().replace(/\s+/g, ' ');
+  return normalized === 'DISABLED' || normalized === 'DISABLED SENSOR';
+}
+
+function isSensorDisabled(sensor) {
+  return isDisabledStatus(sensor?.status);
 }
 
 /* ─── Status bar ────────────────────────────────────────── */
@@ -359,7 +386,7 @@ function renderServerTags() {
   }
   el.innerHTML = servers.map(s => {
     const sensors = serverOverviewRows(s).filter(sensor =>
-      !sensor.status || sensor.status.toUpperCase() !== 'DISABLED'
+      !isSensorDisabled(sensor)
     );
     const complete = sensors.length > 0 && getProgressBreakdown(sensors).remaining === 0;
     return `
@@ -468,7 +495,7 @@ function buildServerOverviewTable(sectionKey, title, rows, columns, emptyText, m
 
 function getVisibleSensors(sensors = allSensors) {
   const showDisabled = document.getElementById('show-disabled')?.checked;
-  return sensors.filter(sensor => showDisabled || !sensor.status || sensor.status.toUpperCase() !== 'DISABLED');
+  return sensors.filter(sensor => showDisabled || !isSensorDisabled(sensor));
 }
 
 function isCompletedSensor(sensor) {
@@ -526,7 +553,7 @@ function renderServerOverview(server) {
   if (!body || !title) return;
 
   const all = serverOverviewRows(server);
-  const enabled = all.filter(sensor => !sensor.status || sensor.status.toUpperCase() !== 'DISABLED');
+  const enabled = all.filter(sensor => !isSensorDisabled(sensor));
   const calibrated = enabled.filter(sensor => isCalibrated(sensor) && !isExcepted(sensor));
   const remaining = enabled.filter(sensor => !isCalibrated(sensor) && !isExcepted(sensor));
   const failures = enabled.filter(isFailed);
@@ -979,10 +1006,10 @@ let hasCelebratedCompletion = false;
 /* ─── Metrics ───────────────────────────────────────────── */
 function renderMetrics() {
   const sensors = allSensors.filter(s =>
-    (!s.status || s.status.toUpperCase() !== 'DISABLED') && !isExcepted(s)
+    !isSensorDisabled(s) && !isExcepted(s)
   );
   const progressSensors = allSensors.filter(s =>
-    !s.status || s.status.toUpperCase() !== 'DISABLED'
+    !isSensorDisabled(s)
   );
   const progress = getProgressBreakdown(progressSensors);
   const total = sensors.length; //total enabled sensors
@@ -1013,11 +1040,7 @@ function renderMetrics() {
   const calibrationTooltip = getDisabledCalibrationTooltip(disabledCalibrated.length);
   const calibrationTooltipAttr = calibrationTooltip ? ` title="${calibrationTooltip}"` : '';
   const excepted = allSensors.filter(isExcepted).length;
-  const check = allSensors.filter(s =>   //sensors in check
-    s.status?.toUpperCase() === 'ENABLED' &&
-    s.quality &&
-    s.quality.toUpperCase() !== 'GOOD'
-  ).length;
+  const check = getCheckSensorRows().length;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const yesterday = new Date(today);
@@ -1233,7 +1256,7 @@ function getCurrentExceptionRows() {
       ...exception,
       cp_address: sensor?.cp_address || exception.cp_address || '',
       _sensor_type: sensor?.sensor_type || '',
-      _disabled: sensor?.status?.toUpperCase() === 'DISABLED',
+      _disabled: isSensorDisabled(sensor),
       _failed: sensor ? isFailed(sensor) : false,
       _calibrated: sensor ? isCalibrated(sensor) : false,
       _repeat: prevIds.has(`${exception.sensor_id}|${exception.server}`),
@@ -1254,7 +1277,7 @@ function matchesExceptionFilters(exception, { includeAddedBy = true } = {}) {
 
 function getCheckSensorRows() {
   return allSensors.filter(sensor =>
-    sensor.status?.toUpperCase() === 'ENABLED' &&
+    !isSensorDisabled(sensor) &&
     sensor.quality &&
     sensor.quality.toUpperCase() !== 'GOOD'
   );
@@ -1281,7 +1304,7 @@ function applyFilters(rows, { includeTech = true } = {}) {
   const showDisabled = document.getElementById('show-disabled').checked;
 
   return rows.filter(s =>
-    (showDisabled || !s.status || s.status.toUpperCase() !== 'DISABLED') &&
+    (showDisabled || !isSensorDisabled(s)) &&
     (!tf || s.sensor_type === tf) &&
     (!sf || s.server === sf) &&
     (!includeTech || !tech || displayCalibratedBy(s.calibrated_by).trim().toLowerCase() === tech) &&
@@ -1314,7 +1337,8 @@ function clearPanelSearch() {
 function applySort(rows) { //sort for main tables
   if (!sortCol) return rows;
   return [...rows].sort((a, b) => {
-    let av = a[sortCol] ?? '', bv = b[sortCol] ?? '';
+    let av = sortCol === 'status' && isSensorDisabled(a) ? 'DISABLED' : a[sortCol] ?? '';
+    let bv = sortCol === 'status' && isSensorDisabled(b) ? 'DISABLED' : b[sortCol] ?? '';
     const an = parseFloat(av), bn = parseFloat(bv);
     if (!isNaN(an) && !isNaN(bn)) { av = an; bv = bn; }
     if (av < bv) return -sortDir;
@@ -1509,6 +1533,7 @@ function displayCalibratedBy(value) {
 
 function sensorDetailSortValue(sensor, key) {
   if (key === '_exception') return isExcepted(sensor) ? 1 : 0;
+  if (key === 'status' && isSensorDisabled(sensor)) return 'DISABLED';
   return sensor[key] ?? '';
 }
 
@@ -1571,7 +1596,7 @@ function buildSensorTable(rows, detailKey = null) {
       : (s.sensor_name || '<span class="muted">—</span>');
     const excepted = isExcepted(s);
     const repeated = wasExceptedLastYear(s);
-    const disabled = s.status?.toUpperCase() === 'DISABLED';
+    const disabled = isSensorDisabled(s);
     const excBtn = disabled
       ? `<span class="qual exception-disabled-flag" style="cursor:default;">${excepted ? 'disabled exception' : 'disabled'}</span>`
       : excepted
@@ -1784,7 +1809,7 @@ function renderTable() {
   if (currentTab === 'exceptions') {
     const matchingExceptions = getCurrentExceptionRows().filter(matchesExceptionFilters);
     const disabledExceptionCount = matchingExceptions.filter(e =>
-      findSensor(e.sensor_id, e.server)?.status?.toUpperCase() === 'DISABLED'
+      isSensorDisabled(findSensor(e.sensor_id, e.server))
     ).length;
     title.textContent = `Exceptions ${CURRENT_YEAR}`;
     count.textContent = `${matchingExceptions.length}${disabledExceptionCount ? ` · ${disabledExceptionCount} disabled — remove` : ''}`;
@@ -1829,7 +1854,7 @@ function renderTable() {
 
   if (currentTab === 'calibrated') {
     const disabledCalibratedCount = rows.filter(s =>
-      s.status?.toUpperCase() === 'DISABLED'
+      isSensorDisabled(s)
     ).length;
     const calibrationTooltip = getDisabledCalibrationTooltip(disabledCalibratedCount);
     if (calibrationTooltip) {
@@ -2277,7 +2302,7 @@ function openExceptionModal(sensor_id, server) {
   if (historicalRunId) return;
   const sensor = findSensor(sensor_id, server);
   if (!sensor) return;
-  if (sensor.status?.toUpperCase() === 'DISABLED') {
+  if (isSensorDisabled(sensor)) {
     alert('Disabled sensors cannot be added as exceptions.');
     return;
   }
@@ -2353,7 +2378,7 @@ function closeExceptionModal() {
 async function saveException(sensor_id, server) {
   if (historicalRunId) return;
   const sensor = findSensor(sensor_id, server);
-  if (sensor?.status?.toUpperCase() === 'DISABLED') {
+  if (isSensorDisabled(sensor)) {
     alert('This sensor is now disabled and cannot be saved as an exception.');
     closeExceptionModal();
     return;
@@ -2437,7 +2462,7 @@ function openAddExceptionModal() {
   if (historicalRunId) return;
 
   const cpAddresses = [...new Set(allSensors
-    .filter(sensor => sensor.status?.toUpperCase() !== 'DISABLED' && sensor.cp_address)
+    .filter(sensor => !isSensorDisabled(sensor) && sensor.cp_address)
     .map(sensor => String(sensor.cp_address).trim())
     .filter(Boolean))]
     .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
@@ -2506,7 +2531,7 @@ function updateNewExceptionServers() {
   const cp = document.getElementById('new-exc-cp')?.value.trim().toLowerCase();
   const matches = allSensors.filter(sensor =>
     String(sensor.cp_address || '').trim().toLowerCase() === cp &&
-    sensor.status?.toUpperCase() !== 'DISABLED'
+    !isSensorDisabled(sensor)
   );
   const wrap = document.getElementById('new-exc-server-wrap');
   const select = document.getElementById('new-exc-server');
@@ -2533,7 +2558,7 @@ async function saveNewException() {
   const added_by = addedByInput.value;
   const matches = allSensors.filter(sensor =>
     String(sensor.cp_address || '').trim().toLowerCase() === cp.toLowerCase() &&
-    sensor.status?.toUpperCase() !== 'DISABLED'
+    !isSensorDisabled(sensor)
   );
   const selectedServer = document.getElementById('new-exc-server')?.value;
   const sensor = matches.length > 1
@@ -2702,7 +2727,7 @@ let jobInfoLoaded = false;
 let autoSavedCompletionKey = null;
 
 function detectHardware(sourceSensors = allSensors) {
-  const active = sourceSensors.filter(s => s.status?.toUpperCase() === 'ENABLED');
+  const active = sourceSensors.filter(s => !isSensorDisabled(s));
   let hasArms = false, hasGuardian = false;
   for (const s of active) {
     const cp = s.cp_address || '';
@@ -2717,7 +2742,7 @@ function detectHardware(sourceSensors = allSensors) {
 
 function detectMeters() {
   const types = new Set(allSensors
-    .filter(s => s.status?.toUpperCase() === 'ENABLED')
+    .filter(s => !isSensorDisabled(s))
     .map(s => (s.sensor_type || '').toUpperCase())
   );
   const meters = ['RE'];
@@ -2729,7 +2754,7 @@ function detectMeters() {
 
 function detectO2Count() {
   return allSensors.filter(s =>
-    s.status?.toUpperCase() === 'ENABLED' &&
+    !isSensorDisabled(s) &&
     (s.sensor_type || '').toUpperCase().includes('O2')
   ).length;
 }
@@ -2814,7 +2839,7 @@ async function saveJobInfo({ silent = false, lastCalibrated = null } = {}) {
     const value = parseInt(el.value, 10);
     return Number.isNaN(value) ? null : value;
   };
-  const active  = allSensors.filter(s => s.status?.toUpperCase() === 'ENABLED');
+  const active  = allSensors.filter(s => !isSensorDisabled(s));
   const meters  = detectMeters();
   const hardware = detectHardware();
   const versions = [...new Set(servers.map(s => serverMeta[s]?.version).filter(Boolean))];
@@ -2889,7 +2914,7 @@ async function saveJobInfo({ silent = false, lastCalibrated = null } = {}) {
 };
 
 function buildJobInfoTab() {
-  const active   = allSensors.filter(s => s.status?.toUpperCase() === 'ENABLED');
+  const active   = allSensors.filter(s => !isSensorDisabled(s));
   const meters   = detectMeters();
   const hardware = detectHardware();
   const warning  = getCustomerWarning();
