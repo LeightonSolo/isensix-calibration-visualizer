@@ -368,6 +368,10 @@
     }
 
     /* ─── Print styles ────────────────────────────────────── */
+    @page {
+      margin: 0.3in;
+    }
+
     @media print {
       :root,
       :root[data-theme="dark"],
@@ -394,14 +398,48 @@
 
       #page { padding: 0; }
       #summary-doc {
+        width: 100%;
         border: none;
         padding: 0;
         gap: 14px;
       }
 
-      .summary-tables { gap: 10px; }
-
-      
+      .summary-tables {
+        display: block;
+      }
+      .summary-section-full { grid-column: auto; }
+      .summary-section,
+      .sum-table-wrap { min-width: 0; }
+      .summary-section { margin-bottom: 10px; }
+      .summary-section-header {
+        break-after: avoid-page;
+        page-break-after: avoid;
+      }
+      .sum-table-wrap { overflow: visible; }
+      table.sum-table {
+        width: 100%;
+        max-width: 100%;
+        font-size: 11px;
+        break-inside: auto;
+        page-break-inside: auto;
+      }
+      table.failures-table {
+        table-layout: fixed;
+      }
+      table.failures-table col:nth-child(1) { width: 12% !important; }
+      table.failures-table col:nth-child(2) { width: 38% !important; }
+      table.failures-table col:nth-child(3) { width: 32% !important; }
+      table.failures-table col:nth-child(4) { width: 18% !important; }
+      table.sum-table td,
+      table.sum-table th {
+        white-space: normal;
+        overflow-wrap: anywhere;
+        padding: 1px 3px;
+      }
+      table.sum-table tr {
+        break-inside: avoid-page;
+        page-break-inside: avoid;
+      }
 
       #sig-canvas { background: #f9f9f9; }
       .sig-controls { display: none !important; }
@@ -409,8 +447,6 @@
       /* Show static sig value instead of canvas when printing */
       #sig-static { display: block !important; }
 
-      table.sum-table { page-break-inside: avoid; }
-      .summary-section { page-break-inside: avoid; }
     }
 
     #sig-static {
@@ -899,7 +935,7 @@ function buildFailTable(rows) {
         <span class="summary-section-count">${rows.length}</span>
       </div>
       <div class="sum-table-wrap">
-      <table class="sum-table">
+      <table class="sum-table failures-table">
         <thead><tr>
           <th style="width:70px;">CP Addr</th>
           <th>Sensor Name</th>
