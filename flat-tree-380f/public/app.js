@@ -495,7 +495,11 @@ function buildServerOverviewTable(sectionKey, title, rows, columns, emptyText, m
 
 function getVisibleSensors(sensors = allSensors) {
   const showDisabled = document.getElementById('show-disabled')?.checked;
-  return sensors.filter(sensor => showDisabled || !isSensorDisabled(sensor));
+  const selectedServer = document.getElementById('server-filter')?.value || '';
+  return sensors.filter(sensor =>
+    (showDisabled || !isSensorDisabled(sensor)) &&
+    (!selectedServer || String(sensor.server) === selectedServer)
+  );
 }
 
 function isCompletedSensor(sensor) {
@@ -1141,12 +1145,12 @@ function populateFilters() {
   const types = [...new Set(allSensors.map(s => s.sensor_type).filter(Boolean))].sort();
   const tf = document.getElementById('type-filter');
   const curType = tf.value;
-  tf.innerHTML = '<option value="">All types</option>'
+  tf.innerHTML = '<option value="">All Types</option>'
     + types.map(t => `<option value="${t}"${t === curType ? ' selected' : ''}>${t}</option>`).join('');
 
   const sf = document.getElementById('server-filter');
   const curSrv = sf.value;
-  sf.innerHTML = '<option value="">All servers</option>'
+  sf.innerHTML = '<option value="">All Servers</option>'
     + servers.map(s => `<option value="${s}"${s === curSrv ? ' selected' : ''}>${s}</option>`).join('');
 
 }
@@ -1704,7 +1708,10 @@ function buildProgressBar(row) {
 }
 
 function buildZonesTable() {
-  const sensors = getVisibleSensors();
+  const selectedType = document.getElementById('type-filter')?.value || '';
+  const sensors = getVisibleSensors().filter(sensor =>
+    !selectedType || sensor.sensor_type === selectedType
+  );
   const zoneGroups = new Map();
   sensors.forEach(sensor => {
     if (!sensor.zone) return;
@@ -1771,10 +1778,12 @@ function renderTable() {
   panelHeader?.removeAttribute('title');
 
   const showFilter = ['left','calibrated','failures','all'].includes(currentTab);
-  const showSharedFilters = showFilter || currentTab === 'exceptions' || currentTab === 'check';
+  const showBreakdownFilters = currentTab === 'types' || currentTab === 'zones';
+  const showSharedFilters = showFilter || showBreakdownFilters || currentTab === 'exceptions' || currentTab === 'check';
   document.getElementById('filter-bar').style.display = showSharedFilters ? 'flex' : 'none';
-  document.querySelector('#server-filter option[value=""]').textContent =
-    currentTab === 'exceptions' || currentTab === 'check' ? 'All SIDs' : 'All servers';
+  document.querySelector('#server-filter option[value=""]').textContent = 'All Servers';
+  document.getElementById('type-filter').style.display =
+    showFilter || currentTab === 'zones' ? 'inline-block' : 'none';
   document.getElementById('tech-filter').style.display = showFilter ? 'inline-block' : 'none';
   document.getElementById('exception-added-by-filter').style.display = currentTab === 'exceptions' ? 'inline-block' : 'none';
   document.getElementById('check-quality-filter').style.display = currentTab === 'check' ? 'inline-block' : 'none';
