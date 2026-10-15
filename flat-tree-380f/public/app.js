@@ -1011,6 +1011,258 @@ function updateLatestCalibration() {
 
 let hasCelebratedCompletion = false;
 
+let dashboardAnnouncementMessages = [];
+let dashboardAnnouncementIndex = -1;
+let dashboardAnnouncementTimer = null;
+let dashboardAnnouncementTransitionTimer = null;
+let dashboardAnnouncementDeadline = 0;
+let dashboardAnnouncementRemaining = 0;
+let currentDashboardAnnouncement = null;
+const dismissedDashboardMessageIds = new Set();
+let previousDashboardMilestoneSnapshot = null;
+const announcedDashboardMilestones = new Set();
+const dashboardEasterEggStorageKey = 'cal_dashboard_easter_egg';
+let dashboardEasterEggState = null;
+
+function getDashboardLocalDate(now = new Date()) {
+  const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  return date;
+}
+
+function isDashboardMessageActive(message, now = new Date()) {
+  const date = getDashboardLocalDate(now);
+  const monthDay = date.slice(5);
+  return (!message.startsOn || message.startsOn <= date) &&
+    (!message.endsOn || message.endsOn >= date) &&
+    (!message.annualDate || message.annualDate === monthDay);
+}
+
+function clearDashboardAnnouncementTimer() {
+  if (dashboardAnnouncementTimer !== null) clearTimeout(dashboardAnnouncementTimer);
+  dashboardAnnouncementTimer = null;
+}
+
+function hideDashboardAnnouncement() {
+  clearDashboardAnnouncementTimer();
+  currentDashboardAnnouncement = null;
+  const banner = document.getElementById('dashboard-announcement');
+  if (!banner || banner.hidden) return;
+  if (dashboardAnnouncementTransitionTimer !== null) {
+    clearTimeout(dashboardAnnouncementTransitionTimer);
+    dashboardAnnouncementTransitionTimer = null;
+  }
+  if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    banner.classList.add('is-changing');
+    dashboardAnnouncementTransitionTimer = setTimeout(() => {
+      dashboardAnnouncementTransitionTimer = null;
+      banner.hidden = true;
+      banner.classList.remove('is-changing');
+    }, 600);
+    return;
+  }
+  banner.hidden = true;
+}
+
+function scheduleDashboardAnnouncementAdvance(duration) {
+  dashboardAnnouncementRemaining = duration;
+  dashboardAnnouncementDeadline = Date.now() + duration;
+  if (document.visibilityState === 'hidden') return;
+  clearDashboardAnnouncementTimer();
+  dashboardAnnouncementTimer = setTimeout(() => {
+    dashboardAnnouncementTimer = null;
+    advanceDashboardAnnouncement();
+  }, duration);
+}
+
+function showDashboardAnnouncement(message, priority = Boolean(message.priority)) {
+  const banner = document.getElementById('dashboard-announcement');
+  const text = document.getElementById('dashboard-announcement-text');
+  if (!banner || !text) return;
+
+  clearDashboardAnnouncementTimer();
+  if (dashboardAnnouncementTransitionTimer !== null) {
+    clearTimeout(dashboardAnnouncementTransitionTimer);
+    dashboardAnnouncementTransitionTimer = null;
+  }
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const shouldFade = !reducedMotion && !banner.hidden && text.textContent !== message.text;
+  const renderMessage = () => {
+    currentDashboardAnnouncement = message;
+    banner.hidden = false;
+    banner.classList.toggle('dashboard-announcement--priority', priority);
+    text.textContent = message.text;
+    text.title = message.text;
+    if (message.isEasterEgg && dashboardEasterEggState) {
+      dashboardEasterEggState.shown = true;
+      localStorage.setItem(dashboardEasterEggStorageKey, JSON.stringify(dashboardEasterEggState));
+      dismissedDashboardMessageIds.add(message.id);
+    }
+    const duration = priority
+      ? CONFIG.DASHBOARD_PRIORITY_MESSAGE_INTERVAL_MS
+      : CONFIG.DASHBOARD_MESSAGE_INTERVAL_MS;
+    scheduleDashboardAnnouncementAdvance(duration);
+  };
+
+  if (shouldFade) {
+    banner.classList.add('is-changing');
+    dashboardAnnouncementTransitionTimer = setTimeout(() => {
+      dashboardAnnouncementTransitionTimer = null;
+      renderMessage();
+      requestAnimationFrame(() => banner.classList.remove('is-changing'));
+    }, 600);
+  } else {
+    const shouldFadeIn = !reducedMotion && banner.hidden;
+    banner.classList.toggle('is-changing', shouldFadeIn);
+    renderMessage();
+    if (shouldFadeIn) requestAnimationFrame(() => banner.classList.remove('is-changing'));
+  }
+}
+
+function advanceDashboardAnnouncement() {
+  if (!dashboardAnnouncementMessages.length) {
+    hideDashboardAnnouncement();
+    return;
+  }
+  for (let offset = 1; offset <= dashboardAnnouncementMessages.length; offset++) {
+    const index = (dashboardAnnouncementIndex + offset) % dashboardAnnouncementMessages.length;
+    const message = dashboardAnnouncementMessages[index];
+    if (dismissedDashboardMessageIds.has(message.id)) continue;
+    dashboardAnnouncementIndex = index;
+    showDashboardAnnouncement(message);
+    return;
+  }
+  hideDashboardAnnouncement();
+}
+
+function initializeDashboardAnnouncements() {
+  dashboardAnnouncementMessages = (CONFIG.DASHBOARD_MESSAGES || [])
+    .filter(message => message.id && message.text && isDashboardMessageActive(message));
+  const today = getDashboardLocalDate();
+  const savedEasterEggState = JSON.parse(localStorage.getItem(dashboardEasterEggStorageKey) || 'null');
+  if (savedEasterEggState?.date === today) {
+    dashboardEasterEggState = savedEasterEggState;
+  } else {
+    const chance = Math.min(1, Math.max(0, Number(CONFIG.DASHBOARD_EASTER_EGG_DAILY_CHANCE) || 0));
+    const availableEasterEggs = (CONFIG.DASHBOARD_EASTER_EGGS || [])
+      .filter(message => message.id && message.text && isDashboardMessageActive(message));
+    const selectedEasterEgg = availableEasterEggs.length && Math.random() < chance
+      ? availableEasterEggs[Math.floor(Math.random() * availableEasterEggs.length)]
+      : null;
+    dashboardEasterEggState = {
+      date: today,
+      id: selectedEasterEgg?.id || null,
+      shown: false,
+    };
+    localStorage.setItem(dashboardEasterEggStorageKey, JSON.stringify(dashboardEasterEggState));
+  }
+  if (dashboardEasterEggState.id && !dashboardEasterEggState.shown) {
+    const selectedEasterEgg = (CONFIG.DASHBOARD_EASTER_EGGS || [])
+      .find(message => message.id === dashboardEasterEggState.id &&
+        message.text && isDashboardMessageActive(message));
+    if (selectedEasterEgg) {
+      const message = { ...selectedEasterEgg, id: `easter-egg-${selectedEasterEgg.id}`, isEasterEgg: true };
+      const position = Math.floor(Math.random() * (dashboardAnnouncementMessages.length + 1));
+      dashboardAnnouncementMessages.splice(position, 0, message);
+    }
+  }
+  if (dashboardAnnouncementMessages.length) {
+    const firstIndex = Math.floor(Math.random() * dashboardAnnouncementMessages.length);
+    dashboardAnnouncementIndex = (firstIndex - 1 + dashboardAnnouncementMessages.length) %
+      dashboardAnnouncementMessages.length;
+  }
+  document.getElementById('dashboard-announcement-dismiss')?.addEventListener('click', () => {
+    if (currentDashboardAnnouncement?.id) {
+      dismissedDashboardMessageIds.add(currentDashboardAnnouncement.id);
+    }
+    advanceDashboardAnnouncement();
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      if (dashboardAnnouncementTimer !== null) {
+        dashboardAnnouncementRemaining = Math.max(0, dashboardAnnouncementDeadline - Date.now());
+        clearDashboardAnnouncementTimer();
+      }
+    } else if (currentDashboardAnnouncement && dashboardAnnouncementTimer === null) {
+      scheduleDashboardAnnouncementAdvance(dashboardAnnouncementRemaining);
+    }
+  });
+  advanceDashboardAnnouncement();
+}
+
+function evaluateDashboardMilestones(progress) {
+  if (!progress.total) return;
+  const currentSnapshot = {
+    percent: (progress.calibrated / progress.total) * 100,
+    calibrated: progress.calibrated,
+    completedServers: new Map(),
+  };
+
+  servers.forEach(server => {
+    const enabled = serverOverviewRows(server).filter(sensor => !isSensorDisabled(sensor));
+    const serverProgress = getProgressBreakdown(enabled);
+    currentSnapshot.completedServers.set(
+      String(server),
+      serverProgress.total > 0 && serverProgress.remaining === 0
+    );
+  });
+
+  if (!previousDashboardMilestoneSnapshot) {
+    previousDashboardMilestoneSnapshot = currentSnapshot;
+    return;
+  }
+
+  const reached = [];
+  (CONFIG.DASHBOARD_PROGRESS_MILESTONES || []).forEach(milestone => {
+    if (milestone.type === 'percent' &&
+        previousDashboardMilestoneSnapshot.percent < milestone.value &&
+        currentSnapshot.percent >= milestone.value &&
+        !announcedDashboardMilestones.has(milestone.id)) {
+      reached.push({ ...milestone });
+      announcedDashboardMilestones.add(milestone.id);
+    } else if (milestone.type === 'calibrated-count' &&
+        previousDashboardMilestoneSnapshot.calibrated < milestone.value &&
+        currentSnapshot.calibrated >= milestone.value &&
+        !announcedDashboardMilestones.has(milestone.id)) {
+      reached.push({ ...milestone });
+      announcedDashboardMilestones.add(milestone.id);
+    } else if (milestone.type === 'server-complete') {
+      currentSnapshot.completedServers.forEach((complete, server) => {
+        const key = `${milestone.id}:${server}`;
+        if (complete &&
+            previousDashboardMilestoneSnapshot.completedServers.get(server) === false &&
+            !announcedDashboardMilestones.has(key)) {
+          reached.push({
+            ...milestone,
+            id: key,
+            text: milestone.text.replaceAll('{server}', server),
+          });
+          announcedDashboardMilestones.add(key);
+        }
+      });
+    }
+  });
+  previousDashboardMilestoneSnapshot = currentSnapshot;
+
+  const milestone = reached.find(item => item.type === 'server-complete')
+    || reached.find(item => item.type === 'calibrated-count')
+    || reached.filter(item => item.type === 'percent').sort((a, b) => b.value - a.value)[0];
+  if (!milestone) return;
+
+  const accompanyingMessages = reached
+    .filter(item => item !== milestone && ['server-complete', 'calibrated-count'].includes(item.type))
+    .map(item => item.text);
+  const announcement = {
+    ...milestone,
+    text: [milestone.text, ...accompanyingMessages].join(' '),
+    priority: true,
+  };
+  showDashboardAnnouncement(announcement, true);
+  if (reached.some(item => item.celebrate) &&
+      !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    fireConfettiFromElement('#dashboard-announcement', 50);
+  }
+}
+
 
 /* ─── Metrics ───────────────────────────────────────────── */
 function renderMetrics() {
@@ -1125,6 +1377,8 @@ function renderMetrics() {
         </div>
       </div>
     </div>`;
+
+    evaluateDashboardMilestones(progress);
 
     if (left === 0 && cal > 0) {
       if (!hasCelebratedCompletion) {
@@ -3124,7 +3378,7 @@ function buildJobInfoHTML() {
 
 
 // A targeted confetti function
-function fireConfettiFromElement(elementSelector) {
+function fireConfettiFromElement(elementSelector, particleCount = 150) {
   const element = document.querySelector(elementSelector);
   
   if (!element) {
@@ -3145,7 +3399,7 @@ function fireConfettiFromElement(elementSelector) {
 
   // Fire the confetti using the newly calculated relative coordinates
   confetti({
-    particleCount: 150,
+    particleCount,
     spread: 40,
     origin: { x: xRelative, y: yRelative },
     zIndex: 9999,
@@ -3311,6 +3565,7 @@ document.addEventListener('keydown', event => {
   if (event.key === 'Escape' && activeServerOverview) closeServerOverview();
 });
 
+initializeDashboardAnnouncements();
 renderServerTags();
 if (servers.length > 0) siteReady.then(() => loadData()).catch(error => console.error(error));
 else { showEmpty(true); renderMetrics(); }

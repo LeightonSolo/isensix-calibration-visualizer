@@ -65,7 +65,7 @@
     <datalist id="server-suggestions"></datalist>
     <button class="primary" onclick="addServer()">Add server</button>
     <button onclick="loadData()"><i class="ti ti-refresh"></i> Refresh</button>
-    <button id="auto-refresh-btn" onclick="toggleAutoRefresh()" title="Reload every 3 minutes (automatically stops after 8 hours)">⏱ Auto-refresh: Off</button>
+    <button id="auto-refresh-btn" onclick="toggleAutoRefresh()" title="Refresh data every 3 minutes (automatically stops after 8 hours)">⏱ Auto-refresh: Off</button>
     <!-- <button id="threshold-btn" onclick="toggleSettings()" title="Configure failure thresholds"><i class="ti ti-adjustments-horizontal"></i> Thresholds</button> -->
     <!-- <button id="server-config-btn" onclick="toggleServerConfig()" title="Configure servers"><i class="ti ti-server-2"></i> All Servers</button> -->
     <button id="settings-btn" onclick="toggleSettings()"><i class="ti ti-settings"></i> Settings</button>
@@ -188,10 +188,15 @@
     <button class="tab-btn" data-tab="types">By Type</button>
     <button class="tab-btn" data-tab="zones">By Zone</button>
     <button class="tab-btn" data-tab="all">All Sensors</button>
-    <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-secondary);cursor:pointer;">
-    <input type="checkbox" id="show-disabled" onchange="renderTable(); refreshDetailViews();" style="cursor:pointer;"/>
-    Show disabled
+    <label class="show-disabled-toggle">
+      <input type="checkbox" id="show-disabled" onchange="renderTable(); refreshDetailViews();"/>
+      Show disabled
     </label>
+    <div id="dashboard-announcement" class="dashboard-announcement" role="status" aria-live="polite" aria-atomic="true" hidden>
+      <span class="dashboard-announcement-icon" aria-hidden="true">i</span>
+      <span id="dashboard-announcement-text" class="dashboard-announcement-text"></span>
+      <button id="dashboard-announcement-dismiss" type="button" aria-label="Dismiss this dashboard message">&times;</button>
+    </div>
     <button class="tab-btn right" data-tab="jobinfo">Job Info</button>
   </div>
 
