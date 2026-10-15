@@ -583,6 +583,9 @@ function renderServerOverview(server) {
   }).length;
   const meta = serverMeta[server] || {};
   const progress = getProgressBreakdown(enabled);
+  const progressPercent = progress.total
+    ? Math.round(((progress.total - progress.remaining) / progress.total) * 100)
+    : 0;
   const breakdownSensors = getVisibleSensors(all);
   const zones = groupServerOverviewRows(breakdownSensors, 'zone');
   const types = groupServerOverviewRows(breakdownSensors, 'sensor_type');
@@ -602,7 +605,7 @@ function renderServerOverview(server) {
       <span>Version <strong>${escapeHtml(meta.version || 'Unknown')}</strong></span>
       <span>Hardware <strong>${escapeHtml(detectHardware(all))}</strong></span>
       <span>Latest calibration <strong>${latest ? formatOverviewDate(latest.calibrated_at) : '—'}</strong></span>
-      <span class="server-overview-progress"><strong>Progress</strong>${buildProgressBar(progress)}</span>
+      <span class="server-overview-progress"><strong>Progress</strong>${buildProgressBar(progress)}<span class="server-overview-progress-percent">${progressPercent}%</span></span>
     </div>
 
     <div class="server-overview-metrics">

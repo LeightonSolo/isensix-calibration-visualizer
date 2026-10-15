@@ -618,6 +618,12 @@ body.server-overview-open { overflow: hidden; }
   width: 120px;
 }
 
+.server-overview-progress-percent {
+  color: var(--text-primary);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 .server-overview-metrics {
   display: grid;
   grid-template-columns: repeat(8, minmax(88px, 1fr));
