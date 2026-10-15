@@ -101,11 +101,13 @@ function showPage(page) {
     document.getElementById("resources-page").style.display =
         page === "resources" ? "" : "none";
 
-    document.getElementById("about-page").style.display =
-        page === "about" ? "" : "none";
-
     document.querySelectorAll("#navbar .nav-btn[data-page]").forEach(b => {
-        b.classList.toggle("active", b.dataset.page === 'dashboard' && ['dashboard', 'resources'].includes(page));
+        const isActive = b.dataset.page === 'dashboard'
+            ? ['dashboard', 'resources'].includes(page)
+            : b.dataset.page === page;
+        b.classList.toggle("active", isActive);
+        if (isActive) b.setAttribute('aria-current', 'page');
+        else b.removeAttribute('aria-current');
     });
     document.getElementById("topbar").style.display =
         page === "dashboard" ? "" : "none";
@@ -3104,7 +3106,7 @@ function buildJobInfoHTML() {
       ${historicalRunId ? '<span style="font-size:12px;color:var(--text-muted);">Historical run · read-only</span>' : '<button class="primary" onclick="saveJobInfo()">Save job info</button>'}
       <a href="jobs.html?job=${encodeURIComponent(currentCustomer || '')}" target="_blank" rel="noopener noreferrer" style="color:var(--accent-light-blue);font-size:12px;">Open full job record</a>
       <span id="ji-save-status" style="font-size:14px;color:var(--accent-green);font-weight:600;"></span>
-      <button class="nav-btn job-info-about-button" type="button" data-page="about" onclick="showPage('about')"><i class="ti ti-info-circle"></i> About</button>
+      <button class="nav-btn job-info-about-button" type="button" onclick="showPage('resources')"><i class="ti ti-books"></i> Help &amp; Resources</button>
     </div>`;
 }
 
