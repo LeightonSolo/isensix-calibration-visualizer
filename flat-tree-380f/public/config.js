@@ -3,7 +3,7 @@ const CONFIG = {
   WORKER_URL: 'https://flat-tree-380f.leightonsolo.workers.dev',
   API_KEY: 'U87iy7VynFYLJUDnfUYBJHnRKbRiQO3Z', //public, both ends secured
   ROLLING_DAYS: 7,
-  DASHBOARD_MESSAGE_INTERVAL_MS: 1 * 60 * 1000, //3 minutes
+  DASHBOARD_MESSAGE_INTERVAL_MS: 1 * 60 * 1000, //1 minutes
   DASHBOARD_PRIORITY_MESSAGE_INTERVAL_MS: 9 * 60 * 1000, //9 minutes
   DASHBOARD_EASTER_EGG_DAILY_CHANCE: 1, //At most one easter egg shown per local day; 0.5 averages one every two days
   DASHBOARD_EASTER_EGGS: [
@@ -23,6 +23,7 @@ const CONFIG = {
     { id: 'tip-breakdown', text: 'In By Zone or By Type, click a row to see the sensors behind that breakdown.' },
     { id: 'tip-search', text: 'Search the current table by sensor name, zone, CP address, or access point.' },
     { id: 'tip-servers', text: 'Click on a server above to view its individual server overview.' },
+    { id: 'tip-disabledSensors', text: 'Sensors disabled after calibration increase the calibrated count but not job progress.' },
 
 
     { id: 'birthday-leighton', text: 'Happy birthday, Leighton!!!', annualDate: '09-17', priority: true },
@@ -30,6 +31,12 @@ const CONFIG = {
     { id: 'birthday-fer', text: 'Happy birthday, Fernando!!!', annualDate: '08-24', priority: true },
     { id: 'birthday-dejan', text: 'Happy birthday, Dejan!!!', annualDate: '05-04', priority: true },
     { id: 'birthday-matt', text: 'Happy birthday, Matt!!!', annualDate: '03-19', priority: true },
+    { id: 'birthday-daniel', text: 'Happy birthday, Daniel!!!', annualDate: '09-06', priority: true },     
+    { id: 'birthday-bissen', text: 'Happy birthday, Bissen!!!', annualDate: '01-01', priority: true },
+    { id: 'birthday-brendon', text: 'Happy birthday, Brendon!!!', annualDate: '04-07', priority: true },
+
+
+
     // Example birthday: { id: 'birthday-name', text: 'Happy birthday, Name!', annualDate: 'MM-DD', priority: true }
     // Example job update: { id: 'job-update', text: '...', startsOn: 'YYYY-MM-DD', endsOn: 'YYYY-MM-DD', priority: true }
   ],
