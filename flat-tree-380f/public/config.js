@@ -10,6 +10,7 @@ const CONFIG = {
     { id: '1', text: '"I don\'t care" - Matt' },
     { id: '2', text: '"OPA!" - Dejan' },
     { id: '3', text: '"Do it." - Fernando' },
+    { id: '4', text: '"I love talking to people!" - Bissen' },
     { id: 'calibration-joke', text: 'Make sure you calibrate correctly, or else you\'ll face DWYER consequences.', },
     { id: 'calibration-joke2', text: '"I thought my meter was broken, but it was just a Fluke."', },
 
@@ -19,12 +20,12 @@ const CONFIG = {
     { id: 'tip-refresh', text: 'If data looks stale, view the server page first, then refresh the dashboard.' },
     { id: 'calibration-tip2', text: 'Turn on Auto-refresh to see the latest calibration data every 3 minutes.',},
     { id: 'tip-rolling-window', text: 'The "Rolling Days" under Settings determines how far back to check for calibration.' },
-    { id: 'tip-disabled', text: 'Disabled sensors are hidden across the dashboard unless you turn on Show disabled.' },
+    { id: 'tip-disabled', text: '<-  Disabled sensors are hidden across the dashboard unless you turn on Show disabled.' },
     { id: 'tip-breakdown', text: 'In By Zone or By Type, click a row to see the sensors behind that breakdown.' },
-    { id: 'tip-search', text: 'Search the current table by sensor name, zone, CP address, or access point.' },
+    { id: 'tip-search', text: 'Search the current table by sensor name, zone, CP address, or access point.  ↓' },
     { id: 'tip-servers', text: 'Click on a server above to view its individual server overview.' },
     { id: 'tip-disabledSensors', text: 'Sensors disabled after calibration increase the calibrated count but not job progress.' },
-
+    { id: 'tip-jobInfo', text: 'Update Job Info and click save if there\'s anything worth knowing about this job!  ->' },
 
     { id: 'birthday-leighton', text: 'Happy birthday, Leighton!!!', annualDate: '09-17', priority: true },
     { id: 'birthday-joey', text: 'Happy birthday, Joey!!!', annualDate: '09-05', priority: true },
