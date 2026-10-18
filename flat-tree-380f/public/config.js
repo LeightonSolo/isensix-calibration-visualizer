@@ -5,7 +5,7 @@ const CONFIG = {
   ROLLING_DAYS: 7,
   DASHBOARD_MESSAGE_INTERVAL_MS: 1 * 60 * 1000, //1 minutes
   DASHBOARD_PRIORITY_MESSAGE_INTERVAL_MS: 9 * 60 * 1000, //9 minutes
-  DASHBOARD_EASTER_EGG_DAILY_CHANCE: 1, //At most one easter egg shown per local day; 0.5 averages one every two days
+  DASHBOARD_EASTER_EGG_DAILY_CHANCE: 0.5, //At most one easter egg shown per local day; 0.5 averages one every two days
   DASHBOARD_EASTER_EGGS: [
     { id: '1', text: '"I don\'t care" - Matt' },
     { id: '2', text: '"OPA!" - Dejan' },
@@ -17,13 +17,13 @@ const CONFIG = {
 
   ],
   DASHBOARD_MESSAGES: [
-    { id: 'tip-refresh', text: 'If data looks stale, view the server page first, then refresh the dashboard.' },
+    { id: 'tip-refresh', text: 'If data looks outdated, view the Isensix server, then refresh the dashboard.' },
     { id: 'calibration-tip2', text: 'Turn on Auto-refresh to see the latest calibration data every 3 minutes.',},
-    { id: 'tip-rolling-window', text: 'The "Rolling Days" under Settings determines how far back to check for calibration.' },
+    { id: 'tip-rolling-window', text: 'The "Rolling Days" under Settings sets how far back to check for calibration.' },
     { id: 'tip-disabled', text: '<-  Disabled sensors are hidden across the dashboard unless you turn on Show disabled.' },
-    { id: 'tip-breakdown', text: 'In By Zone or By Type, click a row to see the sensors behind that breakdown.' },
-    { id: 'tip-search', text: 'Search the current table by sensor name, zone, CP address, or access point.  ↓' },
-    { id: 'tip-servers', text: 'Click on a server above to view its individual server overview.' },
+    { id: 'tip-breakdown', text: 'In By Zone or By Type, click a row to see the sensors in that breakdown.' },
+    { id: 'tip-search', text: 'You can search the tables by sensor name, zone, CP address, or access point.  ↓' },
+    { id: 'tip-servers', text: 'Click on a server above to view its full server overview.' },
     { id: 'tip-disabledSensors', text: 'Sensors disabled after calibration increase the calibrated count but not job progress.' },
     { id: 'tip-jobInfo', text: 'Update Job Info and click save if there\'s anything worth knowing about this job!  ->' },
 
@@ -43,8 +43,8 @@ const CONFIG = {
   ],
   DASHBOARD_PROGRESS_MILESTONES: [
     { id: 'calibrated-25', type: 'percent', value: 25, text: '25% calibrated!', celebrate: true },
-    { id: 'calibrated-50', type: 'percent', value: 50, text: 'Halfway there! 50% calibrated.', celebrate: true },
-    { id: 'calibrated-75', type: 'percent', value: 75, text: '75% calibrated, — the end is in sight!', celebrate: true },
+    { id: 'calibrated-50', type: 'percent', value: 50, text: 'Halfway there, 50% calibrated!', celebrate: true },
+    { id: 'calibrated-75', type: 'percent', value: 75, text: '75% calibrated, the end is in sight!', celebrate: true },
     { id: 'calibrated-count-100', type: 'calibrated-count', value: 100, text: '100 sensors calibrated!' },
     { id: 'server-complete', type: 'server-complete', text: 'Server {server} is complete!' },
   ],
