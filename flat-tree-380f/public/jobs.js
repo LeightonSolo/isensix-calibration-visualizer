@@ -393,7 +393,7 @@
         api('/servers').catch(() => []),
         api('/admin/cms-sync/status').catch(() => null),
         api('/admin/cms-unassigned').catch(() => null),
-        api('/jobinfo/cms-sensor-history?limit=365').catch(() => []),
+        api('/jobinfo/cms-sensor-history?limit=730').catch(() => []),
       ]);
       state.serverMeta = Object.fromEntries((serverRows || []).map(row => [String(row.server), row]));
       state.cmsUnassigned = cmsUnassigned;
@@ -804,9 +804,13 @@
     const history = [...(state.cmsSensorHistory || [])].sort((a, b) => String(a.snapshot_date).localeCompare(String(b.snapshot_date)));
     const cards = $('cms-trend-cards');
     const body = $('cms-history-body');
+    const weeklyChart = $('cms-weekly-chart');
     if (!history.length) {
       cards.innerHTML = '<div class="jobs-empty">No CMS history is available yet. A snapshot will appear after the next successful CMS sync.</div>';
+      weeklyChart.innerHTML = '<div class="jobs-empty">No weekly sensor history is available yet.</div>';
       body.innerHTML = '<tr><td colspan="11">No CMS snapshots available.</td></tr>';
+      $('cms-history-count').textContent = '0 snapshots';
+      $('cms-history-caption').textContent = 'Daily active server and sensor totals';
       return;
     }
     const latest = history[history.length - 1];
@@ -824,7 +828,54 @@
       ['Servers seen', latest.servers_seen, `${Number(latest.servers_missing || 0).toLocaleString()} missing`],
     ];
     cards.innerHTML = summary.map(([label, value, extra]) => `<article class="panel analytics-card"><span>${label}</span><strong>${Number(value || 0).toLocaleString()}</strong><small>${extra}</small></article>`).join('');
-    body.innerHTML = history.slice(-90).reverse().map(row => `<tr>
+
+    const weekStart = date => {
+      const parsed = new Date(`${date}T00:00:00Z`);
+      if (!Number.isFinite(parsed.getTime())) return null;
+      const dayOffset = (parsed.getUTCDay() + 6) % 7;
+      parsed.setUTCDate(parsed.getUTCDate() - dayOffset);
+      return parsed.toISOString().slice(0, 10);
+    };
+    const weeklySnapshots = new Map();
+    history.filter(row => Number(row.sync_complete) === 1).forEach(row => {
+      const start = weekStart(row.snapshot_date);
+      if (start) weeklySnapshots.set(start, row);
+    });
+    const weekly = [...weeklySnapshots.entries()].sort(([left], [right]) => left.localeCompare(right));
+    const maxWeeklySensors = Math.max(1, ...weekly.map(([, row]) => Number(row.total_active_sensors) || 0));
+    const weekLabel = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' });
+    weeklyChart.innerHTML = weekly.length ? `<div class="cms-weekly-bars" role="list">${weekly.map(([start, row]) => {
+      const total = Math.max(0, Number(row.total_active_sensors) || 0);
+      const guardian = Math.max(0, Number(row.guardian_sensors) || 0);
+      const arms = Math.max(0, Number(row.arms_sensors) || 0);
+      const unknownValue = Number(row.unknown_sensors);
+      const unknown = Math.max(0, Number.isFinite(unknownValue) ? unknownValue : total - guardian - arms);
+      const barHeight = total ? Math.max(2, total / maxWeeklySensors * 120) : 0;
+      const percentage = count => total ? (count / total * 100).toFixed(1) : '0.0';
+      const tooltip = `Week of ${start} · ${total.toLocaleString()} total sensors · Guardian ${guardian.toLocaleString()} (${percentage(guardian)}%) · ARMS ${arms.toLocaleString()} (${percentage(arms)}%) · Unknown ${unknown.toLocaleString()} (${percentage(unknown)}%)`;
+      return `<div class="cms-weekly-column" role="listitem" aria-label="${escapeHtml(tooltip)}" title="${escapeHtml(tooltip)}">
+        <strong>${total.toLocaleString()}</strong>
+        <div class="cms-weekly-plot"><div class="cms-weekly-stack" style="height:${barHeight.toFixed(1)}px">
+          <span class="cms-weekly-segment cms-legend-guardian" style="height:${percentage(guardian)}%"></span>
+          <span class="cms-weekly-segment cms-legend-arms" style="height:${percentage(arms)}%"></span>
+          <span class="cms-weekly-segment cms-legend-unknown" style="height:${percentage(unknown)}%"></span>
+        </div></div>
+        <span>${weekLabel.format(new Date(`${start}T00:00:00Z`))}</span>
+      </div>`;
+    }).join('')}</div>` : '<div class="jobs-empty">No complete CMS snapshots are available for weekly trends.</div>';
+
+    const selectedRange = $('cms-history-range').value;
+    const latestSnapshotDate = history[history.length - 1].snapshot_date;
+    const rangeStart = selectedRange === 'all'
+      ? ''
+      : new Date(Date.parse(`${latestSnapshotDate}T00:00:00Z`) - (Number(selectedRange) - 1) * 86400000).toISOString().slice(0, 10);
+    const visibleHistory = history.filter(row => !rangeStart || String(row.snapshot_date) >= rangeStart);
+    const rangeLabel = selectedRange === 'all'
+      ? 'all loaded history'
+      : selectedRange === '7' ? 'last week' : `last ${selectedRange} days`;
+    $('cms-history-count').textContent = `Showing ${visibleHistory.length.toLocaleString()} of ${history.length.toLocaleString()} snapshots`;
+    $('cms-history-caption').textContent = `Daily active server and sensor totals — ${rangeLabel}`;
+    body.innerHTML = visibleHistory.reverse().map(row => `<tr>
       <td>${escapeHtml(row.snapshot_date)}</td>
       <td>${Number(row.active_servers || 0).toLocaleString()}</td>
       <td>${Number(row.total_active_sensors || 0).toLocaleString()}</td>
@@ -1027,6 +1078,7 @@
   $('clear-filters-btn').addEventListener('click', clearFilters);
   $('refresh-btn').addEventListener('click', loadData);
   $('export-btn').addEventListener('click', exportCsv);
+  $('cms-history-range').addEventListener('change', renderCmsSensorHistory);
   $('column-preset').addEventListener('change', event => { state.preset = event.target.value; renderTable(); });
   $('jobs-table-head').addEventListener('click', event => {
     if (event.target.closest('.column-resizer')) return;
