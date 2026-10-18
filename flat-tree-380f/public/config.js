@@ -4,7 +4,7 @@ const CONFIG = {
   API_KEY: 'U87iy7VynFYLJUDnfUYBJHnRKbRiQO3Z', //public, both ends secured
   ROLLING_DAYS: 7,
   DASHBOARD_MESSAGE_INTERVAL_MS: 1 * 60 * 1000, //1 minutes
-  DASHBOARD_PRIORITY_MESSAGE_INTERVAL_MS: 9 * 60 * 1000, //9 minutes
+  DASHBOARD_PRIORITY_MESSAGE_INTERVAL_MS: 5 * 60 * 1000, //5 minutes
   DASHBOARD_EASTER_EGG_DAILY_CHANCE: 0.5, //At most one easter egg shown per local day; 0.5 averages one every two days
   DASHBOARD_EASTER_EGGS: [
     { id: '1', text: '"I don\'t care" - Matt' },
@@ -20,7 +20,7 @@ const CONFIG = {
     { id: 'tip-refresh', text: 'If data looks outdated, view the Isensix server, then refresh the dashboard.' },
     { id: 'calibration-tip2', text: 'Turn on Auto-refresh to see the latest calibration data every 3 minutes.',},
     { id: 'tip-rolling-window', text: 'The "Rolling Days" under Settings sets how far back to check for calibration.' },
-    { id: 'tip-disabled', text: '<-  Disabled sensors are hidden across the dashboard unless you turn on Show disabled.' },
+    { id: 'tip-disabled', text: '<-  Disabled sensors are hidden unless you turn on Show disabled.' },
     { id: 'tip-breakdown', text: 'In By Zone or By Type, click a row to see the sensors in that breakdown.' },
     { id: 'tip-search', text: 'You can search the tables by sensor name, zone, CP address, or access point.  ↓' },
     { id: 'tip-servers', text: 'Click on a server above to view its full server overview.' },
