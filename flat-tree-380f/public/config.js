@@ -11,6 +11,10 @@ const CONFIG = {
     { id: '2', text: '"OPA!" - Dejan' },
     { id: '3', text: '"Do it." - Fernando' },
     { id: '4', text: '"I love talking to people!" - Bissen' },
+    { id: '5', text: '"How ya doin\'"" - Fernando' },
+    { id: '6', text: 'Brandon? Brendan? Brendon? No idea how its spelled.' },
+
+
     { id: 'calibration-joke', text: 'Make sure you calibrate correctly, or else you\'ll face DWYER consequences.', },
     { id: 'calibration-joke2', text: '"I thought my meter was broken, but it was just a Fluke."', },
 
@@ -18,7 +22,7 @@ const CONFIG = {
   ],
   DASHBOARD_MESSAGES: [
     { id: 'tip-refresh', text: 'If data looks outdated, view the Isensix server, then refresh the dashboard.' },
-    { id: 'calibration-tip2', text: 'Turn on Auto-refresh to see the latest calibration data every 3 minutes.',},
+    { id: 'calibration-tip2', text: 'Turn on Auto-refresh to see the latest calibration data every 3 minutes.'},
     { id: 'tip-rolling-window', text: 'The "Rolling Days" under Settings sets how far back to check for calibration.' },
     { id: 'tip-disabled', text: '<-  Disabled sensors are hidden unless you turn on Show disabled.' },
     { id: 'tip-breakdown', text: 'In By Zone or By Type, click a row to see the sensors in that breakdown.' },
