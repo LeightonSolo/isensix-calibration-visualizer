@@ -469,7 +469,8 @@ function getExceptionReason(s) {
   )?.reason || '—';
 }
 function isEnabled(s) {
-  return !s.status || s.status.toUpperCase() === 'ENABLED';
+  const status = String(s.status ?? '').trim().toUpperCase();
+  return status !== 'DISABLED' && status !== 'INACTIVE SENSOR';
 }
 function isInCheck(s) {
   return isEnabled(s) && s.quality && s.quality.toUpperCase() !== 'GOOD';
