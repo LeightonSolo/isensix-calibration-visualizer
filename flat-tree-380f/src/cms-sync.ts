@@ -390,7 +390,7 @@ export async function buildJobInfoPreview(db: D1Database, rows: NormalizedCmsSer
       server_version: versions.join(', '),
       hardware: guardianCount > 0 && armsCount > 0 ? 'Mix' : guardianCount > 0 ? 'Guardian' : armsCount > 0 ? 'ARMS' : null,
       credentials: suppliers.length ? suppliers.join(', ') : null,
-      active: group.some(row => row.active === 1) ? 1 : 0,
+      active: current?.active ?? (group.some(row => row.active === 1) ? 1 : 0),
     };
     const hasExistingCredentials = Boolean(current?.credentials?.trim());
     const credentialsAction: CmsJobInfoPreview['jobs'][number]['credentials_action'] = hasExistingCredentials

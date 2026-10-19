@@ -210,6 +210,26 @@ describe('CMS inventory normalization', () => {
     });
   });
 
+  it('preserves a user-inactivated Job Info record when its CMS servers are active', async () => {
+    const all = vi.fn()
+      .mockResolvedValueOnce({ results: [{ server: '916', customer: 'Quest Tucker' }] })
+      .mockResolvedValueOnce({ results: [{
+        job_name: 'Quest Tucker', servers: '916', sensors: 0, meters: 'RE', o2: 0,
+        server_version: 'ARMS', hardware: null, credentials: null, active: 0,
+      }] });
+    const db = { prepare: vi.fn().mockReturnValue({ all }) } as unknown as D1Database;
+    const activeServer = normalizeCmsInventoryRow({
+      customer_id: 916,
+      profile: 'A',
+      sensor_count_arms: 20,
+    });
+
+    const preview = await buildJobInfoPreview(db, [activeServer!]);
+
+    expect(preview.jobs[0].proposed.active).toBe(0);
+    expect(preview.jobs[0].changed_fields).not.toContain('active');
+  });
+
   it('preserves existing job_info credentials in the preview decision', async () => {
     const all = vi.fn()
       .mockResolvedValueOnce({ results: [{ server: '30', customer: 'CA Production' }] })
