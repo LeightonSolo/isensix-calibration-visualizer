@@ -356,7 +356,8 @@ export async function buildJobInfoPreview(db: D1Database, rows: NormalizedCmsSer
   const grouped = new Map<string, NormalizedCmsServer[]>();
   const unmatchedServers: CmsJobInfoPreview['unmatchedServers'] = [];
 
-  for (const row of rows) {
+  const activeRows = rows.filter(row => row.active === 1);
+  for (const row of activeRows) {
     const customer = jobByServer.get(row.customerId) ?? customerByServer.get(row.customerId);
     if (!customer) {
       unmatchedServers.push({
@@ -419,7 +420,7 @@ export async function buildJobInfoPreview(db: D1Database, rows: NormalizedCmsSer
 
   return {
     serversReceived: rows.length,
-    mappedServers: rows.length - unmatchedServers.length,
+    mappedServers: activeRows.length - unmatchedServers.length,
     unmatchedServers,
     jobs,
   };

@@ -166,6 +166,50 @@ describe('CMS inventory normalization', () => {
     });
   });
 
+  it('does not add inactive CMS profiles back to Job Info through the server customer mapping', async () => {
+    const all = vi.fn()
+      .mockResolvedValueOnce({
+        results: [
+          { server: '717', customer: 'Quest Tucker' },
+          { server: '718', customer: 'Quest Tucker' },
+        ],
+      })
+      .mockResolvedValueOnce({ results: [{
+        job_name: 'Quest Tucker', servers: '717', sensors: 10, meters: 'RE', o2: 0,
+        server_version: 'G2.0', hardware: 'Guardian', credentials: null, active: 1,
+      }] });
+    const db = { prepare: vi.fn().mockReturnValue({ all }) } as unknown as D1Database;
+    const activeServer = normalizeCmsInventoryRow({
+      customer_id: 717,
+      profile: 'A',
+      sensor_count_guardian: 10,
+      guardian_version: '2.0',
+    });
+    const inactiveServer = normalizeCmsInventoryRow({
+      customer_id: 718,
+      profile: 'X',
+      sensor_count_guardian: 93,
+      guardian_version: '2.0',
+    });
+
+    const preview = await buildJobInfoPreview(db, [activeServer!, inactiveServer!]);
+
+    expect(preview).toMatchObject({
+      serversReceived: 2,
+      mappedServers: 1,
+      unmatchedServers: [],
+      jobs: [{
+        source_profiles: ['A'],
+        proposed: {
+          job_name: 'Quest Tucker',
+          servers: '717',
+          sensors: 10,
+          active: 1,
+        },
+      }],
+    });
+  });
+
   it('preserves existing job_info credentials in the preview decision', async () => {
     const all = vi.fn()
       .mockResolvedValueOnce({ results: [{ server: '30', customer: 'CA Production' }] })
