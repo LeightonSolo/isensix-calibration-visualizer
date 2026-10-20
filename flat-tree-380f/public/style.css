@@ -18,10 +18,14 @@
   --bg-disabled-exception: rgba(140, 63, 199, 0.14);
   --bg-disabled-exception-hover: rgba(140, 63, 199, 0.24);
   --bg-header:     #111115;
-  --bg-tab-calibrated: rgb(0, 25, 0);
-  --bg-tab-failures: rgb(25, 0, 0);
-  --bg-tab-exceptions: rgb(31, 19, 0);
-  --bg-tab-check: rgb(5, 5, 5);
+  --bg-tab-remaining: color-mix(in srgb, var(--accent-light-blue) 18%, var(--bg-panel));
+  --bg-tab-calibrated: color-mix(in srgb, var(--accent-green) 18%, var(--bg-panel));
+  --bg-tab-failures: color-mix(in srgb, var(--accent-red) 18%, var(--bg-panel));
+  --bg-tab-exceptions: color-mix(in srgb, var(--accent-orange) 18%, var(--bg-panel));
+  --bg-tab-check: #2a3038;
+  --bg-tab-check-active: #526171;
+  --accent-orange-tab: #a85800;
+  --bg-progress-remaining: #6192d2;
 
   --border:        #2a2a35;
   --border-light:  #222230;
@@ -39,6 +43,7 @@
   --accent-blue:    #0445a0;
   --accent-light-blue:    #0060e7;
   --accent-purple:  #8c3fc7;
+  --accent-check:   #aeb9c8;
   --accent-quality-error: #aeb9c8;
 
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
@@ -68,10 +73,14 @@
   --bg-disabled-exception: #eadcf4;
   --bg-disabled-exception-hover: #dcc2ef;
   --bg-header:     #f1f3f5;
+  --bg-tab-remaining: #e3efff;
   --bg-tab-calibrated: #e8f4e3;
   --bg-tab-failures: #fae8e8;
   --bg-tab-exceptions: #f8eddc;
-  --bg-tab-check: #eceef1;
+  --bg-tab-check: #656565;
+  --bg-tab-check-active: #495055;
+  --accent-orange-tab: #a85800;
+  --bg-progress-remaining: #7cabe4;
 
   --border:        #cfd4dc;
   --border-light:  #e2e5ea;
@@ -89,6 +98,7 @@
   --accent-blue:    #1459ad;
   --accent-light-blue: #1264bd;
   --accent-purple:  #7132a3;
+  --accent-check:   #526171;
   --accent-quality-error: #526171;
 }
 
@@ -968,7 +978,7 @@ body.server-overview-open { overflow: hidden; }
   height: 6px;
   overflow: hidden;
   border-radius: 999px;
-  background: var(--border-light);
+  background: var(--bg-progress-remaining);
 }
 
 .status-progress-segment {
@@ -991,6 +1001,7 @@ body.server-overview-open { overflow: hidden; }
 
 .tab-btn {
   /*background: none;*/
+  position: relative;
   border: 0.5px solid var(--border);
   border-radius: var(--radius-md);
   color: var(--text-secondary);
@@ -998,15 +1009,61 @@ body.server-overview-open { overflow: hidden; }
   padding: 5px 10px;
 }
 .tab-btn:hover { color: var(--text-primary); background: var(--bg-row-hover); }
-.tab-btn.tab-calibrated { background-color: var(--bg-tab-calibrated); }
-.tab-btn.tab-failures { background-color: var(--bg-tab-failures); }
-.tab-btn.tab-exceptions { background-color: var(--bg-tab-exceptions); }
-.tab-btn.tab-check { background-color: var(--bg-tab-check); }
-.tab-btn.tab-errors { background-color: color-mix(in srgb, var(--accent-red) 12%, var(--bg-panel)); }
+.tab-btn.tab-remaining { background-color: var(--bg-tab-remaining); color: var(--accent-light-blue); }
+.tab-btn.tab-calibrated { background-color: var(--bg-tab-calibrated); color: var(--accent-green); }
+.tab-btn.tab-failures { background-color: var(--bg-tab-failures); color: var(--accent-red); }
+.tab-btn.tab-exceptions { background-color: var(--bg-tab-exceptions); color: var(--accent-orange-tab); }
+.tab-btn.tab-check { background-color: var(--bg-tab-check); color: #fff; }
+.tab-btn.tab-errors { background-color: color-mix(in srgb, var(--accent-red) 12%, var(--bg-panel)); color: var(--accent-red); }
+:root[data-theme="light"] .tab-btn.tab-check { color: #fff; }
 .tab-btn.active {
   background: var(--accent-blue);
   color: #fff;
   border-color: var(--border-strong);
+}
+.tab-btn.tab-remaining.active {
+  background: var(--bg-tab-remaining);
+  color: var(--accent-light-blue);
+  border-color: var(--accent-light-blue);
+}
+.tab-btn.tab-calibrated.active {
+  background: var(--bg-tab-calibrated);
+  color: var(--accent-green);
+  border-color: var(--accent-green);
+}
+.tab-btn.tab-exceptions.active {
+  background: var(--bg-tab-exceptions);
+  color: var(--accent-orange-tab);
+  border-color: var(--accent-orange-tab);
+}
+.tab-btn.tab-failures.active,
+.tab-btn.tab-errors.active {
+  background: var(--bg-tab-failures);
+  color: var(--accent-red);
+  border-color: var(--accent-red);
+}
+.tab-btn.tab-check.active {
+  background: var(--bg-tab-check-active);
+  color: #fff;
+  border-color: #fff;
+}
+:root[data-theme="light"] .tab-btn.tab-check.active {
+  border-color: #17191c;
+}
+.tab-btn.active::after {
+  position: absolute;
+  top: calc(100% + 1px);
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid;
+  border-bottom: 2px solid;
+  border-right-color: inherit;
+  border-bottom-color: inherit;
+  background: none;
+  content: "";
+  transform: translateX(-50%) rotate(45deg);
+  z-index: 2;
 }
 .tab-btn.right{
   /*background: none;*/
@@ -1213,13 +1270,23 @@ body.server-overview-open { overflow: hidden; }
   flex: 0 0 auto;
 }
 .panel-title {
-  font-size: 11px;
-  font-weight: 500;
+  font-size: 15px;
+  font-weight: 700;
   color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
-.panel-count { font-size: 12px; color: var(--text-muted); }
+.panel-title[data-tab="left"] { color: var(--accent-light-blue); }
+.panel-title[data-tab="calibrated"] { color: var(--accent-green); }
+.panel-title[data-tab="failures"],
+.panel-title[data-tab="errors"] { color: var(--accent-red); }
+.panel-title[data-tab="exceptions"] { color: var(--accent-orange-tab); }
+.panel-title[data-tab="check"] { color: var(--accent-check); }
+.panel-title[data-tab="all"],
+.panel-title[data-tab="types"],
+.panel-title[data-tab="zones"] { color: var(--text-primary); }
+.panel-title[data-tab="jobinfo"] { color: var(--accent-blue); }
+.panel-count { font-size: 14px; color: var(--text-muted); }
 
 @media (max-width: 900px) {
   #panel-controls {
@@ -1346,6 +1413,7 @@ td.mono { font-family: var(--font-mono); font-size: 11px; }
 td.fail-val { color: var(--accent-red); font-weight: 600; font-family: var(--font-mono); font-size: 11px; }
 td.green-val  { color: var(--accent-green); }
 td.orange-val { color: var(--accent-orange); }
+.blue-val { color: var(--accent-light-blue); }
 
 /* ─── Quality / status indicators ───────────────────────── */
 .qual {

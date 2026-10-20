@@ -631,7 +631,7 @@ function renderServerOverview(server) {
         { label: 'Zone', key: 'label', render: row => `<button type="button" class="zone-detail-trigger zone-row-trigger" data-server-zone-detail="${escapeHtml(row.label)}" title="Show sensors in ${escapeHtml(row.label)}"><span>${escapeHtml(row.label)}</span>${buildProgressBar(row)}</button>` },
         { label: 'Sensors', key: 'total', render: row => row.total },
         { label: 'Cal.', key: 'calibrated', render: row => `<span class="green-val">${row.calibrated}</span>` },
-        { label: 'Left', key: 'remaining', render: row => row.remaining ? `<span class="orange-val">${row.remaining}</span>` : '0' },
+        { label: 'Left', key: 'remaining', render: row => row.remaining ? `<span class="blue-val">${row.remaining}</span>` : '0' },
         { label: 'Exc.', key: 'exceptions', render: row => row.exceptions ? `<span class="orange-val">${row.exceptions}</span>` : '0' },
         { label: 'Fail', key: 'failures', render: row => row.failures ? `<span class="fail-val">${row.failures}</span>` : '0' },
       ], 'No enabled sensors have zone information.', 'overview-breakdown overview-zone-breakdown',
@@ -642,7 +642,7 @@ function renderServerOverview(server) {
         { label: 'Type', key: 'label', render: row => `<button type="button" class="type-detail-trigger" data-server-type-detail="${escapeHtml(row.label)}" title="Show sensors of type ${escapeHtml(row.label)}"><span>${escapeHtml(row.label)}</span></button>` },
         { label: 'Sensors', key: 'total', render: row => row.total },
         { label: 'Cal.', key: 'calibrated', render: row => `<span class="green-val">${row.calibrated}</span>` },
-        { label: 'Left', key: 'remaining', render: row => row.remaining ? `<span class="orange-val">${row.remaining}</span>` : '0' },
+        { label: 'Left', key: 'remaining', render: row => row.remaining ? `<span class="blue-val">${row.remaining}</span>` : '0' },
         { label: 'Exc.', key: 'exceptions', render: row => row.exceptions ? `<span class="orange-val">${row.exceptions}</span>` : '0' },
         { label: 'Fail', key: 'failures', render: row => row.failures ? `<span class="fail-val">${row.failures}</span>` : '0' },
       ], 'No enabled sensors have type information.', 'overview-breakdown overview-type-breakdown',
@@ -1289,7 +1289,7 @@ function renderMetrics() {
   const fail  = sensors.filter(isFailed).length;
   const pct   = getProgressPercent(progress);
   const r = 26, circ = 2 * Math.PI * r;
-  const track = 'var(--border)';
+  const track = 'var(--bg-progress-remaining)';
   let arcOffset = 0;
   const progressArcs = [
     { count: progress.calibrated, color: 'var(--accent-green)', label: 'Calibrated' },
@@ -1353,8 +1353,8 @@ function renderMetrics() {
     </div>
     <div class="metric-card" data-tab="check" role="button" tabindex="0" aria-label="Open In CHECK tab">
       <div class="metric-label">In CHECK</div>
-      <div class="metric-value" style="color:white);">${check}</div>
-      <div class="metric-sub">sensors with errors</div>
+      <div class="metric-value" style="color:var(--accent-check);">${check}</div>
+      <div class="metric-sub">sensors with problems</div>
     </div>
     <div class="metric-card" data-tab="exceptions" role="button" tabindex="0" aria-label="Open Exceptions tab">
       <div class="metric-label">Exceptions</div>
@@ -1880,7 +1880,8 @@ function getSensorErrorRows(sensors = allSensors) {
 }
 
 function getActionableSensorErrorCount() {
-  return getSensorErrorRows().filter(({ issue }) => issue.key !== 'serial-unknown').length;
+  return getSensorErrorRows(getVisibleSensors())
+    .filter(({ issue }) => issue.key !== 'serial-unknown').length;
 }
 
 function renderSerialNumber(sensor) {
@@ -2188,7 +2189,7 @@ function buildTypesTable() {
         <td>${r.total}</td>
         <td class="green-val">${r.cal}</td>
         <td class="${r.exc  > 0 ? 'orange-val' : 'muted'}">${r.exc}</td>
-        <td class="${r.left > 0 ? 'orange-val' : 'muted'}">${r.left}</td>
+        <td class="${r.left > 0 ? 'blue-val' : 'muted'}">${r.left}</td>
         <td class="${r.fail > 0 ? 'fail-val'   : 'muted'}">${r.fail}</td>
         <td class="muted">${r.srv}</td>
       </tr>`;
@@ -2265,7 +2266,7 @@ function buildZonesTable() {
       <td>${r.total}</td>
       <td class="green-val">${r.cal}</td>
       <td class="${r.exc  > 0 ? 'orange-val' : 'muted'}">${r.exc}</td>
-      <td class="${r.left > 0 ? 'orange-val' : 'muted'}">${r.left}</td>
+      <td class="${r.left > 0 ? 'blue-val' : 'muted'}">${r.left}</td>
       <td class="${r.fail > 0 ? 'fail-val'   : 'muted'}">${r.fail}</td>
     </tr>`).join('') : `<tr><td colspan="7" class="muted" style="text-align:center;">${getPanelSearchQuery() ? 'No zones match your search.' : 'No zones available.'}</td></tr>`}</tbody>
   </table></div>`;
@@ -2276,6 +2277,7 @@ function renderTable() {
   const title = document.getElementById('panel-title');
   const count = document.getElementById('panel-count');
   const area  = document.getElementById('table-area');
+  title.dataset.tab = currentTab;
   const panelActions = document.getElementById('panel-actions');
   panelActions.innerHTML = '';
   const errorTabCount = document.getElementById('error-tab-count');
@@ -2346,7 +2348,7 @@ function renderTable() {
       isSensorDisabled(findSensor(e.sensor_id, e.server))
     ).length;
     title.textContent = `Exceptions ${CURRENT_YEAR}`;
-    count.textContent = `${matchingExceptions.length}${disabledExceptionCount ? ` · ${disabledExceptionCount} disabled — remove` : ''}`;
+    count.textContent = `${matchingExceptions.length} sensor${matchingExceptions.length === 1 ? '' : 's'} ${disabledExceptionCount ? ` · ${disabledExceptionCount} disabled — remove` : ''}`;
     panelActions.innerHTML = historicalRunId
       ? ''
       : '<button class="primary" onclick="openAddExceptionModal()">Add Exception</button>';
@@ -2380,7 +2382,7 @@ function renderTable() {
   }
 
   const labels = {
-    left: 'Remaining', calibrated: 'Calibrated this week',
+    left: 'Remaining', calibrated: `Calibrated in the past ${CONFIG.ROLLING_DAYS} days`,
     failures: 'Failures', all: 'All sensors',
   };
   title.textContent = labels[currentTab] || '';
