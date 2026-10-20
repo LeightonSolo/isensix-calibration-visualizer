@@ -1759,6 +1759,57 @@ function thSort(label, col, state, toggleFn) {
 }
 //==============================================================
 
+const SERIAL_TYPE_PREFIXES = [
+  { prefix: 'GTMC', type: 'TMC Guardian' },
+  { prefix: 'TMC', type: 'TMC ARMS' },
+  { prefix: 'GRE', type: 'Temp-RE' },
+  { prefix: 'GRM', type: 'Temp-RM' },
+  { prefix: 'GHU', type: 'Humidity' },
+  { prefix: 'GTC', type: 'Temp-TC' },
+  { prefix: 'GSC', type: 'Temp-SC' },
+  { prefix: 'RE', type: 'Temp-RE' },
+  { prefix: 'RM', type: 'Temp-RM' },
+  { prefix: 'HU', type: 'Humidity' },
+  { prefix: 'TC', type: 'Temp-TC' },
+  { prefix: 'SC', type: 'Temp-SC' },
+];
+
+const SERIAL_CHECKED_TYPES = [...new Set(SERIAL_TYPE_PREFIXES.map(({ type }) => type))];
+
+function getSerialTypeCheck(sensor) {
+  const sensorType = String(sensor.sensor_type || '').trim().toLowerCase();
+  const expectedType = SERIAL_CHECKED_TYPES.find(type => type.toLowerCase() === sensorType);
+  if (!expectedType) return { status: 'not-applicable' };
+
+  const serial = String(sensor.serial_number || '').trim();
+  const serialType = SERIAL_TYPE_PREFIXES.find(({ prefix }) => {
+    const upperSerial = serial.toUpperCase();
+    return upperSerial.startsWith(prefix) && !/[A-Z]/.test(upperSerial[prefix.length] || '');
+  })?.type;
+
+  if (!serialType) return { status: 'unknown' };
+  return serialType === expectedType
+    ? { status: 'match' }
+    : { status: 'mismatch', serialType };
+}
+
+function renderSerialNumber(sensor) {
+  const serial = String(sensor.serial_number || '').trim();
+  const check = getSerialTypeCheck(sensor);
+  const underWarranty = isFailed(sensor) && isUnderWarranty(serial);
+  const displayedSerial = serial || '—';
+
+  if (check.status === 'mismatch') {
+    return `<span class="serial-type-mismatch" title="Serial indicates ${escapeHtml(check.serialType)}; sensor type is ${escapeHtml(sensor.sensor_type)}">${escapeHtml(displayedSerial)}</span>`;
+  }
+  if (check.status === 'unknown') {
+    return `<span class="serial-type-unknown${underWarranty ? ' warranty-serial' : ''}" title="Sensor type cannot be determined from this serial">${escapeHtml(displayedSerial)}</span>`;
+  }
+  if (underWarranty) {
+    return `<span class="warranty-serial" title="Under warranty — sensor should be replaced at no charge">${escapeHtml(displayedSerial)}</span>`;
+  }
+  return `<span class="mono muted">${escapeHtml(displayedSerial)}</span>`;
+}
 
 
 function isUnderWarranty(serial) {
@@ -1886,12 +1937,8 @@ function buildSensorTable(rows, detailKey = null) {
       <td class="muted" title="${s.zone||''}">${s.zone || '—'}</td>
       <td class="muted mono">${s.server || '—'}</td>
       <td>${badge(s.sensor_type)}</td>
-      <td title="${s.serial_number||''}">
-        ${s.serial_number
-          ? (isFailed(s) && isUnderWarranty(s.serial_number)
-              ? `<span class="warranty-serial" title="Under warranty — sensor should be replaced at no charge">${s.serial_number}</span>`
-              : `<span class="mono muted">${s.serial_number}</span>`)
-          : '<span class="muted">—</span>'}
+      <td title="${escapeHtml(s.serial_number || '')}">
+        ${renderSerialNumber(s)}
       </td>
       <td class="muted" title="${s.access_point||''}">${s.access_point || '—'}</td>
       <td>${qualBadge(s.quality)}</td>

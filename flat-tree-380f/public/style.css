@@ -1584,6 +1584,18 @@ table.summary tr:hover td { background: var(--bg-row-hover); }
   animation: warranty-pulse 2s ease-in-out infinite;
 }
 
+.serial-type-mismatch {
+  color: var(--accent-red);
+  font-weight: 700;
+}
+
+.serial-type-unknown {
+  color: var(--accent-orange);
+  font-weight: 500;
+  text-shadow: none;
+  animation: none;
+}
+
 @keyframes warranty-pulse {
   0%, 100% { opacity: 1; }
   50%       { opacity: 0.65; }
