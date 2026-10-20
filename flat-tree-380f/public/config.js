@@ -46,9 +46,9 @@ const CONFIG = {
     // Example job update: { id: 'job-update', text: '...', startsOn: 'YYYY-MM-DD', endsOn: 'YYYY-MM-DD', priority: true }
   ],
   DASHBOARD_PROGRESS_MILESTONES: [
-    { id: 'calibrated-25', type: 'percent', value: 25, text: '25% calibrated!', celebrate: true },
-    { id: 'calibrated-50', type: 'percent', value: 50, text: 'Halfway there, 50% calibrated!', celebrate: true },
-    { id: 'calibrated-75', type: 'percent', value: 75, text: '75% calibrated, the end is in sight!', celebrate: true },
+    { id: 'calibrated-25', type: 'percent', value: 25, text: '25% complete!', celebrate: true },
+    { id: 'calibrated-50', type: 'percent', value: 50, text: 'Halfway there, 50% complete!', celebrate: true },
+    { id: 'calibrated-75', type: 'percent', value: 75, text: '75% complete, the end is in sight!', celebrate: true },
     { id: 'calibrated-count-100', type: 'calibrated-count', value: 100, text: '100 sensors calibrated!' },
     { id: 'server-complete', type: 'server-complete', text: 'Server {server} is complete!' },
   ],

@@ -222,6 +222,12 @@ function getProgressBreakdown(sensors) {
   return { total: sensors.length, calibrated: calibrated.length, exceptions: exceptions.length, failures: failures.length, remaining };
 }
 
+function getProgressPercent(progress) {
+  if (!progress.total) return 0;
+  const percent = Math.round(((progress.total - progress.remaining) / progress.total) * 100);
+  return progress.remaining === 0 ? 100 : Math.min(percent, 99);
+}
+
 function isFailed(s) {
   if (s.new_offset === null || s.new_offset === undefined) return false;
   const max = thresholds[s.sensor_type];
@@ -1192,7 +1198,7 @@ function initializeDashboardAnnouncements() {
 function evaluateDashboardMilestones(progress) {
   if (!progress.total) return;
   const currentSnapshot = {
-    percent: (progress.calibrated / progress.total) * 100,
+    percent: getProgressPercent(progress),
     calibrated: progress.calibrated,
     completedServers: new Map(),
   };
@@ -1280,7 +1286,7 @@ function renderMetrics() {
   const cal   = calibratedSensors.length; // includes sensors calibrated in-window that are now disabled
   const left  = total - enabledCalibrated.length;
   const fail  = sensors.filter(isFailed).length;
-  const pct   = progress.total > 0 ? Math.round((progress.calibrated / progress.total) * 100) : 0;
+  const pct   = getProgressPercent(progress);
   const r = 26, circ = 2 * Math.PI * r;
   const track = 'var(--border)';
   let arcOffset = 0;
@@ -1355,7 +1361,7 @@ function renderMetrics() {
       <div class="metric-sub">this year</div>
     </div>
     <div id="donut-card" class="metric-card donut-card" data-tab="calibrated" role="button" tabindex="0" aria-label="Open Calibrated tab">
-      <svg width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="Progress ${pct}% calibrated">
+      <svg width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="Progress ${pct}% complete">
         <circle cx="32" cy="32" r="${r}" fill="none" stroke="${track}" stroke-width="7"/>
         ${progressArcs}
         <text x="32" y="37" text-anchor="middle" font-size="12" font-weight="600"
