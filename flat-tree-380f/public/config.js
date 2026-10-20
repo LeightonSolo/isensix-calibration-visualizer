@@ -25,7 +25,7 @@ const CONFIG = {
     { id: 'calibration-tip2', text: 'Turn on Auto-refresh to see the latest calibration data every 3 minutes.'},
     { id: 'tip-rolling-window', text: 'The "Rolling Days" under Settings sets how far back to check for calibration.' },
     { id: 'tip-disabled', text: '<-  Disabled sensors are hidden unless you turn on Show disabled.' },
-    { id: 'tip-breakdown', text: 'In By Zone or By Type, click a row to see the sensors in that breakdown.' },
+    { id: 'tip-breakdown', text: 'In Zones or Types, click a row to see the sensors in that breakdown.' },
     { id: 'tip-search', text: 'You can search the tables by sensor name, zone, CP address, or access point.  ↓' },
     { id: 'tip-servers', text: 'Click on a server above to view its full server overview.' },
     { id: 'tip-disabledSensors', text: 'Sensors disabled after calibration increase the calibrated count but not job progress.' },

@@ -995,13 +995,14 @@ body.server-overview-open { overflow: hidden; }
   border-radius: var(--radius-md);
   color: var(--text-secondary);
   font-size: 12px;
-  padding: 5px 13px;
+  padding: 5px 10px;
 }
 .tab-btn:hover { color: var(--text-primary); background: var(--bg-row-hover); }
 .tab-btn.tab-calibrated { background-color: var(--bg-tab-calibrated); }
 .tab-btn.tab-failures { background-color: var(--bg-tab-failures); }
 .tab-btn.tab-exceptions { background-color: var(--bg-tab-exceptions); }
 .tab-btn.tab-check { background-color: var(--bg-tab-check); }
+.tab-btn.tab-errors { background-color: color-mix(in srgb, var(--accent-red) 12%, var(--bg-panel)); }
 .tab-btn.active {
   background: var(--accent-blue);
   color: #fff;
@@ -1014,7 +1015,7 @@ body.server-overview-open { overflow: hidden; }
   border-radius: var(--radius-md);
   color: var(--text-secondary);
   font-size: 12px;
-  padding: 5px 13px;
+  padding: 5px 10px;
 }
 .tab-btn.right.active{
   background: var(--accent-blue);
@@ -1594,6 +1595,98 @@ table.summary tr:hover td { background: var(--bg-row-hover); }
   font-weight: 500;
   text-shadow: none;
   animation: none;
+}
+
+.error-tab-count {
+  display: inline-flex;
+  min-width: 16px;
+  height: 16px;
+  margin-left: 3px;
+  padding: 0 4px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--accent-red);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.error-tab-count[hidden] {
+  display: none;
+}
+
+.sensor-validation-flag {
+  display: inline-block;
+  margin-left: 5px;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.sensor-validation-flag-high,
+.sensor-validation-error {
+  color: var(--accent-red);
+  font-weight: 700;
+}
+
+.sensor-validation-flag-low {
+  color: var(--accent-orange);
+  font-weight: 600;
+}
+
+.validation-errors-empty {
+  padding: 2.5rem;
+  color: var(--text-muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+.validation-errors-table {
+  min-width: 1100px;
+}
+
+.validation-errors-table th,
+.validation-errors-table td {
+  max-width: 360px;
+  overflow-wrap: anywhere;
+}
+
+.validation-errors-table a {
+  color: var(--text-primary);
+  text-decoration: underline;
+}
+
+.validation-error-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.validation-error-sort:hover,
+.validation-error-sort.is-active {
+  color: var(--text-primary);
+}
+
+.validation-error-sort span {
+  font-size: 9px;
+}
+
+.validation-error-high .validation-error-value {
+  color: var(--accent-red);
+  font-weight: 700;
+}
+
+.validation-error-low .validation-error-value {
+  color: var(--accent-orange);
+  font-weight: 600;
 }
 
 @keyframes warranty-pulse {

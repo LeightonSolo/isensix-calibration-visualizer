@@ -19,6 +19,7 @@ let zoneSort   = { col: 'left',  dir: -1 };
 let typeSort   = { col: 'left',  dir: -1 };
 let checkSort  = { col: null,    dir:  1 };
 let excSort    = { col: null,    dir:  1 };
+let validationErrorSort = { col: 'severity', dir: 1 };
 let activeServerOverview = null;
 let activeZoneDetails = null;
 let activeZoneServer = null;
@@ -1776,6 +1777,20 @@ const SERIAL_TYPE_PREFIXES = [
 
 const SERIAL_CHECKED_TYPES = [...new Set(SERIAL_TYPE_PREFIXES.map(({ type }) => type))];
 
+const METER_RULES = [
+  { keywords: ['HUMIDITY'], validValues: ['Vaisala'] },
+  { keywords: ['CO2_A_20'], validValues: ['Vaisala CO2', 'ViaSensor'] },
+  { keywords: ['DIFFPRESS'], validValues: ['Dwyer'] },
+  { keywords: ['RE', 'RM', 'TMC', 'SC', 'TC'], validValues: ['Oakton', 'Fluke', 'Digisense'] },
+];
+const RECOGNIZED_METERS = [...new Set(METER_RULES.flatMap(rule => rule.validValues))]
+  .sort((a, b) => b.length - a.length);
+const VALID_CANNED_MESSAGES = new Set([
+  'Proper functionality has been verified.',
+  'Sensor failed calibration/verification, needs to be replaced.',
+  'Replaced sensor.',
+]);
+
 function getSerialTypeCheck(sensor) {
   const sensorType = String(sensor.sensor_type || '').trim().toLowerCase();
   const expectedType = SERIAL_CHECKED_TYPES.find(type => type.toLowerCase() === sensorType);
@@ -1791,6 +1806,81 @@ function getSerialTypeCheck(sensor) {
   return serialType === expectedType
     ? { status: 'match' }
     : { status: 'mismatch', serialType };
+}
+
+function getMeterTypeCheck(sensor) {
+  const sensorType = String(sensor.sensor_type || '').toUpperCase();
+  const rule = METER_RULES.find(({ keywords }) =>
+    keywords.some(keyword => sensorType.includes(keyword))
+  );
+  if (!rule) return { status: 'not-applicable' };
+
+  const certificate = String(sensor.cal_cert || '');
+  const meter = RECOGNIZED_METERS.find(value =>
+    certificate.toLowerCase().includes(value.toLowerCase())
+  );
+  if (!meter) return { status: 'unknown' };
+  const meterMatchesType = rule.validValues.some(value => value.toLowerCase() === meter.toLowerCase());
+  return {
+    status: meterMatchesType ? 'match' : 'mismatch',
+    meter,
+    validValues: rule.validValues,
+  };
+}
+
+function getSensorValidationIssues(sensor) {
+  const issues = [];
+  const serialCheck = getSerialTypeCheck(sensor);
+  if (serialCheck.status === 'mismatch') {
+    issues.push({
+      key: 'serial-mismatch',
+      severity: 'high',
+      field: 'Serial',
+      value: sensor.serial_number,
+      message: `Serial indicates ${serialCheck.serialType}; listed sensor type is ${sensor.sensor_type}.`,
+    });
+  } else if (serialCheck.status === 'unknown') {
+    issues.push({
+      key: 'serial-unknown',
+      severity: 'low',
+      field: 'Serial',
+      value: sensor.serial_number,
+      message: 'Sensor type cannot be determined from this serial.',
+    });
+  }
+
+  const meterCheck = getMeterTypeCheck(sensor);
+  if (meterCheck.status === 'mismatch') {
+    issues.push({
+      key: 'meter-mismatch',
+      severity: 'high',
+      field: 'Certificate',
+      value: sensor.cal_cert,
+      message: `${meterCheck.meter} is not valid for ${sensor.sensor_type}. Use ${meterCheck.validValues.join(', ')}.`,
+    });
+  }
+
+  const cannedMessage = String(sensor.canned_msg ?? '');
+  if (cannedMessage && !VALID_CANNED_MESSAGES.has(cannedMessage)) {
+    issues.push({
+      key: 'canned-message',
+      severity: 'high',
+      field: 'Calibration message',
+      value: cannedMessage,
+      message: 'Calibration message does not exactly match an approved message.',
+    });
+  }
+  return issues;
+}
+
+function getSensorErrorRows(sensors = allSensors) {
+  return sensors.flatMap(sensor =>
+    getSensorValidationIssues(sensor).map(issue => ({ sensor, issue }))
+  );
+}
+
+function getActionableSensorErrorCount() {
+  return getSensorErrorRows().filter(({ issue }) => issue.key !== 'serial-unknown').length;
 }
 
 function renderSerialNumber(sensor) {
@@ -1844,7 +1934,8 @@ const SENSOR_COLS = [
   { key: 'calibrated_at',label: 'Calibrated',   defaultW: 98 },
   { key: 'calibrated_by',label: 'By',           defaultW: 130 },
   { key: 'cal_cert',     label: 'Certificate',  defaultW: 215 },
-  { key: '_exception',   label: 'Exception',    defaultW: 90 },
+  { key: 'canned_msg',   label: 'Cal. message', defaultW: 245 },
+  { key: '_exception',   label: 'Exception',    defaultW: 90  },
 ];
 
 function displayCalibratedBy(value) {
@@ -1930,10 +2021,21 @@ function buildSensorTable(rows, detailKey = null) {
     const fail = isFailed(s);
     const done = isCalibrated(s) && !fail && !qualityError;
     const calibratedBy = displayCalibratedBy(s.calibrated_by);
-    return `<tr class="${qualityError ? 'quality-error-row' : fail ? 'failure-row' : done ? 'done-row' : ''}">
+    const validationIssues = getSensorValidationIssues(s);
+    const meterIssue = validationIssues.find(issue => issue.field === 'Certificate');
+    const cannedIssue = validationIssues.find(issue => issue.field === 'Calibration message');
+    const validationSeverity = validationIssues.some(issue => issue.severity === 'high') ? 'high' : 'low';
+    const validationBadge = validationIssues.length
+      ? `<span class="sensor-validation-flag sensor-validation-flag-${validationSeverity}" title="${escapeHtml(validationIssues.map(issue => issue.message).join(' '))}">⚠ ${validationIssues.length} issue${validationIssues.length === 1 ? '' : 's'}</span>`
+      : '';
+    const rowClasses = [
+      qualityError ? 'quality-error-row' : fail ? 'failure-row' : done ? 'done-row' : '',
+      validationIssues.length ? 'sensor-validation-row' : '',
+    ].filter(Boolean).join(' ');
+    return `<tr class="${rowClasses}">
       <td class="muted mono">#${s.sensor_id}</td>
       <td class="mono muted" title="${s.cp_address||''}">${s.cp_address || '<span class="muted">—</span>'}</td>
-      <td title="${s.sensor_name||''}">${nameCell}${repeatBadge}</td>
+      <td title="${escapeHtml(s.sensor_name || '')}">${nameCell}${repeatBadge}${validationBadge}</td>
       <td class="muted" title="${s.zone||''}">${s.zone || '—'}</td>
       <td class="muted mono">${s.server || '—'}</td>
       <td>${badge(s.sensor_type)}</td>
@@ -1947,12 +2049,107 @@ function buildSensorTable(rows, detailKey = null) {
       <td class="${fail ? 'fail-val' : 'mono muted'}">${fmtOffset(s.new_offset)}</td>
       <td>${fmtDate(s.calibrated_at)}</td>
       <td class="muted" title="${escapeHtml(calibratedBy)}">${escapeHtml(calibratedBy) || '—'}</td>
-      <td class="muted" title="${s.cal_cert||''}">${s.cal_cert || '—'}</td>
+      <td title="${escapeHtml(s.cal_cert || '')}"><span class="${meterIssue ? 'sensor-validation-error' : 'muted'}">${escapeHtml(s.cal_cert || '—')}</span></td>
+      <td title="${escapeHtml(s.canned_msg || '')}"><span class="${cannedIssue ? 'sensor-validation-error' : 'muted'}">${escapeHtml(s.canned_msg || '—')}</span></td>
       <td>${excBtn}</td>
     </tr>`;
   }).join('')}</tbody>`;
 
   return `<div class="rt-wrap"><table class="rt sensor-detail-table" data-resize-key="${escapeHtml(resizeKey)}" style="width:${defaultTableWidth}px;">${thead}${tbody}</table></div>`;
+}
+
+function getFilteredValidationErrors(errors = getSensorErrorRows(getVisibleSensors())) {
+  const selectedType = document.getElementById('type-filter').value;
+  const selectedError = document.getElementById('validation-error-filter').value;
+  return errors
+    .filter(({ sensor }) => !selectedType || sensor.sensor_type === selectedType)
+    .filter(({ issue }) => !selectedError || issue.key === selectedError)
+    .filter(({ sensor, issue }) => matchesPanelSearch([
+      sensor.sensor_id, sensor.cp_address, sensor.sensor_name, sensor.zone, sensor.server,
+      sensor.sensor_type, issue.field, issue.value, issue.message,
+    ]))
+    .sort((a, b) => {
+      if (validationErrorSort.col !== 'severity') {
+        const severityComparison = Number(a.issue.severity === 'low') - Number(b.issue.severity === 'low');
+        if (severityComparison) return severityComparison;
+      }
+      const values = {
+        sensor: [a.sensor.sensor_name || `Sensor ${a.sensor.sensor_id}`, b.sensor.sensor_name || `Sensor ${b.sensor.sensor_id}`],
+        cp_address: [a.sensor.cp_address || '', b.sensor.cp_address || ''],
+        zone: [a.sensor.zone || '', b.sensor.zone || ''],
+        server: [a.sensor.server || '', b.sensor.server || ''],
+        sensor_type: [a.sensor.sensor_type || '', b.sensor.sensor_type || ''],
+        error: [a.issue.field, b.issue.field],
+        value: [a.issue.value || '', b.issue.value || ''],
+        details: [a.issue.message, b.issue.message],
+        severity: [a.issue.severity === 'low' ? 1 : 0, b.issue.severity === 'low' ? 1 : 0],
+      }[validationErrorSort.col] || ['', ''];
+      const [left, right] = values;
+      const comparison = typeof left === 'number' && typeof right === 'number'
+        ? left - right
+        : String(left).localeCompare(String(right), undefined, { numeric: true, sensitivity: 'base' });
+      if (comparison) return comparison * validationErrorSort.dir;
+      return a.sensor.zone?.localeCompare(b.sensor.zone || '', undefined, { numeric: true, sensitivity: 'base' })
+        || String(a.sensor.sensor_id).localeCompare(String(b.sensor.sensor_id), undefined, { numeric: true });
+    });
+}
+
+function sortValidationErrors(column) {
+  if (validationErrorSort.col === column) validationErrorSort.dir *= -1;
+  else {
+    validationErrorSort.col = column;
+    validationErrorSort.dir = 1;
+  }
+  renderTable();
+}
+
+function validationErrorSortHeader(label, column) {
+  const active = validationErrorSort.col === column;
+  const direction = active ? (validationErrorSort.dir === 1 ? 'ascending' : 'descending') : 'none';
+  const indicator = active ? (validationErrorSort.dir === 1 ? '&#9650;' : '&#9660;') : '';
+  return `<th aria-sort="${direction}"><button type="button" class="validation-error-sort${active ? ' is-active' : ''}" onclick="sortValidationErrors('${column}')">${label}<span aria-hidden="true">${indicator}</span></button></th>`;
+}
+
+function buildValidationErrorsTable(rows) {
+  if (!rows.length) {
+    const selectedType = document.getElementById('type-filter').value;
+    const selectedError = document.getElementById('validation-error-filter').value;
+    return `<div class="validation-errors-empty">
+      ${getPanelSearchQuery() || selectedType || selectedError || document.getElementById('server-filter').value
+        ? 'No validation errors match the selected filters.'
+        : 'No validation errors found.'}
+    </div>`;
+  }
+
+  return `<div class="rt-wrap"><table class="rt validation-errors-table">
+    <thead><tr>
+      ${validationErrorSortHeader('Sensor', 'sensor')}
+      ${validationErrorSortHeader('CP Addr', 'cp_address')}
+      ${validationErrorSortHeader('Zone', 'zone')}
+      ${validationErrorSortHeader('SID', 'server')}
+      ${validationErrorSortHeader('Type', 'sensor_type')}
+      ${validationErrorSortHeader('Error', 'error')}
+      ${validationErrorSortHeader('Value', 'value')}
+      ${validationErrorSortHeader('Details', 'details')}
+    </tr></thead>
+    <tbody>${rows.map(({ sensor, issue }) => {
+      const url = sensorUrl(sensor.sensor_id, sensor.server);
+      const sensorName = escapeHtml(sensor.sensor_name || `Sensor ${sensor.sensor_id}`);
+      const linkedName = url
+        ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${sensorName}</a>`
+        : sensorName;
+      return `<tr class="validation-error-${issue.severity}">
+        <td>${linkedName}</td>
+        <td class="mono">${escapeHtml(sensor.cp_address || '—')}</td>
+        <td>${escapeHtml(sensor.zone || '—')}</td>
+        <td class="mono">${escapeHtml(sensor.server || '—')}</td>
+        <td>${escapeHtml(sensor.sensor_type || '—')}</td>
+        <td><strong>${escapeHtml(issue.field)}</strong></td>
+        <td class="validation-error-value">${escapeHtml(issue.value || '—')}</td>
+        <td>${escapeHtml(issue.message)}</td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table></div>`;
 }
 
 /* ─── Type breakdown table ──────────────────────────────── */
@@ -2081,6 +2278,10 @@ function renderTable() {
   const area  = document.getElementById('table-area');
   const panelActions = document.getElementById('panel-actions');
   panelActions.innerHTML = '';
+  const errorTabCount = document.getElementById('error-tab-count');
+  const actionableErrorCount = getActionableSensorErrorCount();
+  errorTabCount.textContent = actionableErrorCount;
+  errorTabCount.hidden = actionableErrorCount === 0;
   if (currentTab === 'types' || currentTab === 'zones') {
     panelActions.innerHTML = breakdownToggleHtml();
   }
@@ -2090,16 +2291,18 @@ function renderTable() {
   panelHeader?.removeAttribute('title');
 
   const showFilter = ['left','calibrated','failures','all'].includes(currentTab);
+  const showErrorFilters = currentTab === 'errors';
   const showBreakdownFilters = currentTab === 'types' || currentTab === 'zones';
-  const showSharedFilters = showFilter || showBreakdownFilters || currentTab === 'exceptions' || currentTab === 'check';
+  const showSharedFilters = showFilter || showErrorFilters || showBreakdownFilters || currentTab === 'exceptions' || currentTab === 'check';
   document.getElementById('filter-bar').style.display = showSharedFilters ? 'flex' : 'none';
   document.querySelector('#server-filter option[value=""]').textContent = 'All Servers';
   document.getElementById('type-filter').style.display =
-    showFilter || currentTab === 'zones' ? 'inline-block' : 'none';
+    showFilter || showErrorFilters || currentTab === 'zones' ? 'inline-block' : 'none';
   document.getElementById('tech-filter').style.display = showFilter ? 'inline-block' : 'none';
   document.getElementById('exception-added-by-filter').style.display = currentTab === 'exceptions' ? 'inline-block' : 'none';
   document.getElementById('check-quality-filter').style.display = currentTab === 'check' ? 'inline-block' : 'none';
-  const showSearch = showFilter || ['exceptions', 'check', 'zones', 'types'].includes(currentTab);
+  document.getElementById('validation-error-filter').style.display = showErrorFilters ? 'inline-block' : 'none';
+  const showSearch = showFilter || ['errors', 'exceptions', 'check', 'zones', 'types'].includes(currentTab);
   const searchWrap = document.getElementById('panel-search-wrap');
   const searchInput = document.getElementById('search-input');
   const searchQuery = searchInput.value.trim();
@@ -2119,6 +2322,16 @@ function renderTable() {
     title.textContent = 'Sensor type breakdown';
     count.textContent = '';
     setTableContent(area, buildTypesTable());
+    return;
+  }
+  if (currentTab === 'errors') {
+    const matchingErrors = getFilteredValidationErrors();
+    const sensorCount = new Set(matchingErrors.map(({ sensor }) =>
+      `${sensor.server}:${sensor.sensor_id}`
+    )).size;
+    title.textContent = 'Calibration validation errors';
+    count.textContent = `${matchingErrors.length} issue${matchingErrors.length === 1 ? '' : 's'} · ${sensorCount} sensor${sensorCount === 1 ? '' : 's'}`;
+    setTableContent(area, buildValidationErrorsTable(matchingErrors));
     return;
   }
   if (currentTab === 'zones') {
@@ -2167,7 +2380,7 @@ function renderTable() {
   }
 
   const labels = {
-    left: 'Sensors left', calibrated: 'Calibrated this week',
+    left: 'Remaining', calibrated: 'Calibrated this week',
     failures: 'Failures', all: 'All sensors',
   };
   title.textContent = labels[currentTab] || '';
