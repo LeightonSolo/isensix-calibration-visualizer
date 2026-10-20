@@ -644,6 +644,11 @@ function isCalibrated(s) {
   return new Date(s.calibrated_at) >= getCutoff();
 }
 
+function isSensorDisabled(s) {
+  const status = String(s.status || '').trim().toUpperCase().replace(/\s+/g, ' ');
+  return status === 'DISABLED' || status === 'DISABLED SENSOR';
+}
+
 function isFailed(s) {
   if (s.new_offset === null || s.new_offset === undefined) return false;
   const max = thresholds[s.sensor_type];
@@ -828,19 +833,22 @@ function populateHeader() {
 
 /* ─── Stats ───────────────────────────────────────────────── */
 function renderStats() {
-  const active  = allSensors.filter(s => !s.status || s.status.toUpperCase() !== 'DISABLED');
+  const enabled = allSensors.filter(s => !isSensorDisabled(s));
+  const active  = enabled.filter(s => !isExcepted(s));
   const total   = active.length;
-  const activeCalibrated = active.filter(s => isCalibrated(s) && !isExcepted(s));
+  const activeCalibrated = active.filter(isCalibrated);
   const disabledCalibrated = allSensors.filter(s =>
-    s.status && s.status.toUpperCase() === 'DISABLED' &&
+    isSensorDisabled(s) &&
     isCalibrated(s) && !isExcepted(s)
   );
   const cal     = activeCalibrated.length + disabledCalibrated.length;
-  const notCal  = active.filter(s => !isCalibrated(s) && !isExcepted(s)).length;
-  const exc     = active.filter(isExcepted).length;
+  const notCal  = active.filter(s => !isCalibrated(s)).length;
+  const exc     = allSensors.filter(isExcepted).length;
   const fail    = active.filter(isFailed).length;
-  const check   = active.filter(s => s.quality && s.quality.toUpperCase() !== 'GOOD').length;
-  const pct     = total > 0 ? Math.round(((activeCalibrated.length + exc) / total) * 100) : 0;
+  const check   = enabled.filter(s => s.quality && s.quality.toUpperCase() !== 'GOOD').length;
+  const pct     = enabled.length > 0
+    ? Math.round(((enabled.length - notCal) / enabled.length) * 100)
+    : 0;
 
   document.getElementById('stat-cards').innerHTML = `
     <div class="stat-card">
@@ -884,13 +892,13 @@ function renderStats() {
 
 /* ─── Tables ──────────────────────────────────────────────── */
 function renderTables() {
-  const active = allSensors.filter(s => !s.status || s.status.toUpperCase() !== 'DISABLED');
+  const active = allSensors.filter(s => !isSensorDisabled(s));
 
   // Exceptions
   const exceptions = active.filter(isExcepted);
 
   // Failures not replaced — failed offset, regardless of warranty
-  const failures = active.filter(isFailed);
+  const failures = active.filter(s => !isExcepted(s) && isFailed(s));
 
   // Sensors in CHECK — enabled, quality != GOOD
   const checkSensors = active.filter(s =>
