@@ -693,7 +693,7 @@ export default function ResourceGrid({
                                     fontSize: titleFontSize, color: color.fg, fontWeight: 600 }}>
                                     {l.event.title}
                                   </span>
-                                  {l.event.ticket_id && (
+                                  {l.event.ticket_id && l.event.start_date !== l.event.end_date && (
                                     <span style={{ position: 'absolute',
                                       top: 0, left: 0, marginLeft: 4, opacity: 0.55, fontSize: 15,
                                       flexShrink: 0, whiteSpace: 'nowrap', color: color.fg }}>

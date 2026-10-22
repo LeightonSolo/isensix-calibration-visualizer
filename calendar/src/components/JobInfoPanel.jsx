@@ -337,7 +337,7 @@ export default function JobInfoPanel({
               </div>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                 {selectedEvent.ticket_id && (
-                  <span style={{ fontSize: 12, color: 'var(--cal-text-secondary)',
+                  <span style={{ fontSize: 14, color: 'var(--cal-text-secondary)',
                     fontFamily: 'JetBrains Mono, monospace' }}>
                     #{selectedEvent.ticket_id}
                   </span>
