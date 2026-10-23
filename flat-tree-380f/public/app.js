@@ -371,6 +371,29 @@ function isSensorDisabled(sensor) {
   return isDisabledStatus(sensor?.status);
 }
 
+// Live View uses the ◈ marker for system/event sensors that are not part of
+// the calibration workload. Keep them out of the dashboard's data set so
+// they cannot affect tables, counts, progress, filters, or latest-calibration
+// summaries while older ingestion scripts may still send them.
+function isDashboardExcludedSensor(sensor) {
+  return String(sensor?.sensor_name ?? '').includes('\u25c8');
+}
+
+function filterDashboardSensors(sensors) {
+  return (Array.isArray(sensors) ? sensors : []).filter(sensor =>
+    !isDashboardExcludedSensor(sensor)
+  );
+}
+
+function filterDashboardExceptions(exceptions, sensors) {
+  const sensorKeys = new Set((sensors || []).map(sensor =>
+    `${sensor.server}:${sensor.sensor_id}`
+  ));
+  return (Array.isArray(exceptions) ? exceptions : []).filter(exception =>
+    sensorKeys.has(`${exception.server}:${exception.sensor_id}`)
+  );
+}
+
 /* ─── Status bar ────────────────────────────────────────── */
 function setStatus(primaryText, timeString) {
   const container = document.getElementById('status-msg');
@@ -921,7 +944,7 @@ async function loadData() {
       if (!response.ok) throw new Error('Could not load historical calibration');
       const payload = await response.json();
       historicalRun = payload.run;
-      allSensors = payload.sensors || [];
+      allSensors = filterDashboardSensors(payload.sensors);
       try { servers = JSON.parse(historicalRun.servers_json || '[]'); } catch (_) { servers = []; }
       allExceptions = allSensors.filter(sensor => sensor.exception_reason).map(sensor => ({
         sensor_id: String(sensor.sensor_id), server: sensor.server,
@@ -963,7 +986,8 @@ async function loadData() {
     ]);
     // Job info needs server metadata in order to determine the customer.
     await loadJobInfo();
-    allSensors = sensorResults.flat();
+    allSensors = filterDashboardSensors(sensorResults.flat());
+    allExceptions = filterDashboardExceptions(allExceptions, allSensors);
     renderServerTags();
 
     lastUpdated = Date.now();
