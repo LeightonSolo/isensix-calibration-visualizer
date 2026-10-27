@@ -211,7 +211,9 @@ function isQualityError(s) {
   return ['LINK', 'SENSOR', 'WIRE', 'INIT', 'NETWORK'].includes(String(s.quality || '').toUpperCase());
 }
 
-function getProgressBreakdown(sensors) {
+function getProgressBreakdown(sensors, { includeSensoNodes = false } = {}) {
+  const sensoNodes = includeSensoNodes ? sensors.filter(isSensoNode) : [];
+  sensors = getCalibrationSensors(sensors);
   const exceptions = sensors.filter(isExcepted);
   const failures = sensors.filter(sensor =>
     !isExcepted(sensor) && isCalibrated(sensor) && isFailed(sensor)
@@ -219,8 +221,15 @@ function getProgressBreakdown(sensors) {
   const calibrated = sensors.filter(sensor =>
     !isExcepted(sensor) && !isFailed(sensor) && isCalibrated(sensor)
   );
-  const remaining = Math.max(0, sensors.length - calibrated.length - exceptions.length - failures.length);
-  return { total: sensors.length, calibrated: calibrated.length, exceptions: exceptions.length, failures: failures.length, remaining };
+  const remaining = Math.max(0, sensors.length - calibrated.length - exceptions.length - failures.length)
+    + sensoNodes.length;
+  return {
+    total: sensors.length + sensoNodes.length,
+    calibrated: calibrated.length,
+    exceptions: exceptions.length,
+    failures: failures.length,
+    remaining,
+  };
 }
 
 function getProgressPercent(progress) {
@@ -245,14 +254,14 @@ function findSensor(sensor_id, server) {
 
 function getActiveSensors() {
   const showDisabled = document.getElementById('show-disabled')?.checked;
-  return allSensors.filter(s =>
+  return getCalibrationSensors().filter(s =>
     (showDisabled || !isSensorDisabled(s)) &&
     !isExcepted(s)
   );
 }
 
 function getDisabledCalibratedSensors() {
-  return allSensors.filter(s =>
+  return getCalibrationSensors().filter(s =>
     isSensorDisabled(s) &&
     isCalibrated(s) &&
     !isExcepted(s)
@@ -371,12 +380,41 @@ function isSensorDisabled(sensor) {
   return isDisabledStatus(sensor?.status);
 }
 
+function isSensoNode(sensor) {
+  return /^(?:[0-9a-f]{2}:){5}[0-9a-f]{2}(?:\.\d+|-\d+)$/i
+    .test(String(sensor?.cp_address || '').trim());
+}
+
+function getCalibrationSensors(sensors = allSensors) {
+  return sensors.filter(sensor => !isSensoNode(sensor));
+}
+
+function showSensoNodes() {
+  return document.getElementById('show-senso-nodes')?.checked === true;
+}
+
+const showSensoNodesInput = document.getElementById('show-senso-nodes');
+if (showSensoNodesInput) {
+  showSensoNodesInput.checked = localStorage.getItem('cal_show_senso_nodes') === 'true';
+}
+
+function setShowSensoNodes(enabled) {
+  localStorage.setItem('cal_show_senso_nodes', String(enabled));
+  const input = document.getElementById('show-senso-nodes');
+  if (input) input.checked = enabled;
+  populateFilters();
+  renderTable();
+  refreshDetailViews();
+}
+
 // Live View uses the ◈ marker for system/event sensors that are not part of
 // the calibration workload. Keep them out of the dashboard's data set so
 // they cannot affect tables, counts, progress, filters, or latest-calibration
 // summaries while older ingestion scripts may still send them.
 function isDashboardExcludedSensor(sensor) {
-  return String(sensor?.sensor_name ?? '').includes('\u25c8');
+  const marker = '\u25c8';
+  return String(sensor?.sensor_name ?? '').includes(marker)
+    || String(sensor?.zone ?? '').includes(marker);
 }
 
 function filterDashboardSensors(sensors) {
@@ -436,7 +474,7 @@ function renderServerTags() {
 }
 
 function serverOverviewRows(server) {
-  return allSensors.filter(sensor => String(sensor.server) === String(server));
+  return getCalibrationSensors().filter(sensor => String(sensor.server) === String(server));
 }
 
 function formatOverviewDate(value) {
@@ -528,8 +566,18 @@ function buildServerOverviewTable(sectionKey, title, rows, columns, emptyText, m
 function getVisibleSensors(sensors = allSensors) {
   const showDisabled = document.getElementById('show-disabled')?.checked;
   const selectedServer = document.getElementById('server-filter')?.value || '';
-  return sensors.filter(sensor =>
+  return getCalibrationSensors(sensors).filter(sensor =>
     (showDisabled || !isSensorDisabled(sensor)) &&
+    (!selectedServer || String(sensor.server) === selectedServer)
+  );
+}
+
+function getVisibleBreakdownSensors(sensors = allSensors) {
+  const showDisabled = document.getElementById('show-disabled')?.checked;
+  const selectedServer = document.getElementById('server-filter')?.value || '';
+  return sensors.filter(sensor =>
+    (!isSensoNode(sensor) || showSensoNodes()) &&
+    (isSensoNode(sensor) || showDisabled || !isSensorDisabled(sensor)) &&
     (!selectedServer || String(sensor.server) === selectedServer)
   );
 }
@@ -539,7 +587,8 @@ function isCompletedSensor(sensor) {
 }
 
 function getBreakdownSensors(sensors = allSensors) {
-  return getVisibleSensors(sensors).filter(sensor => !hideCalibrated || !isCompletedSensor(sensor));
+  return getVisibleBreakdownSensors(sensors)
+    .filter(sensor => isSensoNode(sensor) || !hideCalibrated || !isCompletedSensor(sensor));
 }
 
 function hasBreakdownWork(sensors) {
@@ -563,7 +612,7 @@ function toggleHideCalibrated() {
   refreshDetailViews();
 }
 
-function groupServerOverviewRows(sensors, key) {
+function groupServerOverviewRows(sensors, key, includeSensoNodes = false) {
   const groups = new Map();
   sensors.forEach(sensor => {
     const label = String(sensor[key] || `No ${key === 'zone' ? 'zone' : 'type'}`).trim();
@@ -571,7 +620,7 @@ function groupServerOverviewRows(sensors, key) {
     groups.get(label).push(sensor);
   });
   return [...groups.entries()].filter(([, group]) => hasBreakdownWork(group)).map(([label, group]) => {
-    const progress = getProgressBreakdown(group);
+    const progress = getProgressBreakdown(group, { includeSensoNodes });
     return {
       label,
       total: progress.total,
@@ -588,8 +637,9 @@ function renderServerOverview(server) {
   const title = document.getElementById('server-overview-title');
   if (!body || !title) return;
 
-  const all = serverOverviewRows(server);
-  const enabled = all.filter(sensor => !isSensorDisabled(sensor));
+  const all = allSensors.filter(sensor => String(sensor.server) === String(server));
+  const calibrationSensors = getCalibrationSensors(all);
+  const enabled = calibrationSensors.filter(sensor => !isSensorDisabled(sensor));
   const calibrated = enabled.filter(sensor => isCalibrated(sensor) && !isExcepted(sensor));
   const remaining = enabled.filter(sensor => !isCalibrated(sensor) && !isExcepted(sensor));
   const failures = enabled.filter(isFailed);
@@ -600,7 +650,7 @@ function renderServerOverview(server) {
       ...exception,
       cp_address: all.find(sensor => String(sensor.sensor_id) === String(exception.sensor_id))?.cp_address || '',
     }));
-  const latest = all.filter(sensor => sensor.calibrated_at)
+  const latest = calibrationSensors.filter(sensor => sensor.calibrated_at)
     .sort((a, b) => new Date(b.calibrated_at) - new Date(a.calibrated_at))[0];
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -616,9 +666,9 @@ function renderServerOverview(server) {
   const progressPercent = progress.total
     ? Math.round(((progress.total - progress.remaining) / progress.total) * 100)
     : 0;
-  const breakdownSensors = getVisibleSensors(all);
-  const zones = groupServerOverviewRows(breakdownSensors, 'zone');
-  const types = groupServerOverviewRows(breakdownSensors, 'sensor_type');
+  const breakdownSensors = getVisibleBreakdownSensors(all);
+  const zones = groupServerOverviewRows(breakdownSensors, 'zone', showSensoNodes());
+  const types = groupServerOverviewRows(breakdownSensors, 'sensor_type', showSensoNodes());
 
   const tunnelUrl = serverTunnelUrl(server);
   title.innerHTML = tunnelUrl
@@ -946,7 +996,7 @@ async function loadData() {
       historicalRun = payload.run;
       allSensors = filterDashboardSensors(payload.sensors);
       try { servers = JSON.parse(historicalRun.servers_json || '[]'); } catch (_) { servers = []; }
-      allExceptions = allSensors.filter(sensor => sensor.exception_reason).map(sensor => ({
+      allExceptions = getCalibrationSensors().filter(sensor => sensor.exception_reason).map(sensor => ({
         sensor_id: String(sensor.sensor_id), server: sensor.server,
         reason: sensor.exception_reason, year: Number(sensor.exception_year) || CURRENT_YEAR,
       }));
@@ -956,7 +1006,7 @@ async function loadData() {
       document.getElementById('customer-display').textContent = `${customer} · Historical`;
       document.getElementById('latest-cal-msg').textContent = `Run ${historicalRun.calibration_date || ''} · Read-only`;
       lastUpdated = Date.now();
-      setStatus(`${allSensors.length} historical`, new Date().toLocaleTimeString());
+      setStatus(`${getCalibrationSensors().length} historical`, new Date().toLocaleTimeString());
       populateFilters(); renderMetrics(); renderTable(); updateLatestCalibration();
       return;
     } catch (error) {
@@ -987,12 +1037,12 @@ async function loadData() {
     // Job info needs server metadata in order to determine the customer.
     await loadJobInfo();
     allSensors = filterDashboardSensors(sensorResults.flat());
-    allExceptions = filterDashboardExceptions(allExceptions, allSensors);
+    allExceptions = filterDashboardExceptions(allExceptions, getCalibrationSensors());
     renderServerTags();
 
     lastUpdated = Date.now();
     //setStatus(`${allSensors.length} total sensors — updated ${new Date().toLocaleTimeString()}`);
-    setStatus(allSensors.length, new Date().toLocaleTimeString());
+    setStatus(getCalibrationSensors().length, new Date().toLocaleTimeString());
     updateStatusColor(); // reset to normal immediately after a fresh load
 
     populateFilters();
@@ -1031,7 +1081,7 @@ function showEmpty(b) {
 function updateLatestCalibration() {
   const el = document.getElementById('latest-cal-msg');
   if (!el) return;
-  const calibrated = allSensors.filter(s => s.calibrated_at);
+  const calibrated = getCalibrationSensors().filter(s => s.calibrated_at);
   if (!calibrated.length) { el.textContent = ''; el.removeAttribute('title'); return; }
   const latest = calibrated.reduce((a, b) =>
     a.calibrated_at > b.calibrated_at ? a : b
@@ -1297,19 +1347,21 @@ function evaluateDashboardMilestones(progress) {
 
 /* ─── Metrics ───────────────────────────────────────────── */
 function renderMetrics() {
-  const sensors = allSensors.filter(s =>
+  const calibrationSensors = getCalibrationSensors();
+  const sensors = calibrationSensors.filter(s =>
     !isSensorDisabled(s) && !isExcepted(s)
   );
-  const progressSensors = allSensors.filter(s =>
+  const enabledSensors = calibrationSensors.filter(s => !isSensorDisabled(s));
+  const progressSensors = calibrationSensors.filter(s =>
     !isSensorDisabled(s)
   );
   const progress = getProgressBreakdown(progressSensors);
-  const total = sensors.length; //total enabled sensors
+  const total = enabledSensors.length;
   const enabledCalibrated = sensors.filter(isCalibrated);
   const disabledCalibrated = getDisabledCalibratedSensors();
   const calibratedSensors = [...enabledCalibrated, ...disabledCalibrated];
   const cal   = calibratedSensors.length; // includes sensors calibrated in-window that are now disabled
-  const left  = total - enabledCalibrated.length;
+  const left  = total - enabledCalibrated.length - enabledSensors.filter(isExcepted).length;
   const fail  = sensors.filter(isFailed).length;
   const pct   = getProgressPercent(progress);
   const r = 26, circ = 2 * Math.PI * r;
@@ -1331,7 +1383,7 @@ function renderMetrics() {
   }).join('');
   const calibrationTooltip = getDisabledCalibrationTooltip(disabledCalibrated.length);
   const calibrationTooltipAttr = calibrationTooltip ? ` title="${calibrationTooltip}"` : '';
-  const excepted = allSensors.filter(isExcepted).length;
+  const excepted = calibrationSensors.filter(isExcepted).length;
   const check = getCheckSensorRows().length;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -1432,7 +1484,8 @@ function renderMetrics() {
 
 /* ─── Filters ───────────────────────────────────────────── */
 function populateFilters() {
-  const types = [...new Set(allSensors.map(s => s.sensor_type).filter(Boolean))].sort();
+  const filterSensors = showSensoNodes() ? allSensors : getCalibrationSensors();
+  const types = [...new Set(filterSensors.map(s => s.sensor_type).filter(Boolean))].sort();
   const tf = document.getElementById('type-filter');
   const curType = tf.value;
   tf.innerHTML = '<option value="">All Types</option>'
@@ -1447,10 +1500,12 @@ function populateFilters() {
 
 function getSensorRowsForTab(tab) {
   let rows = tab === 'calibrated'
-    ? allSensors.filter(sensor => isCalibrated(sensor) && !isExcepted(sensor))
-    : getActiveSensors();
+    ? getCalibrationSensors().filter(sensor => isCalibrated(sensor) && !isExcepted(sensor))
+    : ['left', 'all'].includes(tab) && showSensoNodes()
+      ? [...getActiveSensors(), ...allSensors.filter(isSensoNode)]
+      : getActiveSensors();
 
-  if (tab === 'left') rows = rows.filter(sensor => !isCalibrated(sensor));
+  if (tab === 'left') rows = rows.filter(sensor => isSensoNode(sensor) || !isCalibrated(sensor));
   else if (tab === 'calibrated') rows = rows.filter(isCalibrated);
   else if (tab === 'failures') rows = rows.filter(isFailed);
 
@@ -1460,9 +1515,11 @@ function getSensorRowsForTab(tab) {
 function updateTechFilterOptions() {
   const techFilter = document.getElementById('tech-filter');
   const curTech = techFilter.value.trim().toLowerCase();
-  const matchingRows = applyFilters(getSensorRowsForTab(currentTab), { includeTech: false });
+  const matchingRows = getCalibrationSensors(
+    applyFilters(getSensorRowsForTab(currentTab), { includeTech: false })
+  );
   const techCounts = new Map();
-  allSensors.forEach(sensor => {
+  getCalibrationSensors().forEach(sensor => {
     const technician = displayCalibratedBy(sensor.calibrated_by).trim();
     if (!technician) return;
     const key = technician.toLowerCase();
@@ -1542,9 +1599,13 @@ function updatePanelFilterOptions() {
 }
 
 function getCurrentExceptionRows() {
-  const prevYear = allExceptions.filter(e => e.year === CURRENT_YEAR - 1);
+  const prevYear = allExceptions.filter(e =>
+    e.year === CURRENT_YEAR - 1 && !isSensoNode(findSensor(e.sensor_id, e.server))
+  );
   const prevIds = new Set(prevYear.map(e => `${e.sensor_id}|${e.server}`));
-  return allExceptions.filter(e => e.year === CURRENT_YEAR).map(exception => {
+  return allExceptions.filter(e =>
+    e.year === CURRENT_YEAR && !isSensoNode(findSensor(e.sensor_id, e.server))
+  ).map(exception => {
     const sensor = findSensor(exception.sensor_id, exception.server);
     return {
       ...exception,
@@ -1570,7 +1631,7 @@ function matchesExceptionFilters(exception, { includeAddedBy = true } = {}) {
 }
 
 function getCheckSensorRows() {
-  return allSensors.filter(sensor =>
+  return getCalibrationSensors().filter(sensor =>
     !isSensorDisabled(sensor) &&
     sensor.quality &&
     sensor.quality.toUpperCase() !== 'GOOD'
@@ -1598,6 +1659,7 @@ function applyFilters(rows, { includeTech = true } = {}) {
   const showDisabled = document.getElementById('show-disabled').checked;
 
   return rows.filter(s =>
+    (!isSensoNode(s) || (['left', 'all'].includes(currentTab) && showSensoNodes())) &&
     (showDisabled || !isSensorDisabled(s)) &&
     (!tf || s.sensor_type === tf) &&
     (!sf || s.server === sf) &&
@@ -1897,8 +1959,8 @@ function getSensorValidationIssues(sensor) {
   return issues;
 }
 
-function getSensorErrorRows(sensors = allSensors) {
-  return sensors.flatMap(sensor =>
+function getSensorErrorRows(sensors = getCalibrationSensors()) {
+  return getCalibrationSensors(sensors).flatMap(sensor =>
     getSensorValidationIssues(sensor).map(issue => ({ sensor, issue }))
   );
 }
@@ -2179,12 +2241,12 @@ function buildValidationErrorsTable(rows) {
 
 /* ─── Type breakdown table ──────────────────────────────── */
 function buildTypesTable() {
-  const sensors = getVisibleSensors();
+  const sensors = getVisibleBreakdownSensors();
   const types = [...new Set(sensors.map(s => s.sensor_type).filter(Boolean))].sort();
   let rows = types.map(t => {
     const g   = sensors.filter(s => s.sensor_type === t);
     if (!hasBreakdownWork(g)) return null;
-    const progress = getProgressBreakdown(g);
+    const progress = getProgressBreakdown(g, { includeSensoNodes: showSensoNodes() });
     const cal = progress.calibrated;
     const exc = progress.exceptions;
     const fail= progress.failures;
@@ -2243,7 +2305,7 @@ function buildProgressBar(row) {
 
 function buildZonesTable() {
   const selectedType = document.getElementById('type-filter')?.value || '';
-  const sensors = getVisibleSensors().filter(sensor =>
+  const sensors = getVisibleBreakdownSensors().filter(sensor =>
     !selectedType || sensor.sensor_type === selectedType
   );
   const zoneGroups = new Map();
@@ -2258,7 +2320,7 @@ function buildZonesTable() {
   let rows = [...zoneGroups.values()].map(({ z, server, sensors: group }) => {
     const g = group;
     if (!hasBreakdownWork(g)) return null;
-    const progress = getProgressBreakdown(g);
+    const progress = getProgressBreakdown(g, { includeSensoNodes: showSensoNodes() });
     const cal = progress.calibrated;
     const exc = progress.exceptions;
     const fail= progress.failures;
@@ -3021,7 +3083,7 @@ function buildCheckTable(sensors) {
 function openAddExceptionModal() {
   if (historicalRunId) return;
 
-  const cpAddresses = [...new Set(allSensors
+  const cpAddresses = [...new Set(getCalibrationSensors()
     .filter(sensor => !isSensorDisabled(sensor) && sensor.cp_address)
     .map(sensor => String(sensor.cp_address).trim())
     .filter(Boolean))]
@@ -3089,7 +3151,7 @@ function openAddExceptionModal() {
 
 function updateNewExceptionServers() {
   const cp = document.getElementById('new-exc-cp')?.value.trim().toLowerCase();
-  const matches = allSensors.filter(sensor =>
+  const matches = getCalibrationSensors().filter(sensor =>
     String(sensor.cp_address || '').trim().toLowerCase() === cp &&
     !isSensorDisabled(sensor)
   );
@@ -3116,7 +3178,7 @@ async function saveNewException() {
   const cp = cpInput.value.trim();
   const reason = reasonInput.value.trim();
   const added_by = addedByInput.value;
-  const matches = allSensors.filter(sensor =>
+  const matches = getCalibrationSensors().filter(sensor =>
     String(sensor.cp_address || '').trim().toLowerCase() === cp.toLowerCase() &&
     !isSensorDisabled(sensor)
   );
@@ -3287,7 +3349,7 @@ let jobInfoLoaded = false;
 let autoSavedCompletionKey = null;
 
 function detectHardware(sourceSensors = allSensors) {
-  const active = sourceSensors.filter(s => !isSensorDisabled(s));
+  const active = getCalibrationSensors(sourceSensors).filter(s => !isSensorDisabled(s));
   let hasArms = false, hasGuardian = false;
   for (const s of active) {
     const cp = s.cp_address || '';
@@ -3301,7 +3363,7 @@ function detectHardware(sourceSensors = allSensors) {
 }
 
 function detectMeters() {
-  const types = new Set(allSensors
+  const types = new Set(getCalibrationSensors()
     .filter(s => !isSensorDisabled(s))
     .map(s => (s.sensor_type || '').toUpperCase())
   );
@@ -3313,7 +3375,7 @@ function detectMeters() {
 }
 
 function detectO2Count() {
-  return allSensors.filter(s =>
+  return getCalibrationSensors().filter(s =>
     !isSensorDisabled(s) &&
     (s.sensor_type || '').toUpperCase().includes('O2')
   ).length;
@@ -3399,7 +3461,7 @@ async function saveJobInfo({ silent = false, lastCalibrated = null } = {}) {
     const value = parseInt(el.value, 10);
     return Number.isNaN(value) ? null : value;
   };
-  const active  = allSensors.filter(s => !isSensorDisabled(s));
+  const active  = getCalibrationSensors().filter(s => !isSensorDisabled(s));
   const meters  = detectMeters();
   const hardware = detectHardware();
   const versions = [...new Set(servers.map(s => serverMeta[s]?.version).filter(Boolean))];
@@ -3474,7 +3536,7 @@ async function saveJobInfo({ silent = false, lastCalibrated = null } = {}) {
 };
 
 function buildJobInfoTab() {
-  const active   = allSensors.filter(s => !isSensorDisabled(s));
+  const active   = getCalibrationSensors().filter(s => !isSensorDisabled(s));
   const meters   = detectMeters();
   const hardware = detectHardware();
   const warning  = getCustomerWarning();

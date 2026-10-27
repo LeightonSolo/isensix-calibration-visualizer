@@ -173,6 +173,7 @@
     .stat-pill-label { font-size: 10px; color: var(--text-sec); text-transform: uppercase; letter-spacing: 0.05em; }
     .stat-pill-value { font-size: 20px; font-weight: 600; letter-spacing: -0.02em; margin-top: 2px; }
     .green  { color: var(--green); }
+    .blue   { color: var(--blue); }
     .orange { color: var(--orange); }
     .red    { color: var(--red); }
     .yellow { color: var(--yellow); }
@@ -401,6 +402,7 @@
   <div id="section-check"></div>
   <div id="section-remaining"></div>
   <div id="section-disabled"></div>
+  <div id="section-senso-nodes"></div>
 
   <!-- Footer -->
   <div style="text-align:center;font-size:10px;color:var(--text-muted);padding-top:8px;border-top:0.5px solid var(--border);" class="noprint">
@@ -415,6 +417,7 @@
 <script>
 /* ─── State ─────────────────────────────────────────────── */
 let allSensors    = [];
+let sensoNodes    = [];
 let allExceptions = [];
 let serverMeta    = {};
 let thresholds    = JSON.parse(localStorage.getItem('cal_thresholds') || 'null')
@@ -422,6 +425,7 @@ let thresholds    = JSON.parse(localStorage.getItem('cal_thresholds') || 'null')
 let servers       = JSON.parse(localStorage.getItem('cal_servers') || '[]');
 const historicalRunId = new URLSearchParams(window.location.search).get('run_id');
 let historicalRun = null;
+const showSensoNodesInReport = localStorage.getItem('cal_show_senso_nodes') === 'true';
 const CURRENT_YEAR = new Date().getFullYear();
 const reportSorts = Object.fromEntries(
   ['calibrated', 'exceptions', 'failures', 'check', 'remaining', 'disabled']
@@ -429,6 +433,32 @@ const reportSorts = Object.fromEntries(
 );
 
 /* ─── Helpers ─────────────────────────────────────────────── */
+
+function isSystemSensor(sensor) {
+  const marker = '\u25c8';
+  return String(sensor?.sensor_name ?? '').includes(marker)
+    || String(sensor?.zone ?? '').includes(marker);
+}
+function isSensoNode(sensor) {
+  return /^(?:[0-9a-f]{2}:){5}[0-9a-f]{2}(?:\.\d+|-\d+)$/i
+    .test(String(sensor?.cp_address || '').trim());
+}
+function filterReportSensors(sensors) {
+  const visible = (Array.isArray(sensors) ? sensors : []).filter(sensor => !isSystemSensor(sensor));
+  sensoNodes = showSensoNodesInReport ? visible.filter(isSensoNode) : [];
+  return visible.filter(sensor => !isSensoNode(sensor));
+}
+function filterReportExceptions(exceptions) {
+  const sensorKeys = new Set(allSensors.map(sensor => `${sensor.server}:${sensor.sensor_id}`));
+  return (Array.isArray(exceptions) ? exceptions : []).filter(exception =>
+    sensorKeys.has(`${exception.server}:${exception.sensor_id}`)
+  );
+}
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>'"]/g, char => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;',
+  })[char]);
+}
 
 const savedRollingDays = localStorage.getItem("rollingDays");
 
@@ -469,8 +499,8 @@ function getExceptionReason(s) {
   )?.reason || '—';
 }
 function isEnabled(s) {
-  const status = String(s.status ?? '').trim().toUpperCase();
-  return status !== 'DISABLED' && status !== 'INACTIVE SENSOR';
+  const status = String(s.status ?? '').trim().toUpperCase().replace(/\s+/g, ' ');
+  return status !== 'DISABLED' && status !== 'DISABLED SENSOR';
 }
 function isInCheck(s) {
   return isEnabled(s) && s.quality && s.quality.toUpperCase() !== 'GOOD';
@@ -660,6 +690,29 @@ function buildSection(sectionKey, containerId, hdrClass, title, rows, notesFn, r
     </div>`;
 }
 
+function buildSensoNodesSection(rows) {
+    if (!rows.length) return '';
+    return `
+      <div class="section">
+        <div class="section-hdr hdr-remaining">
+          <span class="section-hdr-title">Senso Nodes — not part of Isensix calibration</span>
+          <span class="section-hdr-count">${rows.length} sensor${rows.length === 1 ? '' : 's'}</span>
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="sensor-table">
+            <thead><tr><th>Address</th><th>Sensor Name</th><th>Zone</th><th>SID</th><th>Type</th></tr></thead>
+            <tbody>${rows.map(sensor => `<tr>
+              <td class="mono">${escapeHtml(sensor.cp_address || '—')}</td>
+              <td>${escapeHtml(sensor.sensor_name || '—')}</td>
+              <td>${escapeHtml(sensor.zone || '—')}</td>
+              <td class="mono">${escapeHtml(sensor.server || '—')}</td>
+              <td>${escapeHtml(sensor.sensor_type || '—')}</td>
+            </tr>`).join('')}</tbody>
+          </table>
+        </div>
+      </div>`;
+}
+
 /* ─── Data loading ─────────────────────────────────────── */
 async function loadServerMeta() {
   try {
@@ -682,7 +735,7 @@ async function loadData() {
       if (!response.ok) throw new Error('Could not load historical calibration');
       const payload = await response.json();
       historicalRun = payload.run;
-      allSensors = payload.sensors || [];
+      allSensors = filterReportSensors(payload.sensors);
       try { servers = JSON.parse(historicalRun.servers_json || '[]'); } catch (_) { servers = []; }
       allExceptions = allSensors.filter(sensor => sensor.exception_reason).map(sensor => ({
         sensor_id: String(sensor.sensor_id), server: sensor.server,
@@ -724,8 +777,8 @@ async function loadData() {
       loadServerMeta(),
     ]);
 
-    allSensors    = sensorResults.flat();
-    allExceptions = excResults.flat();
+    allSensors    = filterReportSensors(sensorResults.flat());
+    allExceptions = filterReportExceptions(excResults.flat());
 
     document.getElementById('loading').style.display = 'none';
     document.getElementById('report').style.display  = 'flex';
@@ -793,7 +846,7 @@ function renderReport() {
     </div>
     <div class="stat-pill">
       <span class="stat-pill-label">Remaining</span>
-      <span class="stat-pill-value ${remaining.length>0?'orange':'green'}">${remaining.length}</span>
+      <span class="stat-pill-value ${remaining.length>0?'blue':'green'}">${remaining.length}</span>
     </div>
     <div class="stat-pill">
       <span class="stat-pill-label">Failures</span>
@@ -869,23 +922,25 @@ function renderReport() {
   const disEl = document.getElementById('section-disabled');
   if (!disabled.length) {
     disEl.innerHTML = '';
-    return;
+  } else {
+    const disabledSorted = sortReportRows(disabled, 'disabled', () => '');
+    const disBody = disabledSorted.map(s => buildRow(s, '—', 'disabled-row')).join('');
+    disEl.innerHTML = `
+      <div class="section">
+        <div class="section-hdr hdr-disabled">
+          <span class="section-hdr-title">Disabled sensors</span>
+          <span class="section-hdr-count">${disabledSorted.length}</span>
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="sensor-table">
+            ${buildTableHead('disabled')}
+            <tbody>${disBody}</tbody>
+          </table>
+        </div>
+      </div>`;
   }
-  const disabledSorted = sortReportRows(disabled, 'disabled', () => '');
-  const disBody = disabledSorted.map(s => buildRow(s, '—', 'disabled-row')).join('');
-  disEl.innerHTML = `
-    <div class="section">
-      <div class="section-hdr hdr-disabled">
-        <span class="section-hdr-title">Disabled sensors</span>
-        <span class="section-hdr-count">${disabledSorted.length}</span>
-      </div>
-      <div style="overflow-x:auto;">
-        <table class="sensor-table">
-          ${buildTableHead('disabled')}
-          <tbody>${disBody}</tbody>
-        </table>
-      </div>
-    </div>`;
+  document.getElementById('section-senso-nodes').innerHTML =
+    showSensoNodesInReport ? buildSensoNodesSection(sensoNodes) : '';
 }
 
 /* ─── Init ─────────────────────────────────────────────── */

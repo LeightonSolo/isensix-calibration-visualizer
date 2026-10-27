@@ -587,10 +587,12 @@
 <script>
 /* ─── State ───────────────────────────────────────────────── */
 let allSensors    = [];
+let sensoNodes    = [];
 let allExceptions = [];
 let servers       = JSON.parse(localStorage.getItem('cal_servers') || '[]');
 let thresholds    = JSON.parse(localStorage.getItem('cal_thresholds') || 'null')
                     || { ...CONFIG.DEFAULT_THRESHOLDS };
+const showSensoNodesInSummary = localStorage.getItem('cal_show_senso_nodes') === 'true';
 let summaryJobInfo = {};
 let customerAutofilledValue = null;
 let printedNameAutofilledValue = null;
@@ -626,6 +628,32 @@ function restoreFields() {
 }
 
 /* ─── Helpers ─────────────────────────────────────────────── */
+
+function isSystemSensor(sensor) {
+  const marker = '\u25c8';
+  return String(sensor?.sensor_name ?? '').includes(marker)
+    || String(sensor?.zone ?? '').includes(marker);
+}
+function isSensoNode(sensor) {
+  return /^(?:[0-9a-f]{2}:){5}[0-9a-f]{2}(?:\.\d+|-\d+)$/i
+    .test(String(sensor?.cp_address || '').trim());
+}
+function filterSummarySensors(sensors) {
+  const visible = (Array.isArray(sensors) ? sensors : []).filter(sensor => !isSystemSensor(sensor));
+  sensoNodes = showSensoNodesInSummary ? visible.filter(isSensoNode) : [];
+  return visible.filter(sensor => !isSensoNode(sensor));
+}
+function filterSummaryExceptions(exceptions) {
+  const sensorKeys = new Set(allSensors.map(sensor => `${sensor.server}:${sensor.sensor_id}`));
+  return (Array.isArray(exceptions) ? exceptions : []).filter(exception =>
+    sensorKeys.has(`${exception.server}:${exception.sensor_id}`)
+  );
+}
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>'"]/g, char => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;',
+  })[char]);
+}
 
 const savedRollingDays = localStorage.getItem("rollingDays");
 
@@ -802,8 +830,8 @@ async function loadData() {
       )),
     ]);
 
-    allSensors    = sensorResults.flat();
-    allExceptions = excResults.flat();
+    allSensors    = filterSummarySensors(sensorResults.flat());
+    allExceptions = filterSummaryExceptions(excResults.flat());
 
     await loadSummaryJobInfo();
 
@@ -835,7 +863,7 @@ function populateHeader() {
 function renderStats() {
   const enabled = allSensors.filter(s => !isSensorDisabled(s));
   const active  = enabled.filter(s => !isExcepted(s));
-  const total   = active.length;
+  const total   = enabled.length;
   const activeCalibrated = active.filter(isCalibrated);
   const disabledCalibrated = allSensors.filter(s =>
     isSensorDisabled(s) &&
@@ -911,6 +939,7 @@ function renderTables() {
   </div>
   ${buildFailTable(failures)}
   ${buildCheckTable(checkSensors)}
+  ${showSensoNodesInSummary && sensoNodes.length ? buildSensoNodeTable(sensoNodes) : ''}
 `;
   requestAnimationFrame(() => {
     document.fonts.ready.then(updateSummaryTableLayout);
@@ -1038,6 +1067,36 @@ function buildCheckTable(rows) {
         </tr>`).join('') : `<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:12px;">None</td></tr>`}
         </tbody>
       </table>
+      </div>
+    </div>`;
+}
+
+function buildSensoNodeTable(rows) {
+  return `
+    <div class="summary-section-full">
+      <div class="summary-section">
+        <div class="summary-section-header">
+          <span class="summary-section-title">Senso Nodes — not part of Isensix calibration</span>
+          <span class="summary-section-count">${rows.length}</span>
+        </div>
+        <div class="sum-table-wrap">
+          <table class="sum-table">
+            <thead><tr>
+              <th>Address</th>
+              <th>Sensor Name</th>
+              <th>Zone</th>
+              <th>SID</th>
+              <th>Type</th>
+            </tr></thead>
+            <tbody>${rows.map(sensor => `<tr>
+              <td class="muted" style="font-family:var(--mono);">${escapeHtml(sensor.cp_address || '—')}</td>
+              <td title="${escapeHtml(sensor.sensor_name || '')}">${escapeHtml(sensor.sensor_name || '—')}</td>
+              <td class="muted" title="${escapeHtml(sensor.zone || '')}">${escapeHtml(sensor.zone || '—')}</td>
+              <td class="muted">${escapeHtml(sensor.server || '—')}</td>
+              <td>${escapeHtml(sensor.sensor_type || '—')}</td>
+            </tr>`).join('')}</tbody>
+          </table>
+        </div>
       </div>
     </div>`;
 }
