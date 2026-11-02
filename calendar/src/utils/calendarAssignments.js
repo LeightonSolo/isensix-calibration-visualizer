@@ -18,6 +18,15 @@ export function withinEventDateRange(assignments, startDate, endDate) {
   });
 }
 
+export function assignmentLabel(assignment) {
+  const rawTech = String(assignment?.tech_name || '').trim();
+  const isLegacyMatt = rawTech.toLowerCase() === 'matt';
+  const tech = isLegacyMatt ? CONFIG.FLEX_TECHNICIAN : rawTech;
+  const person = String(assignment?.person_name || (isLegacyMatt ? 'Matt' : '')).trim();
+  return tech.toLowerCase() === CONFIG.FLEX_TECHNICIAN.toLowerCase() && person
+    ? `${CONFIG.FLEX_TECHNICIAN} (${person})` : tech;
+}
+
 export function businessDateStrings(startDate, endDate) {
   const start = parseISO(String(startDate || ''));
   const end = parseISO(String(endDate || ''));

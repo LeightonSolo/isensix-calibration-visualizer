@@ -213,7 +213,11 @@ const JOB_SCHEDULE_CTE = `
   schedule_assignments AS (
     SELECT event_id, group_concat(tech_name, ', ') AS scheduled_with
     FROM (
-      SELECT DISTINCT event_id, tech_name
+      SELECT DISTINCT event_id,
+        CASE WHEN lower(trim(tech_name)) = 'flex' AND trim(COALESCE(person_name, '')) <> ''
+          THEN 'Flex (' || trim(person_name) || ')'
+          ELSE tech_name
+        END AS tech_name
       FROM event_assignments
       WHERE lower(trim(tech_name)) <> 'unassigned'
       ORDER BY event_id, tech_name
@@ -241,7 +245,8 @@ const TENTATIVE_ASSIGNMENT_SQL = `
       WHEN 'leighton' THEN 'Leighton'
       WHEN 'joey' THEN 'Joey'
       WHEN 'kyle' THEN 'Kyle'
-      WHEN 'matt' THEN 'Matt'
+      WHEN 'matt' THEN 'Flex'
+      WHEN 'chris' THEN 'Chris'
       WHEN 'brendon' THEN 'Brendon'
       WHEN 'fernando' THEN 'Fernando'
       WHEN 'bissen' THEN 'Bissen'
@@ -1314,9 +1319,9 @@ export default {
         if (technicianAssignments.length) {
           await env.DB.batch(technicianAssignments.map((a: any) =>
             env.DB.prepare(
-              `INSERT OR IGNORE INTO event_assignments (event_id, tech_name, date)
-              VALUES (?,?,?)`
-            ).bind(eventId, a.tech_name, a.date)
+              `INSERT OR IGNORE INTO event_assignments (event_id, tech_name, person_name, date)
+              VALUES (?,?,?,?)`
+            ).bind(eventId, a.tech_name, a.person_name ?? null, a.date)
           ));
         }
       }
@@ -1387,13 +1392,13 @@ export default {
         return new Response('Forbidden', { status: 403 });
       }
       const body = await request.json() as Record<string, any>;
-      const { tech_name, event_type, date, notes } = body;
+      const { tech_name, person_name, event_type, date, notes } = body;
       await env.DB.prepare(`
-        INSERT INTO tech_events (tech_name, event_type, date, notes)
-        VALUES (?,?,?,?)
+        INSERT INTO tech_events (tech_name, person_name, event_type, date, notes)
+        VALUES (?,?,?,?,?)
         ON CONFLICT(tech_name, date) DO UPDATE SET
-          event_type=excluded.event_type, notes=excluded.notes
-      `).bind(tech_name, event_type, date, notes ?? null).run();
+          person_name=excluded.person_name, event_type=excluded.event_type, notes=excluded.notes
+      `).bind(tech_name, person_name ?? null, event_type, date, notes ?? null).run();
       return json({ ok: true });
     }
 
@@ -1406,15 +1411,16 @@ export default {
         return new Response('No entries', { status: 400 });
       }
       const stmt = env.DB.prepare(`
-        INSERT INTO tech_events (tech_name, event_type, date, notes)
-        VALUES (?, ?, ?, ?)
+        INSERT INTO tech_events (tech_name, person_name, event_type, date, notes)
+        VALUES (?, ?, ?, ?, ?)
         ON CONFLICT(tech_name, date) DO UPDATE SET
+          person_name = excluded.person_name,
           event_type = excluded.event_type,
           notes      = excluded.notes
       `);
       await env.DB.batch(
         entries.map((entry: any) =>
-          stmt.bind(entry.tech_name, entry.event_type, entry.date, entry.notes ?? null)
+          stmt.bind(entry.tech_name, entry.person_name ?? null, entry.event_type, entry.date, entry.notes ?? null)
         )
       );
       return json({ ok: true, count: entries.length });

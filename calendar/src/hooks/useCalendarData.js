@@ -10,6 +10,12 @@ function headers(editorToken) {
   return h;
 }
 
+function normalizeFlexRow(row) {
+  return String(row?.tech_name || '').toLowerCase() === 'matt'
+    ? { ...row, tech_name: CONFIG.FLEX_TECHNICIAN, person_name: row.person_name || 'Matt' }
+    : row;
+}
+
 export function useCalendarData() {
   const [events,      setEvents]      = useState([]);
   const [assignments, setAssignments] = useState([]);
@@ -38,8 +44,8 @@ export function useCalendarData() {
         evRes.json(), asRes.json(), teRes.json()
       ]);
       setEvents(ev);
-      setAssignments(withoutAutomaticUnassigned(as));
-      setTechEvents(te);
+      setAssignments(withoutAutomaticUnassigned(as.map(normalizeFlexRow)));
+      setTechEvents(te.map(normalizeFlexRow));
     } catch(e) {
       setError('Failed to load calendar data');
       console.error(e);

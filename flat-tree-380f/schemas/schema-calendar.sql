@@ -26,6 +26,7 @@ CREATE TABLE event_assignments (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
   event_id    INTEGER NOT NULL REFERENCES calendar_events(id) ON DELETE CASCADE,
   tech_name   TEXT NOT NULL,
+  person_name TEXT,
   date        TEXT NOT NULL,
   UNIQUE(event_id, tech_name, date)
 );
@@ -33,6 +34,7 @@ CREATE TABLE event_assignments (
 CREATE TABLE tech_events (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
   tech_name   TEXT NOT NULL,
+  person_name TEXT,
   event_type  TEXT NOT NULL,
   date        TEXT NOT NULL,
   notes       TEXT,

@@ -5,7 +5,8 @@ const TECHNICIANS = new Set([
   'Leighton',
   'Joey',
   'Brendon',
-  'Matt',
+  'Chris',
+  'Flex',
   'Fernando',
   'Bissen',
 ]);

@@ -137,13 +137,20 @@ export default function JobModal({
   const autofilledCustomerRef = useRef(null);
   const jobPickerRef = useRef(null);
   const [jobOptionsMode, setJobOptionsMode] = useState(null);
+  const legacyFlexAssignment = (event?.assignments || []).find(a =>
+    [CONFIG.FLEX_TECHNICIAN, 'Matt'].includes(a.tech_name)
+  );
+  const [flexPersonName, setFlexPersonName] = useState(
+    legacyFlexAssignment?.person_name || (legacyFlexAssignment?.tech_name === 'Matt' ? 'Matt' : '')
+  );
 
   // Tech assignments: { techName: Set of date strings }
   const [techDates, setTechDates] = useState(() => {
     const map = {};
     withoutAutomaticUnassigned(event?.assignments || []).forEach(a => {
-      if (!map[a.tech_name]) map[a.tech_name] = new Set();
-      map[a.tech_name].add(a.date);
+      const tech = a.tech_name === 'Matt' ? CONFIG.FLEX_TECHNICIAN : a.tech_name;
+      if (!map[tech]) map[tech] = new Set();
+      map[tech].add(a.date);
     });
     if (!event?.assignments?.length && CONFIG.TECHNICIANS.includes(initialTech)) {
       map[initialTech] = new Set([startDate]);
@@ -224,7 +231,11 @@ export default function JobModal({
     // Build flat assignments array
     const selectedAssignments = [];
     Object.entries(techDates).forEach(([tech, dates]) => {
-      dates.forEach(date => selectedAssignments.push({ tech_name: tech, date }));
+      dates.forEach(date => selectedAssignments.push({
+        tech_name: tech,
+        person_name: tech === CONFIG.FLEX_TECHNICIAN ? flexPersonName.trim() || null : null,
+        date,
+      }));
     });
     const assignments = withinEventDateRange(selectedAssignments, startDate, endDate);
     try {
@@ -264,7 +275,12 @@ export default function JobModal({
   const statusColor = CONFIG.STATUS_COLORS[status] || CONFIG.STATUS_COLORS.ticketed;
   const previewEventId = event?.id ?? '__job-modal-preview__';
   const previewAssignments = Object.entries(techDates).flatMap(([tech, dates]) =>
-    [...dates].map(date => ({ event_id: previewEventId, tech_name: tech, date }))
+    [...dates].map(date => ({
+      event_id: previewEventId,
+      tech_name: tech,
+      person_name: tech === CONFIG.FLEX_TECHNICIAN ? flexPersonName.trim() || null : null,
+      date,
+    }))
   );
   const previewEvent = matchedJobInfo ? {
     id: previewEventId,
@@ -523,6 +539,18 @@ export default function JobModal({
                   })}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+
+        {techDates[CONFIG.FLEX_TECHNICIAN]?.size > 0 && (
+          <div>
+            <label style={S.label}>Flex person</label>
+            <input style={S.input} value={flexPersonName}
+              onChange={e => setFlexPersonName(e.target.value)}
+              placeholder="e.g. Matt or another office worker" />
+            <div style={{ fontSize: 11, color: 'var(--cal-text-muted)', marginTop: 4 }}>
+              This assignment stays in the Flex column and can be named per job.
             </div>
           </div>
         )}

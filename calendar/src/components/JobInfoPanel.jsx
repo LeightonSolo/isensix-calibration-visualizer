@@ -6,6 +6,7 @@ import { downloadOutlookCalendar } from '../utils/outlookExport.js';
 import { siteHeaders } from '../utils/siteAuth.js';
 import { serverTunnelUrl } from '../utils/serverLinks.js';
 import TravelPanel from './TravelPanel.jsx';
+import { assignmentLabel } from '../utils/calendarAssignments.js';
 
 const WORKER_URL = CONFIG.WORKER_URL;
 
@@ -209,7 +210,7 @@ export default function JobInfoPanel({
     ? [...new Set(
         (assignments || [])
           .filter(a => String(a.event_id) === String(selectedEvent.id))
-          .map(a => a.tech_name)
+          .map(assignmentLabel)
       )]
     : [];
 
@@ -576,7 +577,9 @@ function SummaryTab({ event, jobInfo, techs, serverMeta }) {
       {techs.length > 0 ? (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 2 }}>
           {techs.map(t => {
-            const tc = CONFIG.TECH_COLORS?.[t];
+            const baseTech = t.startsWith(`${CONFIG.FLEX_TECHNICIAN} (`)
+              ? CONFIG.FLEX_TECHNICIAN : t;
+            const tc = CONFIG.TECH_COLORS?.[baseTech];
             return (
               <span key={t} style={{
                 padding: '2px 8px', borderRadius: 4, fontSize: 12, fontWeight: 500,

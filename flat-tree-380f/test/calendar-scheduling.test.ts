@@ -34,13 +34,13 @@ describe('calendar scheduling dates', () => {
   });
 
   it('keeps one-person primary assignment and accepts complete historical teams', () => {
-    expect(tentativeAssignmentNames({ num_tech: 1, primary_tech: 'dejan' }, ['Matt']))
+    expect(tentativeAssignmentNames({ num_tech: 1, primary_tech: 'dejan' }, ['Flex']))
       .toEqual(['Dejan']);
-    expect(tentativeAssignmentNames({ num_tech: 2, primary_tech: null }, ['Matt', 'Brendon']))
-      .toEqual(['Matt', 'Brendon']);
-    expect(tentativeAssignmentNames({ num_tech: 3, primary_tech: null }, ['Matt', 'Brendon']))
+    expect(tentativeAssignmentNames({ num_tech: 2, primary_tech: null }, ['Flex', 'Brendon']))
+      .toEqual(['Flex', 'Brendon']);
+    expect(tentativeAssignmentNames({ num_tech: 3, primary_tech: null }, ['Flex', 'Brendon']))
       .toEqual([]);
-    expect(tentativeAssignmentNames({ num_tech: 2, primary_tech: null }, ['Kyle', 'Matt']))
+    expect(tentativeAssignmentNames({ num_tech: 2, primary_tech: null }, ['Kyle', 'Flex']))
       .toEqual([]);
   });
 });

@@ -24,9 +24,10 @@ const TECH_EMAIL_COLORS = {
   Daniel: { bg: '#fff8cf', fg: '#6f6400', border: '#d7c85e', darkBg: '#403b12', darkFg: '#f4df68' },
   Joey: { bg: '#f7eddf', fg: '#8a5500', border: '#d2ad70', darkBg: '#3d2c18', darkFg: '#e8b66b' },
   Bissen: { bg: '#f2e9f8', fg: '#7c3998', border: '#c09bd1', darkBg: '#352040', darkFg: '#d9a9ec' },
+  Chris: { bg: '#fbe7f0', fg: '#9a2c5a', border: '#dfa0bb', darkBg: '#43172f', darkFg: '#f5a1c5' },
   Dejan: { bg: '#e1f5f4', fg: '#087b78', border: '#8ccbc7', darkBg: '#103b3a', darkFg: '#7ddbd7' },
   Brendon: { bg: '#f8e5e5', fg: '#a22e2e', border: '#dda0a0', darkBg: '#431e1e', darkFg: '#f2a2a2' },
-  Matt: { bg: '#f0f2f0', fg: '#374a37', border: '#b8c0b8', darkBg: '#303530', darkFg: '#d2ddd2' },
+  Flex: { bg: '#f0f2f0', fg: '#374a37', border: '#b8c0b8', darkBg: '#303530', darkFg: '#d2ddd2' },
 };
 
 const SECTION_COLORS = {
@@ -113,8 +114,10 @@ function assignmentLines(event, assignments) {
     if (String(assignment.event_id) !== String(event.id)) continue;
     const tech = text(assignment.tech_name);
     if (!tech || tech.toLowerCase() === 'unassigned') continue;
-    if (!byTech.has(tech)) byTech.set(tech, []);
-    byTech.get(tech).push(assignment.date);
+    const label = tech.toLowerCase() === 'flex' && text(assignment.person_name)
+      ? `Flex (${text(assignment.person_name)})` : tech;
+    if (!byTech.has(label)) byTech.set(label, []);
+    byTech.get(label).push(assignment.date);
   }
   return [...byTech.entries()].sort(([a], [b]) => a.localeCompare(b))
     .map(([tech, dates]) => `${tech}: ${summarizeDateRanges(dates)}`);
@@ -134,8 +137,8 @@ function eventDescription(event, jobInfo, assignments, jobInfoUrl) {
     `Dates: ${displayDate(event.start_date)} - ${displayDate(event.end_date)}`,
   ];
   if (text(event.ticket_id)) lines.push(`Ticket ID: ${text(event.ticket_id)}`);
-  //const techs = assignmentLines(event, assignments);
-  //if (techs.length) lines.push('', 'Assigned technicians:', ...techs);
+  const techs = assignmentLines(event, assignments);
+  if (techs.length) lines.push('', 'Assigned technicians:', ...techs);
   const info = JOB_INFO_FIELDS.map(([label, key]) => [label, text(jobInfo?.[key])])
     .filter(([, value]) => value).map(([label, value]) => `${label}: ${value}`);
   if (info.length) lines.push('', 'Job information:', ...info);
@@ -250,16 +253,18 @@ function eventHtmlDescription(event, jobInfo, assignments, jobInfoUrl) {
     htmlRow('Dates', `${displayDate(event.start_date)} - ${displayDate(event.end_date)}`),
     htmlRow('Ticket ID', event.ticket_id),
   ];
-  /*if (techs.length) {
+  const techs = assignmentLines(event, assignments);
+  if (techs.length) {
     rows.push(htmlSection('Assigned technicians', 'technicians'));
     for (const tech of techs) {
       const separator = tech.indexOf(':');
       const name = tech.slice(0, separator);
-      const colors = TECH_EMAIL_COLORS[name];
+      const colorName = name.startsWith('Flex (') ? 'Flex' : name;
+      const colors = TECH_EMAIL_COLORS[colorName];
       rows.push(htmlRow(name, tech.slice(separator + 1).trim(), colors
-        ? { colors, className: `tech-${name.toLowerCase()}` } : {}));
+        ? { colors, className: `tech-${colorName.toLowerCase()}` } : {}));
     }
-  }*/
+  }
   const infoRows = JOB_INFO_FIELDS.map(([label, key]) => jobInfoRow(label, key, jobInfo?.[key])).filter(Boolean);
   if (infoRows.length) rows.push(htmlSection('Job information', 'information'), ...infoRows);
   if (text(event.notes)) rows.push(htmlSection('Notes', 'notes'), htmlRow('Event notes', event.notes));

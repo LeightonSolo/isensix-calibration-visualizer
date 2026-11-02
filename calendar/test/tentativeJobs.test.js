@@ -54,7 +54,7 @@ test('a job becomes tentative exactly six months after its last calibration', ()
 test('uses primary technician for one-person jobs and Unassigned otherwise', () => {
   const jobs = {
     Primary: { id: 20, job_name: 'Primary', active: 1, last_calibrated: '2025-10-06', num_tech: 1, primary_tech: 'joey', scheduled_with: 'Not Scheduled' },
-    Team: { id: 22, job_name: 'Team', active: 1, last_calibrated: '2025-10-20', num_tech: 2, primary_tech: 'Daniel', scheduled_with: 'Daniel, Matt' },
+    Team: { id: 22, job_name: 'Team', active: 1, last_calibrated: '2025-10-20', num_tech: 2, primary_tech: 'Daniel', scheduled_with: 'Daniel, Flex' },
     Open: { id: 21, job_name: 'Open', active: 1, last_calibrated: '2025-11-04' },
   };
 
@@ -87,20 +87,20 @@ test('uses a complete prior-year team when every technician is available', () =>
   }];
   const assignments = [
     { event_id: 800, tech_name: 'Daniel', date: '2025-10-19' },
-    { event_id: 800, tech_name: 'Matt', date: '2025-10-20' },
+    { event_id: 800, tech_name: 'Flex', date: '2025-10-20' },
   ];
 
-  assert.deepEqual(historicalAssignmentNames(jobs.Team, events, assignments), ['Daniel', 'Matt']);
-  assert.deepEqual(assignmentNames(jobs.Team, ['Daniel', 'Matt']), ['Daniel', 'Matt']);
+  assert.deepEqual(historicalAssignmentNames(jobs.Team, events, assignments), ['Daniel', 'Flex']);
+  assert.deepEqual(assignmentNames(jobs.Team, ['Daniel', 'Flex']), ['Daniel', 'Flex']);
   const projected = generateTentativeJobs(jobs, events, now, assignments);
   assert.deepEqual(
     [...new Set(projected[0].ghostAssignments.map(assignment => assignment.tech_name))],
-    ['Daniel', 'Matt']
+    ['Daniel', 'Flex']
   );
 });
 
 test('does not assign an incomplete prior-year team', () => {
-  assert.deepEqual(assignmentNames({ num_tech: 3 }, ['Daniel', 'Matt']), ['Unassigned']);
+  assert.deepEqual(assignmentNames({ num_tech: 3 }, ['Daniel', 'Flex']), ['Unassigned']);
 });
 
 test('moves a prior-year team together until every technician is available', () => {
@@ -125,15 +125,15 @@ test('moves a prior-year team together until every technician is available', () 
   }];
   const assignments = [
     { event_id: 801, tech_name: 'Daniel', date: '2025-08-17' },
-    { event_id: 801, tech_name: 'Matt', date: '2025-08-18' },
-    { event_id: 999, tech_name: 'Matt', date: '2026-08-17' },
+    { event_id: 801, tech_name: 'Flex', date: '2025-08-18' },
+    { event_id: 999, tech_name: 'Flex', date: '2026-08-17' },
   ];
 
   const projected = generateTentativeJobs(jobs, events, now, assignments);
   assert.equal(projected[0].start_date, '2026-08-18');
   assert.deepEqual(
     [...new Set(projected[0].ghostAssignments.map(assignment => assignment.tech_name))],
-    ['Daniel', 'Matt']
+    ['Daniel', 'Flex']
   );
 });
 

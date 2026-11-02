@@ -73,10 +73,15 @@ export default function TechEventModal({
   );
   const [notes,   setNotes]   = useState(techEvent?.notes || '');
   const [saving,  setSaving]  = useState(false);
+  const [flexPersonName, setFlexPersonName] = useState(
+    techEvent?.person_name || (techEvent?.tech_name === 'Matt' ? 'Matt' : '')
+  );
 
   // Selected techs — default to initialTech or all
   const [selectedTechs, setSelectedTechs] = useState(
-    new Set(isEdit ? [techEvent.tech_name] : (initialTech ? [initialTech] : []))
+    new Set(isEdit
+      ? [techEvent.tech_name === 'Matt' ? CONFIG.FLEX_TECHNICIAN : techEvent.tech_name]
+      : [initialTech === 'Matt' ? CONFIG.FLEX_TECHNICIAN : initialTech].filter(Boolean))
   );
 
   function toggleTech(tech) {
@@ -112,7 +117,9 @@ export default function TechEventModal({
         // Single edit — just update the one record
         await onSave({
           id: techEvent.id,
-          tech_name: techEvent.tech_name,
+          tech_name: techEvent.tech_name === 'Matt' ? CONFIG.FLEX_TECHNICIAN : techEvent.tech_name,
+          person_name: (techEvent.tech_name === CONFIG.FLEX_TECHNICIAN || techEvent.tech_name === 'Matt')
+            ? flexPersonName.trim() || null : null,
           event_type: eventType,
           date: techEvent.date,
           notes: notes || null,
@@ -124,6 +131,7 @@ export default function TechEventModal({
           selectedTechs.forEach(tech => {
             entries.push({
               tech_name:  tech,
+              person_name: tech === CONFIG.FLEX_TECHNICIAN ? flexPersonName.trim() || null : null,
               event_type: eventType,
               date:       format(d, 'yyyy-MM-dd'),
               notes:      notes || null,
@@ -208,7 +216,9 @@ export default function TechEventModal({
               opacity: 0.7,
               cursor: 'default',
             }}>
-              {techEvent.tech_name}
+              {techEvent.tech_name === 'Matt' ? `${CONFIG.FLEX_TECHNICIAN} (Matt)` :
+                techEvent.tech_name === CONFIG.FLEX_TECHNICIAN && techEvent.person_name
+                  ? `${CONFIG.FLEX_TECHNICIAN} (${techEvent.person_name})` : techEvent.tech_name}
             </div>
           </div>
         ) : (
@@ -240,6 +250,15 @@ export default function TechEventModal({
                 );
               })}
             </div>
+          </div>
+        )}
+
+        {selectedTechs.has(CONFIG.FLEX_TECHNICIAN) && (
+          <div>
+            <label style={S.label}>Flex person</label>
+            <input style={S.input} value={flexPersonName}
+              onChange={e => setFlexPersonName(e.target.value)}
+              placeholder="e.g. Matt or another office worker" />
           </div>
         )}
 

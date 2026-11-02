@@ -4,6 +4,7 @@ import { format, parseISO, isPast, isToday } from 'date-fns';
 import { CONFIG } from '../config';
 import JobModal from './JobModal';
 import TechEventModal from './TechEventModal';
+import { assignmentLabel } from '../utils/calendarAssignments.js';
 
 function getEventColor(event) {
   if (event.event_type !== 'calibration') {
@@ -533,6 +534,10 @@ function TechEventList({ techEvents, editorToken, requireEditor,
               )}
               {filtered.map((te, i) => {
                 const color = CONFIG.TYPE_COLORS[te.event_type] || CONFIG.TYPE_COLORS.other;
+                const displayTech = assignmentLabel({
+                  tech_name: te.tech_name,
+                  person_name: te.person_name,
+                });
                 const tc    = CONFIG.TECH_COLORS?.[te.tech_name];
                 return (
                   <tr key={te.id}
@@ -540,7 +545,7 @@ function TechEventList({ techEvents, editorToken, requireEditor,
                     onDoubleClick={() => setModal({ event: te })}>
                     <td style={{ padding: '7px 10px', fontSize: 12, fontWeight: 500,
                       color: tc?.fg || 'var(--cal-text)' }}>
-                      {te.tech_name}
+                      {displayTech}
                     </td>
                     <td style={{ padding: '7px 10px' }}>
                       <span style={{

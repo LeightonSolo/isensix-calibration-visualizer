@@ -16,15 +16,21 @@ import TechEventModal from './TechEventModal';
 import {
   withAutomaticUnassigned,
   withoutAutomaticUnassigned,
+  assignmentLabel,
 } from '../utils/calendarAssignments.js';
 import { techEventLabel } from '../utils/techEventLabels.js';
 import { statusForShortcut } from '../utils/eventStatusShortcuts.js';
 
-const COL_W  = 130;
+const COL_W  = 116;
+const MATT_COL_W = 84;
 const ROW_H  = 37;
 const DATE_W = 56;
 const RESOURCE_TECHNICIANS = CONFIG.CALENDAR_COLUMN_ORDER;
 const COMPACT_WEEKDAYS = ['Su', 'M', 'Tu', 'W', 'Th', 'F', 'Sa'];
+const columnWidth = tech => tech === CONFIG.FLEX_TECHNICIAN ? MATT_COL_W : COL_W;
+const RESOURCE_GRID_WIDTH = RESOURCE_TECHNICIANS.reduce(
+  (total, tech) => total + columnWidth(tech), 0
+);
 
 function getEventColor(ev) {
   // Ghost events get a distinct muted/dashed look
@@ -35,6 +41,15 @@ function getEventColor(ev) {
 }
 function getTechEventColor(te) {
   return CONFIG.TYPE_COLORS[te.event_type] || CONFIG.TYPE_COLORS.other;
+}
+
+function eventAssignmentLabels(eventId, assignments) {
+  return [...new Set(
+    (assignments || [])
+      .filter(a => String(a.event_id) === String(eventId))
+      .map(assignmentLabel)
+      .filter(Boolean)
+  )];
 }
 
 function eventTitleFontSize(blockHeight, title) {
@@ -84,9 +99,13 @@ export default function ResourceGrid({
   const techEventMap = useMemo(() => {
     const m = {};
     techEvents.forEach(te => {
-      if (!m[te.tech_name]) m[te.tech_name] = {};
-      if (!m[te.tech_name][te.date]) m[te.tech_name][te.date] = [];
-      m[te.tech_name][te.date].push(te);
+      const tech = te.tech_name === 'Matt' ? CONFIG.FLEX_TECHNICIAN : te.tech_name;
+      const normalized = tech === CONFIG.FLEX_TECHNICIAN && te.tech_name === 'Matt'
+        ? { ...te, tech_name: tech, person_name: te.person_name || 'Matt' }
+        : { ...te, tech_name: tech };
+      if (!m[tech]) m[tech] = {};
+      if (!m[tech][normalized.date]) m[tech][normalized.date] = [];
+      m[tech][normalized.date].push(normalized);
     });
     return m;
   }, [techEvents]);
@@ -205,7 +224,10 @@ export default function ResourceGrid({
     const evAssignments = assignments.filter(a => String(a.event_id) === String(event.id));
     const dragAssignments = withAutomaticUnassigned([event], evAssignments);
     const newAssignments = withoutAutomaticUnassigned(dragAssignments.map(a => ({
+      ...a,
       tech_name: (techChanged && a.tech_name === fromTech) ? toTech : a.tech_name,
+      person_name: ((techChanged && a.tech_name === fromTech) ? toTech : a.tech_name)
+        === CONFIG.FLEX_TECHNICIAN ? a.person_name || null : null,
       date: format(addDays(parseISO(a.date), dateOffset), 'yyyy-MM-dd'),
     })));
     const newStart = format(addDays(parseISO(event.start_date), dateOffset), 'yyyy-MM-dd');
@@ -302,6 +324,11 @@ export default function ResourceGrid({
           ) : (
             <>
               <div style={{ fontWeight: 600, marginBottom: 3 }}>{hoverCard.data.title}</div>
+              {eventAssignmentLabels(hoverCard.data.id, assignments).length > 0 && (
+                <div style={{ color: 'var(--cal-text-secondary)', fontSize: 13, marginBottom: 4 }}>
+                  {eventAssignmentLabels(hoverCard.data.id, assignments).join(', ')}
+                </div>
+              )}
               <div style={{ display: 'flex', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
                 {hoverCard.data.ticket_id && (
                   <span style={{ color: 'var(--cal-text-secondary)', fontSize: 15 }}>#{hoverCard.data.ticket_id}</span>
@@ -403,12 +430,12 @@ export default function ResourceGrid({
       <div style={{ flex: 1, overflow: 'auto', border: '0.5px solid var(--cal-border)', borderRadius: 4 }}>
         <table style={{
           borderCollapse: 'collapse', tableLayout: 'fixed',
-          width: DATE_W + RESOURCE_TECHNICIANS.length * COL_W,
+          width: DATE_W + RESOURCE_GRID_WIDTH,
           minWidth: '100%',
         }}>
           <colgroup>
             <col style={{ width: DATE_W }}/>
-            {RESOURCE_TECHNICIANS.map(t => <col key={t} style={{ width: COL_W }}/>)}
+            {RESOURCE_TECHNICIANS.map(t => <col key={t} style={{ width: columnWidth(t) }}/>) }
           </colgroup>
 
           <thead style={{ position: 'sticky', top: 0, zIndex: 6 }}>
@@ -598,6 +625,10 @@ export default function ResourceGrid({
                             const showFooter = showNotes || showStatus;
                             const footerLines = showNotes && blockH >= 90 ? 2 : 1;
                             const footerSpace = showFooter ? (footerLines === 2 ? 34 : 20) : 4;
+                            const flexPerson = tech === CONFIG.FLEX_TECHNICIAN
+                              ? assignments.find(a => String(a.event_id) === String(l.event.id)
+                                && a.tech_name === CONFIG.FLEX_TECHNICIAN)?.person_name
+                              : null;
 
                             return (
                               
@@ -693,6 +724,12 @@ export default function ResourceGrid({
                                     fontSize: titleFontSize, color: color.fg, fontWeight: 600 }}>
                                     {l.event.title}
                                   </span>
+                                  {flexPerson && blockH >= 45 && (
+                                    <span style={{ fontSize: 11, color: color.fg, opacity: 0.75,
+                                      whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                      {flexPerson}
+                                    </span>
+                                  )}
                                   {l.event.ticket_id && l.event.start_date !== l.event.end_date && (
                                     <span style={{ position: 'absolute',
                                       top: 0, left: 0, marginLeft: 4, opacity: 0.55, fontSize: 15,
