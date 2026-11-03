@@ -180,7 +180,7 @@ export default function JobList({
           Jobs
         </button>
         <button style={tabStyle(view === 'techevents')} onClick={() => setView('techevents')}>
-          PTO / Holidays / Other
+          Unavailable time
         </button>
       </div>
 
@@ -213,7 +213,7 @@ export default function JobList({
           value={typeFilter} onChange={e => setTypeFilter(e.target.value)}>
           <option value="">All types</option>
           {CONFIG.EVENT_TYPES.map(t => (
-            <option key={t} value={t}>{t.charAt(0).toUpperCase()+t.slice(1)}</option>
+            <option key={t} value={t}>{CONFIG.EVENT_TYPE_LABELS[t] || t}</option>
           ))}
         </select>
         <select style={inputStyle}
@@ -240,7 +240,7 @@ export default function JobList({
               padding: '5px 12px', cursor: 'pointer',
               fontFamily: 'Inter, system-ui, sans-serif',
             }}>
-            + Add job
+            + Add scheduled event
           </button>
         )}
       </div> 
@@ -325,7 +325,8 @@ export default function JobList({
                     </td>
                     <td style={{ padding: '7px 10px' }}>
                       <span style={S.badge(isFollowUp ? followUpColor : color)}>
-                        {isFollowUp ? event.follow_up_status : event.event_type}
+                        {isFollowUp ? event.follow_up_status
+                          : CONFIG.EVENT_TYPE_LABELS[event.event_type] || event.event_type}
                       </span>
                     </td>
                     <td style={{ padding: '7px 10px' }}>
@@ -400,7 +401,7 @@ function TechEventList({ techEvents, editorToken, requireEditor,
 
   const TYPE_LABELS = {
     pto: 'PTO', holiday: 'Holiday', jury_duty: 'Jury Duty',
-    office: 'Office', other: 'Other',
+    office: 'Office', other: 'Other unavailable',
   };
 
   function sortBy(col) {

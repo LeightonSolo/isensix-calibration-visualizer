@@ -384,7 +384,7 @@ export default function JobModal({
             <select style={S.input} value={eventType}
               onChange={e => setEventType(e.target.value)}>
               {CONFIG.EVENT_TYPES.map(t =>
-                <option key={t} value={t}>{t.charAt(0).toUpperCase()+t.slice(1)}</option>
+                <option key={t} value={t}>{CONFIG.EVENT_TYPE_LABELS[t] || t}</option>
               )}
             </select>
           </div>

@@ -311,7 +311,7 @@ export default function ResourceGrid({
               <div style={{ color: getTechEventColor(hoverCard.data).fg,
                 textTransform: 'uppercase', fontSize: 13, fontWeight: 600,
                 letterSpacing: '0.04em', marginBottom: 4 }}>
-                {hoverCard.data.event_type}
+                {techEventLabel(hoverCard.data.event_type)}
               </div>
               <div style={{ color: 'var(--cal-text-secondary)', fontSize: 13 }}>{hoverCard.data.date}</div>
               {hoverCard.data.notes && (
@@ -390,11 +390,11 @@ export default function ResourceGrid({
           <>
             <button style={btnStyle(true)}
               onClick={() => setModal({ type: 'job', event: null, initialDate: new Date() })}>
-              + Add job
+              + Add scheduled event
             </button>
             <button style={btnStyle(false)}
               onClick={() => setModal({ type: 'tech', event: null, initialDate: new Date() })}>
-              + PTO / Holiday
+              + Add unavailable time
             </button>
           </>
         )}
@@ -408,11 +408,12 @@ export default function ResourceGrid({
           ))}
           {['install','upgrade','pto','other'].map(t => {
             const c = CONFIG.TYPE_COLORS[t];
+            const label = t === 'other' ? 'Other event' : t;
             return (
               <div key={t} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 <span style={{ width: 10, height: 10, borderRadius: 2, background: c.bg,
                   border: `1px solid ${c.border}`, display: 'inline-block' }}/>
-                <span style={{ fontSize: 12, color: 'var(--cal-text-secondary)', textTransform: 'capitalize' }}>{t}</span>
+                <span style={{ fontSize: 12, color: 'var(--cal-text-secondary)', textTransform: 'capitalize' }}>{label}</span>
               </div>
             );
           })}
@@ -563,6 +564,9 @@ export default function ResourceGrid({
                             cursor: editorToken && !activeOnDay.length && !techEvs.length ? 'pointer' : 'default',
                             padding: 0, verticalAlign: 'top',
                             background: cellBackground,
+                            // Keep a multi-day block above later table rows so
+                            // its remaining days cannot be painted over.
+                            zIndex: startingHere.length ? 2 : 0,
                             outline: isDropTarget ? '1.5px dashed var(--cal-accent)' : 'none',
                             outlineOffset: -2,
                           }}>
@@ -619,7 +623,8 @@ export default function ResourceGrid({
                             const titleFontSize = eventTitleFontSize(blockH, l.event.title);
                             const statusLabel = isGhost ? 'tentative'
                               : l.event.event_type !== 'calibration'
-                                ? l.event.event_type + (l.event.status ? ` · ${l.event.status}` : '')
+                                ? (CONFIG.EVENT_TYPE_LABELS[l.event.event_type] || l.event.event_type)
+                                  + (l.event.status ? ` · ${l.event.status}` : '')
                                 : l.event.status || '';
                             const showStatus = statusLabel && blockH >= 45;
                             const showFooter = showNotes || showStatus;

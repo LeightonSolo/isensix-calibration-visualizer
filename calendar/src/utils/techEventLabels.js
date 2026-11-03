@@ -6,7 +6,7 @@ const TECH_EVENT_LABELS = {
   office: 'Office',
   jury_duty: 'Jury Duty',
   software: 'Software',
-  other: 'Other',
+  other: 'Other unavailable',
 };
 
 export function techEventLabel(eventType) {

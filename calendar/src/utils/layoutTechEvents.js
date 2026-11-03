@@ -61,9 +61,10 @@ export function horizontalLaneStyle(lane, totalLanes) {
 export function layoutTechEvents(spanList, dayStrs) {
   if (!spanList?.length) return [];
 
-  const sorted = [...spanList].sort((a, b) =>
-    a.dates[0].localeCompare(b.dates[0])
-  );
+  const sorted = [...spanList].sort((a, b) => {
+    const startOrder = a.dates[0].localeCompare(b.dates[0]);
+    return startOrder || b.dates.length - a.dates.length;
+  });
   const result = [];
   let component = [];
   let componentEnd = -1;

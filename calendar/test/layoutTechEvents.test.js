@@ -67,6 +67,19 @@ test('true overlaps use horizontal lanes without changing their vertical start',
   });
 });
 
+test('same-day starts keep the longer event visible in its own lane', () => {
+  const dayStrs = ['2026-09-08', '2026-09-09', '2026-09-10', '2026-09-11'];
+  const layout = layoutTechEvents([
+    { event: { id: 1 }, dates: dayStrs.slice(0, 4) },
+    { event: { id: 2 }, dates: dayStrs.slice(0, 1) },
+  ], dayStrs);
+
+  assert.deepEqual(layout.map(span => [span.event.id, span.lane, span.totalLanes]), [
+    [1, 0, 2],
+    [2, 1, 2],
+  ]);
+});
+
 test('horizontal lanes fill the cell gutter without gaps or overflow', () => {
   assert.deepEqual(horizontalLaneStyle(0, 1), {
     left: 'calc(0% + 1px)',

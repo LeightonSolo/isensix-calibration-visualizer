@@ -30,8 +30,16 @@ export const CONFIG = {
     'Flex',
   ],
   EVENT_TYPES: ['calibration', 'install', 'upgrade', 'mapping', 'other'],
+  EVENT_TYPE_LABELS: {
+    calibration: 'Calibration', install: 'Install', upgrade: 'Upgrade',
+    mapping: 'Mapping', other: 'Other event',
+  },
   EVENT_STATUSES: ['tentative', 'ticketed', 'confirmed', 'booked'],
   TECH_EVENT_TYPES: ['pto', 'holiday', 'office', 'jury_duty', 'Software', 'other'],
+  TECH_EVENT_TYPE_LABELS: {
+    pto: 'PTO', holiday: 'Holiday', office: 'Office', jury_duty: 'Jury Duty',
+    Software: 'Software', other: 'Other unavailable',
+  },
   STATUS_COLORS: {
     tentative: { bg: 'var(--event-tentative-bg)', fg: 'var(--event-tentative-text)', border: 'var(--event-tentative-border)' },
     ticketed:  { bg: 'var(--event-ticketed-bg)', fg: 'var(--event-ticketed-text)', border: 'var(--event-ticketed-border)' },

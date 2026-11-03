@@ -55,7 +55,7 @@ const TYPE_LABELS = {
   holiday:   'Holiday',
   jury_duty: 'Jury Duty',
   office:    'Office',
-  other:     'Other',
+  other:     'Other unavailable',
 };
 
 export default function TechEventModal({
@@ -158,7 +158,7 @@ export default function TechEventModal({
   return (
     <div style={S.overlay} onClick={e => e.target === e.currentTarget && onClose()}>
       <div style={S.modal}>
-        <div style={S.title}>{isEdit ? 'Edit event' : 'Add PTO / Holiday / Other'}</div>
+        <div style={S.title}>{isEdit ? 'Edit unavailable time' : 'Add unavailable time'}</div>
 
         {/* Type */}
         <div>
