@@ -858,6 +858,7 @@ function removeServer(s) {
   servers = servers.filter(x => x !== s);
   saveServers();
   renderServerTags();
+  if (!servers.length) clearDashboardHeader();
   loadData();
 }
 
@@ -1016,6 +1017,7 @@ async function loadData() {
     }
   }
   if (!servers.length) {
+    clearDashboardHeader();
     allSensors = [];
     allExceptions = [];
     renderMetrics();
@@ -1034,6 +1036,14 @@ async function loadData() {
       loadExceptions(),
       loadServerMeta(),
     ]);
+    if (!servers.length) {
+      clearDashboardHeader();
+      allSensors = [];
+      allExceptions = [];
+      renderMetrics();
+      showEmpty(true);
+      return;
+    }
     // Job info needs server metadata in order to determine the customer.
     await loadJobInfo();
     allSensors = filterDashboardSensors(sensorResults.flat());
@@ -1054,6 +1064,16 @@ async function loadData() {
     setStatus('Error loading data');
     console.error(e);
   }
+}
+
+function clearDashboardHeader() {
+  currentCustomer = null;
+  jobInfo = {};
+  jobInfoLoaded = false;
+  lastUpdated = null;
+  document.getElementById('customer-display').textContent = '';
+  document.getElementById('status-msg').textContent = '';
+  document.getElementById('latest-cal-msg').textContent = '';
 }
 
 async function loadExceptions() {
