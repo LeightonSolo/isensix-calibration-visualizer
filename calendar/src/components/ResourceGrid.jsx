@@ -367,6 +367,10 @@ export default function ResourceGrid({
           editorToken={editorToken}
           requireEditor={requireEditor}
           onJobInfoSaved={onJobInfoSaved}
+          onSwitchToUnavailable={() => setModal({
+            type: 'tech', event: null,
+            initialDate: modal.initialDate, initialTech: modal.initialTech,
+          })}
           onSave={(data) => requireEditor(token => onSaveEvent(data, token))}
           onDelete={(id) => requireEditor(token => onDeleteEvent(id, token))}
           onClose={() => setModal(null)}
@@ -376,10 +380,14 @@ export default function ResourceGrid({
         <TechEventModal
           techEvent={modal.event}
           initialDate={modal.initialDate}
-          initialTech={modal.tech}
+          initialTech={modal.initialTech}
           onSave={(data) => requireEditor(token => onSaveTechEvent(data, token))}
           onSaveBatch={(entries) => requireEditor(token => onSaveTechEventBatch(entries, token))}
           onDelete={(id) => requireEditor(token => onDeleteTechEvent(id, token))}
+          onSwitchToScheduled={() => setModal({
+            type: 'job', event: null,
+            initialDate: modal.initialDate, initialTech: modal.initialTech,
+          })}
           onClose={() => setModal(null)}
         />
       )}

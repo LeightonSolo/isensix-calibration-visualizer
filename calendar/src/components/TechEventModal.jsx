@@ -60,7 +60,7 @@ const TYPE_LABELS = {
 
 export default function TechEventModal({
   techEvent, initialDate, initialTech,
-  onSave, onSaveBatch, onDelete, onClose,
+  onSave, onSaveBatch, onDelete, onClose, onSwitchToScheduled,
 }) {
   const isEdit = !!techEvent?.id;
 
@@ -111,6 +111,10 @@ export default function TechEventModal({
 
   async function handleSave() {
     if (!selectedTechs.size || !days.length) return;
+    const blockCount = days.length * selectedTechs.size;
+    if (!isEdit && blockCount > 20 && !window.confirm(
+      `You are about to add ${blockCount} unavailable blocks. Continue?`
+    )) return;
     setSaving(true);
     try {
       if (isEdit) {
@@ -159,6 +163,25 @@ export default function TechEventModal({
     <div style={S.overlay} onClick={e => e.target === e.currentTarget && onClose()}>
       <div style={S.modal}>
         <div style={S.title}>{isEdit ? 'Edit unavailable time' : 'Add unavailable time'}</div>
+
+        {!isEdit && onSwitchToScheduled && (
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            gap: 12, padding: '8px 10px', borderRadius: 5,
+            background: 'var(--cal-input)', border: '0.5px solid var(--cal-border)',
+          }}>
+            <div style={{ fontSize: 12, color: 'var(--cal-text-secondary)' }}>
+              Adding unavailable time
+            </div>
+            <button type="button" style={{
+              background: 'transparent', border: 0, padding: 0,
+              color: 'var(--cal-accent)', cursor: 'pointer',
+              fontFamily: 'Inter, system-ui, sans-serif', fontSize: 12,
+            }} onClick={onSwitchToScheduled}>
+              Switch to scheduled event
+            </button>
+          </div>
+        )}
 
         {/* Type */}
         <div>

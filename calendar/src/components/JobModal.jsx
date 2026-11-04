@@ -117,7 +117,7 @@ export default function JobModal({
   event, initialDate, initialTech, onSave, onDelete, onClose,
   calendarAssignments = [], techEvents = [],
   jobInfoMap = {}, serverMeta = {},
-  editorToken, requireEditor, onJobInfoSaved,
+  editorToken, requireEditor, onJobInfoSaved, onSwitchToUnavailable,
 }) {
   const isNew = !event?.id;
 
@@ -321,6 +321,25 @@ export default function JobModal({
       <div style={S.modal}>
         <div style={S.formPane}>
           <div style={S.title}>{isNew ? 'New event' : 'Edit event'}</div>
+
+          {isNew && onSwitchToUnavailable && (
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              gap: 12, padding: '8px 10px', borderRadius: 5,
+              background: 'var(--cal-input)', border: '0.5px solid var(--cal-border)',
+            }}>
+              <div style={{ fontSize: 12, color: 'var(--cal-text-secondary)' }}>
+                Adding a scheduled event
+              </div>
+              <button type="button" style={{
+                background: 'transparent', border: 0, padding: 0,
+                color: 'var(--cal-accent)', cursor: 'pointer',
+                fontFamily: 'Inter, system-ui, sans-serif', fontSize: 12,
+              }} onClick={onSwitchToUnavailable}>
+                Switch to unavailable time
+              </button>
+            </div>
+          )}
 
         {/* Title */}
         <div>
