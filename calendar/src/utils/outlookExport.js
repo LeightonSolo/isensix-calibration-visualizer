@@ -108,7 +108,10 @@ function summarizeDateRanges(dates) {
   return ranges.map(([a, b]) => a === b ? displayDate(a) : `${displayDate(a)} - ${displayDate(b)}`).join(', ');
 }
 
-function assignmentLines(event, assignments) {
+// Kept available for a future opt-in export mode. The current ICS export
+// intentionally does not include assignment details because Outlook events
+// can become stale when technicians are changed in the calendar.
+export function assignmentLines(event, assignments) {
   const byTech = new Map();
   for (const assignment of assignments || []) {
     if (String(assignment.event_id) !== String(event.id)) continue;
@@ -137,8 +140,6 @@ function eventDescription(event, jobInfo, assignments, jobInfoUrl) {
     `Dates: ${displayDate(event.start_date)} - ${displayDate(event.end_date)}`,
   ];
   if (text(event.ticket_id)) lines.push(`Ticket ID: ${text(event.ticket_id)}`);
-  const techs = assignmentLines(event, assignments);
-  if (techs.length) lines.push('', 'Assigned technicians:', ...techs);
   const info = JOB_INFO_FIELDS.map(([label, key]) => [label, text(jobInfo?.[key])])
     .filter(([, value]) => value).map(([label, value]) => `${label}: ${value}`);
   if (info.length) lines.push('', 'Job information:', ...info);
@@ -242,7 +243,6 @@ function jobInfoRow(label, key, value) {
 }
 
 function eventHtmlDescription(event, jobInfo, assignments, jobInfoUrl) {
-  //const techs = assignmentLines(event, assignments);
   const rows = [
     `<html><head><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark">${EMAIL_STYLES}</head>`,
     '<body class="ics-body" bgcolor="#ffffff" style="margin:0;background:#ffffff;font-family:Segoe UI,Arial,sans-serif;font-size:11pt;color:#202124">',
@@ -253,18 +253,6 @@ function eventHtmlDescription(event, jobInfo, assignments, jobInfoUrl) {
     htmlRow('Dates', `${displayDate(event.start_date)} - ${displayDate(event.end_date)}`),
     htmlRow('Ticket ID', event.ticket_id),
   ];
-  const techs = assignmentLines(event, assignments);
-  if (techs.length) {
-    rows.push(htmlSection('Assigned technicians', 'technicians'));
-    for (const tech of techs) {
-      const separator = tech.indexOf(':');
-      const name = tech.slice(0, separator);
-      const colorName = name.startsWith('Flex (') ? 'Flex' : name;
-      const colors = TECH_EMAIL_COLORS[colorName];
-      rows.push(htmlRow(name, tech.slice(separator + 1).trim(), colors
-        ? { colors, className: `tech-${colorName.toLowerCase()}` } : {}));
-    }
-  }
   const infoRows = JOB_INFO_FIELDS.map(([label, key]) => jobInfoRow(label, key, jobInfo?.[key])).filter(Boolean);
   if (infoRows.length) rows.push(htmlSection('Job information', 'information'), ...infoRows);
   if (text(event.notes)) rows.push(htmlSection('Notes', 'notes'), htmlRow('Event notes', event.notes));

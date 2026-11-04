@@ -31,7 +31,8 @@ test('builds an Outlook all-day event with job and contact information', () => {
   assert.match(unfolded, /DTEND;VALUE=DATE:20260926/);
   assert.match(unfolded, /SUMMARY:\(C\) LifeSouth Annual Calibrations TID: 74142/);
   assert.match(unfolded, /LOCATION:4039 Newberry Rd\\, Gainesville\\, FL 32607/);
-  assert.match(unfolded, /Bissen: 9\/21\/2026 - 9\/25\/2026/);
+  assert.doesNotMatch(unfolded, /Assigned technicians/i);
+  assert.doesNotMatch(unfolded, /Bissen:/);
   assert.doesNotMatch(unfolded, /Matt:/);
   assert.match(unfolded, /Credentials needed: Vendormate/);
   assert.match(unfolded, /Status: Confirmed/);
@@ -49,7 +50,7 @@ test('builds an Outlook all-day event with job and contact information', () => {
   assert.match(unfolded, /class="label-cell alert/);
   assert.match(unfolded, />O2 sensors<\/td><td class="value-cell alert/);
   assert.match(unfolded, /class="label-cell hardware-arms/);
-  assert.match(unfolded, /class="label-cell tech-bissen/);
+  assert.doesNotMatch(unfolded, /class="label-cell tech-bissen/);
   assert.match(unfolded, /prefers-color-scheme:dark/);
   assert.match(unfolded, /href="https:\/\/www\.google\.com\/maps\/search\/\?api=1&amp;query=4039%20Newberry/);
   assert.match(unfolded, /query=Hyatt%20Place%20Gainesville%20Downtown/);
