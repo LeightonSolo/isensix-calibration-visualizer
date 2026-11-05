@@ -3492,7 +3492,7 @@ async function saveJobInfo({ silent = false, lastCalibrated = null } = {}) {
     servers:         servers.join(', '),
     sensors:         active.length || null,
     meters:          meters.join(', '),
-    o2:              detectO2Count() || null,
+    o2:              detectO2Count(),
     server_version:  versions.join(', ') || null,
     hardware:        hardware !== '—' ? hardware : null,
     num_tech:        getNum('ji-num-tech', 'num_tech'),
