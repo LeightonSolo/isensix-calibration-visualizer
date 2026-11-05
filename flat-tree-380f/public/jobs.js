@@ -198,16 +198,42 @@
     return response.json();
   }
 
+  const stateCodes = new Set([
+    'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA', 'HI', 'ID', 'IL',
+    'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD', 'MA', 'MI', 'MN', 'MS', 'MO', 'MT',
+    'NE', 'NV', 'NH', 'NJ', 'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI',
+    'SC', 'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY', 'DC',
+  ]);
+
+  function findStateMatch(address) {
+    const normalized = String(address || '').toUpperCase().trim();
+    const statePattern = /\b([A-Z]{2})\b/g;
+    let match;
+    let fallback = null;
+    let zipAdjacent = null;
+    while ((match = statePattern.exec(normalized))) {
+      if (!stateCodes.has(match[1])) continue;
+      const afterState = normalized.slice(match.index + match[0].length);
+      const hasAdjacentZip = /^\s*,?\s*\d{5}(?:-\d{4})?\b/.test(afterState);
+      if (hasAdjacentZip) zipAdjacent = match;
+      else fallback = match;
+    }
+    return zipAdjacent || fallback;
+  }
+
   function parseState(address) {
-    const match = String(address || '').toUpperCase().match(/,\s*([A-Z]{2})(?:\s+\d{5}(?:-\d{4})?)?\b/);
-    return match ? match[1] : '';
+    return findStateMatch(address)?.[1] || '';
   }
 
   function locationLabel(job) {
     const address = String(job.site_address || '').trim();
     if (!address) return '';
-    const parts = address.split(',').map(part => part.trim()).filter(Boolean);
-    if (parts.length >= 2) return `${parts[parts.length - 2]}, ${parseState(address) || parts[parts.length - 1]}`;
+    const stateMatch = findStateMatch(address);
+    if (!stateMatch) return address;
+
+    const beforeState = address.slice(0, stateMatch.index).replace(/[\s,]+$/, '');
+    const parts = beforeState.split(',').map(part => part.trim()).filter(Boolean);
+    if (parts.length >= 2) return `${parts[parts.length - 1]}, ${stateMatch[1]}`;
     return address;
   }
 
