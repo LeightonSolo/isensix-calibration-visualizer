@@ -447,12 +447,16 @@
   }
 
   function sensorTotalsByJobField(key) {
-    return state.jobs.reduce((totals, job) => {
+    return activeJobs().reduce((totals, job) => {
       const label = key === 'last_calibrated' ? String(job.last_calibrated || '').slice(0, 7)
         : String(job[key] || '').trim() || 'Unknown';
       if (label) totals[label] = (totals[label] || 0) + (Number(job.sensors) || 0);
       return totals;
     }, {});
+  }
+
+  function activeJobs() {
+    return state.jobs.filter(job => Number(job.active) === 1);
   }
 
   function addSensorsToRows(rows, totals) {
@@ -464,7 +468,7 @@
 
   function addLocalSensorTotals() {
     if (!state.stats) return;
-    const jobByName = new Map(state.jobs.map(job => [String(job.job_name || '').trim().toLowerCase(), job]));
+    const jobByName = new Map(activeJobs().map(job => [String(job.job_name || '').trim().toLowerCase(), job]));
     const eventById = new Map(state.events.map(event => [String(event.id), event]));
 
     state.stats.hardware = addSensorsToRows(state.stats.hardware, sensorTotalsByJobField('hardware'));
@@ -504,7 +508,7 @@
 
   function aggregateJobCategories(extractor) {
     const totals = {};
-    state.jobs.forEach(job => {
+    activeJobs().forEach(job => {
       [...new Set(extractor(job))].forEach(label => {
         if (!label) return;
         totals[label] ||= { label, value: 0, sensor_value: 0 };
@@ -574,6 +578,10 @@
     const tech = $('tech-filter').value.toLowerCase();
     const jobState = $('state-filter').value;
     const active = $('active-filter').value;
+
+    $('job-search').closest('.jobs-search')?.classList.toggle('filter-active', Boolean(query));
+    ['hardware-filter', 'software-filter', 'tech-filter', 'state-filter', 'active-filter']
+      .forEach(id => $(id).classList.toggle('filter-active', Boolean($(id).value)));
 
     state.filtered = state.jobs.filter(job => {
       const haystack = Object.values(job).join(' ').toLowerCase();
@@ -734,10 +742,15 @@
     const clean = (rows || []).filter(row => row.label).slice(-24);
     const maxJobs = Math.max(1, ...clean.map(row => Number(row.value) || 0));
     const maxSensors = Math.max(1, ...clean.map(row => Number(row.sensor_value) || 0));
-    target.innerHTML = clean.length ? clean.map(row => `<div class="month-column" title="${escapeHtml(row.label)}: ${row.value}">
-      <strong>${Number(row.value).toLocaleString()}j / ${Number(row.sensor_value || 0).toLocaleString()}s</strong>
-      <div class="month-bars"><div class="month-bar jobs" style="height:${Math.max(2, Number(row.value) / maxJobs * 125)}px"></div><div class="month-bar sensors" style="height:${Math.max(2, Number(row.sensor_value || 0) / maxSensors * 125)}px"></div></div>
-      <span>${escapeHtml(row.label)}</span>
+    const monthLabel = value => {
+      const match = String(value).match(/^(\d{4})-(\d{2})$/);
+      if (!match) return String(value);
+      const month = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][Number(match[2]) - 1];
+      return month ? `${month}\n'${match[1].slice(2)}` : String(value);
+    };
+    target.innerHTML = clean.length ? clean.map(row => `<div class="month-column" tabindex="0" title="${escapeHtml(row.label)}: ${Number(row.value).toLocaleString()} jobs, ${Number(row.sensor_value || 0).toLocaleString()} sensors" data-tooltip="${escapeHtml(`${Number(row.value).toLocaleString()} jobs · ${Number(row.sensor_value || 0).toLocaleString()} sensors`)}" aria-label="${escapeHtml(row.label)}: ${Number(row.value).toLocaleString()} jobs, ${Number(row.sensor_value || 0).toLocaleString()} sensors">
+      <div class="month-bars"><div class="month-bar jobs" title="${Number(row.value).toLocaleString()} jobs" style="height:${Math.max(2, Number(row.value) / maxJobs * 125)}px"></div><div class="month-bar sensors" title="${Number(row.sensor_value || 0).toLocaleString()} sensors" style="height:${Math.max(2, Number(row.sensor_value || 0) / maxSensors * 125)}px"></div></div>
+      <span>${escapeHtml(monthLabel(row.label))}</span>
     </div>`).join('') : '<div class="jobs-empty">No data available.</div>';
   }
 
@@ -800,20 +813,37 @@
     const overview = state.stats.overview || {};
     const cards = [
       ['Jobs', overview.total_jobs, `${Number(overview.total_sensors || 0).toLocaleString()} sensors`],
-      ['Sensors', overview.total_sensors, 'Across all job records'],
+      ['Sensors', overview.total_sensors, 'Across active jobs'],
       ['Guardian Only', overview.guardian_jobs, `${Number(overview.guardian_sensors || 0).toLocaleString()} sensors`],
       ['ARMS Only', overview.arms_jobs, `${Number(overview.arms_sensors || 0).toLocaleString()} sensors`],
       ['Mixed hardware', overview.mixed_jobs, `${Number(overview.mixed_sensors || 0).toLocaleString()} sensors`],
-      ['Needs cleanup', Number(overview.hardware_missing || 0) + Number(overview.address_missing || 0) + Number(overview.calibration_date_missing || 0), 'Missing key values'],
+      ['Needs cleanup', overview.cleanup_jobs, 'Click to see missing fields'],
     ];
-    $('analytics-cards').innerHTML = cards.map(([label, value, detail]) => `<article class="panel analytics-card"><span>${label}</span><strong>${Number(value || 0).toLocaleString()}</strong><small>${detail}</small></article>`).join('');
+    $('analytics-cards').innerHTML = cards.map(([label, value, detail]) => `<article class="panel analytics-card${label === 'Needs cleanup' ? ' analytics-card-action' : ''}"${label === 'Needs cleanup' ? ' role="button" tabindex="0" data-cleanup-card' : ''}><span>${label}</span><strong>${Number(value || 0).toLocaleString()}</strong><small>${detail}</small></article>`).join('');
+    const showCleanup = () => {
+      const rows = state.stats.cleanup || [];
+      $('cleanup-details-body').innerHTML = rows.length ? rows.map(row => {
+        const missing = [
+          Number(row.hardware_missing) ? 'Hardware' : '',
+          Number(row.address_missing) ? 'Site address' : '',
+          Number(row.calibration_date_missing) ? 'Last calibrated' : '',
+        ].filter(Boolean).join(', ');
+        return `<tr><td>${escapeHtml(row.job_name || '(unnamed job)')}</td><td>${escapeHtml(row.customer || '')}</td><td>${escapeHtml(missing)}</td><td><button type="button" class="jobs-secondary-button cleanup-open-job" data-job="${escapeHtml(row.job_name || '')}">Open</button></td></tr>`;
+      }).join('') : '<tr><td colspan="4">No active jobs need cleanup.</td></tr>';
+      $('cleanup-details').hidden = false;
+    };
+    const cleanupCard = document.querySelector('[data-cleanup-card]');
+    cleanupCard?.addEventListener('click', showCleanup);
+    cleanupCard?.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); showCleanup(); } });
+    $('cleanup-details-close')?.addEventListener('click', () => { $('cleanup-details').hidden = true; });
+    $('cleanup-details-body')?.addEventListener('click', event => { const button = event.target.closest('.cleanup-open-job'); if (button?.dataset.job) openJob(button.dataset.job); });
     renderCmsSensorHistory();
     barChart('hardware-chart', state.stats.hardware, label => filterFromChart('hardware-filter', label));
     barChart('software-chart', state.stats.software,
       label => filterFromChart('software-filter', label));
     monthChart('month-chart', state.stats.calendar_jobs_by_month);
     technicianChart('tech-chart', state.stats.calendar_jobs_by_tech);
-    const byState = Object.values(state.jobs.reduce((acc, job) => {
+    const byState = Object.values(activeJobs().reduce((acc, job) => {
       const key = job.state || 'Unknown';
       acc[key] ||= { label: key, value: 0, sensor_value: 0 };
       acc[key].value += 1;

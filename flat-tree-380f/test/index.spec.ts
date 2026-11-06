@@ -93,6 +93,7 @@ describe('Job Info API', () => {
       { results: [{ label: '2026-07', value: 2, sensor_value: 10 }] },
       { results: [{ label: '2026-07', value: 1, sensor_value: 6 }] },
       { results: [{ label: 'Leighton', value: 1, sensor_value: 6 }] },
+      { results: [] },
     ]);
     const prepare = vi.fn().mockImplementation((sql: string) => ({ sql }));
     const env = { ...baseEnv, DB: { prepare, batch } } as unknown as Env;
@@ -104,8 +105,13 @@ describe('Job Info API', () => {
     expect(body).toHaveProperty('hardware');
     expect(body).toHaveProperty('calendar_jobs_by_month');
     expect(body).toHaveProperty('calendar_jobs_by_tech');
+    expect(body).toHaveProperty('cleanup');
     expect((body.hardware as Array<Record<string, number>>)[0].sensor_value).toBe(10);
     expect(batch).toHaveBeenCalledOnce();
+    const statements = batch.mock.calls[0][0].map((query: { sql?: string }) => query.sql || '').join('\n');
+    expect(statements).toContain('JOIN canonical_job_info cj ON cj.id = j.id AND cj.name_rank = 1');
+    expect(statements).toContain('WHERE j.active = 1 GROUP BY label');
+    expect(statements).toContain('j.id = e.job_info_id AND j.active = 1');
   });
 });
 

@@ -865,43 +865,58 @@ export default {
     if (request.method === 'GET' && pathname === '/jobinfo/stats') {
       const batches = await env.DB.batch([
         env.DB.prepare(`
+          ${JOB_SCHEDULE_CTE}
           SELECT
             COUNT(*) AS total_jobs,
-            COALESCE(SUM(sensors), 0) AS total_sensors,
-            SUM(CASE WHEN hardware = 'Guardian' THEN 1 ELSE 0 END) AS guardian_jobs,
-            SUM(CASE WHEN hardware = 'Guardian' THEN COALESCE(sensors, 0) ELSE 0 END) AS guardian_sensors,
-            SUM(CASE WHEN hardware = 'ARMS' THEN 1 ELSE 0 END) AS arms_jobs,
-            SUM(CASE WHEN hardware = 'ARMS' THEN COALESCE(sensors, 0) ELSE 0 END) AS arms_sensors,
-            SUM(CASE WHEN hardware = 'Mix' THEN 1 ELSE 0 END) AS mixed_jobs,
-            SUM(CASE WHEN hardware = 'Mix' THEN COALESCE(sensors, 0) ELSE 0 END) AS mixed_sensors,
-            SUM(CASE WHEN hardware IS NULL OR trim(hardware) = '' OR hardware = '#N/A' THEN 1 ELSE 0 END) AS hardware_missing,
-            SUM(CASE WHEN site_address IS NULL OR trim(site_address) = '' THEN 1 ELSE 0 END) AS address_missing,
-            SUM(CASE WHEN last_calibrated IS NULL OR trim(last_calibrated) = '' THEN 1 ELSE 0 END) AS calibration_date_missing
-          FROM job_info
+            COALESCE(SUM(j.sensors), 0) AS total_sensors,
+            SUM(CASE WHEN j.hardware = 'Guardian' THEN 1 ELSE 0 END) AS guardian_jobs,
+            SUM(CASE WHEN j.hardware = 'Guardian' THEN COALESCE(j.sensors, 0) ELSE 0 END) AS guardian_sensors,
+            SUM(CASE WHEN j.hardware = 'ARMS' THEN 1 ELSE 0 END) AS arms_jobs,
+            SUM(CASE WHEN j.hardware = 'ARMS' THEN COALESCE(j.sensors, 0) ELSE 0 END) AS arms_sensors,
+            SUM(CASE WHEN j.hardware = 'Mix' THEN 1 ELSE 0 END) AS mixed_jobs,
+            SUM(CASE WHEN j.hardware = 'Mix' THEN COALESCE(j.sensors, 0) ELSE 0 END) AS mixed_sensors,
+            SUM(CASE WHEN j.hardware IS NULL OR trim(j.hardware) = '' OR j.hardware = '#N/A' THEN 1 ELSE 0 END) AS hardware_missing,
+            SUM(CASE WHEN j.site_address IS NULL OR trim(j.site_address) = '' THEN 1 ELSE 0 END) AS address_missing,
+            SUM(CASE WHEN j.last_calibrated IS NULL OR trim(j.last_calibrated) = '' THEN 1 ELSE 0 END) AS calibration_date_missing,
+            SUM(CASE WHEN (j.hardware IS NULL OR trim(j.hardware) = '' OR j.hardware = '#N/A'
+              OR j.site_address IS NULL OR trim(j.site_address) = ''
+              OR j.last_calibrated IS NULL OR trim(j.last_calibrated) = '') THEN 1 ELSE 0 END) AS cleanup_jobs
+          FROM job_info j
+          JOIN canonical_job_info cj ON cj.id = j.id AND cj.name_rank = 1
+          WHERE j.active = 1
         `),
         env.DB.prepare(`
+          ${JOB_SCHEDULE_CTE}
           SELECT COALESCE(NULLIF(trim(hardware), ''), 'Unknown') AS label,
             COUNT(*) AS value, COALESCE(SUM(sensors), 0) AS sensor_value
-          FROM job_info GROUP BY label ORDER BY value DESC, label
+          FROM job_info j
+          JOIN canonical_job_info cj ON cj.id = j.id AND cj.name_rank = 1
+          WHERE j.active = 1 GROUP BY label ORDER BY value DESC, label
         `),
         env.DB.prepare(`
+          ${JOB_SCHEDULE_CTE}
           SELECT COALESCE(NULLIF(trim(server_version), ''), 'Unknown') AS label,
             COUNT(*) AS value, COALESCE(SUM(sensors), 0) AS sensor_value
-          FROM job_info GROUP BY label ORDER BY value DESC, label
+          FROM job_info j
+          JOIN canonical_job_info cj ON cj.id = j.id AND cj.name_rank = 1
+          WHERE j.active = 1 GROUP BY label ORDER BY value DESC, label
         `),
         env.DB.prepare(`
+          ${JOB_SCHEDULE_CTE}
           SELECT substr(last_calibrated, 1, 7) AS label, COUNT(*) AS value,
             COALESCE(SUM(sensors), 0) AS sensor_value
-          FROM job_info
-          WHERE last_calibrated IS NOT NULL AND trim(last_calibrated) <> ''
+          FROM job_info j
+          JOIN canonical_job_info cj ON cj.id = j.id AND cj.name_rank = 1
+          WHERE j.active = 1
+             AND last_calibrated IS NOT NULL AND trim(last_calibrated) <> ''
           GROUP BY label ORDER BY label
         `),
         env.DB.prepare(`
           SELECT substr(e.start_date, 1, 7) AS label, COUNT(*) AS value,
             COALESCE(SUM(COALESCE(j.sensors, 0)), 0) AS sensor_value
           FROM calendar_events e
-          LEFT JOIN job_info j ON j.id = e.job_info_id
-          WHERE e.event_type = 'calibration'
+           JOIN job_info j ON j.id = e.job_info_id AND j.active = 1
+           WHERE e.event_type = 'calibration'
           GROUP BY label ORDER BY label
         `),
         env.DB.prepare(`
@@ -915,8 +930,22 @@ export default {
             COALESCE(SUM(COALESCE(j.sensors, 0)), 0) AS sensor_value
           FROM tech_jobs t
           JOIN calendar_events e ON e.id = t.event_id
-          LEFT JOIN job_info j ON j.id = e.job_info_id
+           JOIN job_info j ON j.id = e.job_info_id AND j.active = 1
           GROUP BY t.tech_name ORDER BY value DESC, label
+        `),
+        env.DB.prepare(`
+          ${JOB_SCHEDULE_CTE}
+          SELECT j.id, j.job_name, j.customer,
+            CASE WHEN j.hardware IS NULL OR trim(j.hardware) = '' OR j.hardware = '#N/A' THEN 1 ELSE 0 END AS hardware_missing,
+            CASE WHEN j.site_address IS NULL OR trim(j.site_address) = '' THEN 1 ELSE 0 END AS address_missing,
+            CASE WHEN j.last_calibrated IS NULL OR trim(j.last_calibrated) = '' THEN 1 ELSE 0 END AS calibration_date_missing
+          FROM job_info j
+          JOIN canonical_job_info cj ON cj.id = j.id AND cj.name_rank = 1
+          WHERE j.active = 1
+            AND (j.hardware IS NULL OR trim(j.hardware) = '' OR j.hardware = '#N/A'
+              OR j.site_address IS NULL OR trim(j.site_address) = ''
+              OR j.last_calibrated IS NULL OR trim(j.last_calibrated) = '')
+          ORDER BY lower(COALESCE(j.job_name, j.customer))
         `),
       ]);
 
@@ -927,6 +956,7 @@ export default {
         latest_calibrations_by_month: batches[3].results,
         calendar_jobs_by_month: batches[4].results,
         calendar_jobs_by_tech: batches[5].results,
+        cleanup: batches[6].results,
       });
     }
 
