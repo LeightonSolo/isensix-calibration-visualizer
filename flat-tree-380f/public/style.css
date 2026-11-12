@@ -267,6 +267,77 @@ button.active:hover {
   color: var(--text-muted);
 }
 
+.active-calibrations { position: relative; flex-shrink: 0; }
+.active-calibrations-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+  background: transparent;
+  border-color: transparent;
+  padding-left: 7px;
+  padding-right: 7px;
+}
+.active-calibrations-trigger:hover,
+.active-calibrations-trigger[aria-expanded="true"] {
+  color: var(--text-primary);
+  background: var(--bg-row-hover);
+  border-color: var(--border);
+}
+.active-calibrations-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent-green);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-green) 18%, transparent);
+}
+.active-calibrations-popover {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 7px);
+  right: 0;
+  width: min(390px, calc(100vw - 24px));
+  padding: 10px;
+  background: var(--bg-panel);
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, .28);
+}
+.active-calibrations-popover[hidden] { display: none; }
+.active-calibrations-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 2px 3px 8px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+.active-calibrations-list { display: grid; gap: 5px; }
+.active-calibration-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  padding: 8px;
+  text-align: left;
+  background: var(--bg-input);
+  border-color: var(--border);
+}
+.active-calibration-row:hover { border-color: var(--accent-blue); }
+.active-calibration-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+.active-calibration-meta { margin-top: 3px; color: var(--text-muted); font-size: 11px; font-weight: 400; }
+.active-calibration-progress { color: var(--accent-green); font-size: 12px; font-weight: 600; white-space: nowrap; }
+.active-calibrations-empty { padding: 8px 3px 3px; color: var(--text-muted); font-size: 12px; }
+
 #server-config-panel {
   max-width: 800px;
   display: flex;

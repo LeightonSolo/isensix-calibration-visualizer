@@ -23,7 +23,7 @@
     <div class="nav-brand">
       <i class="ti ti-activity-heartbeat"></i>
       <span>Isensix</span>
-      <span id="customer-display" style="font-size:16px;color:var(--text-muted);margin-left:20px;"></span>
+      <span id="customer-display" style="font-size:16px;color:var(--text-primary);margin-left:20px;"></span>
     </div>
 
     <div class="nav-status" aria-live="polite">
@@ -32,6 +32,16 @@
     </div>
 
     <div class="nav-links">
+      
+
+      <div id="active-calibrations" class="active-calibrations" hidden>
+        <button id="active-calibrations-trigger" class="active-calibrations-trigger" type="button" aria-expanded="false" aria-controls="active-calibrations-popover">
+          <span class="active-calibrations-dot" aria-hidden="true"></span>
+          <span id="active-calibrations-label">Active calibrations</span>
+        </button>
+        <div id="active-calibrations-popover" class="active-calibrations-popover" role="dialog" aria-label="Active calibrations" hidden></div>
+      </div>
+
       <div class="calibration-menu">
         <button class="nav-btn calibration-menu-trigger active" data-page="dashboard" aria-current="page" aria-haspopup="true">
           <i class="ti ti-activity-heartbeat"></i>

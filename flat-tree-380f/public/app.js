@@ -7,9 +7,16 @@ let typeColors = JSON.parse(localStorage.getItem('cal_type_colors') || 'null')
                  || { ...CONFIG.DEFAULT_TYPE_COLORS };
 // Load server metadata after authentication so server suggestions are available
 // even when no servers have been added to the dashboard yet.
-siteReady.then(() => loadServerMeta()).catch(error => console.error('Failed to initialize server suggestions', error));
+siteReady.then(() => {
+  loadServerMeta();
+  loadActiveCalibrationJobs();
+}).catch(error => console.error('Failed to initialize dashboard metadata', error));
                  
 let allSensors = [];
+let activeCalibrationJobs = [];
+let activeCalibrationPopoverOpen = false;
+let activeCalibrationLoadPromise = null;
+const ACTIVE_CALIBRATION_WINDOW_DAYS = 3;
 let currentTab = 'left';
 const tableResizeStates = new Map();
 let sortCol    = null;
@@ -471,6 +478,175 @@ function renderServerTags() {
               title="Remove server ${escapeHtml(s)}" aria-label="Remove server ${escapeHtml(s)}">×</button>
     </span>`;
   }).join('');
+}
+
+function localIsoDate(offsetDays = 0) {
+  const date = new Date();
+  date.setHours(12, 0, 0, 0);
+  date.setDate(date.getDate() + offsetDays);
+  return date.toISOString().slice(0, 10);
+}
+
+function activeCalibrationDateLabel(event) {
+  const start = String(event.start_date || '');
+  const end = String(event.end_date || '');
+  const format = value => {
+    const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!match) return value;
+    const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  };
+  if (!start) return 'Date not set';
+  if (!end || start === end) return format(start);
+  return `${format(start)} – ${format(end)}`;
+}
+
+function getActiveCalibrationProgress(sensorRows, exceptionRows) {
+  const sensors = filterDashboardSensors(sensorRows).filter(sensor => !isSensorDisabled(sensor));
+  const exceptionKeys = new Set((Array.isArray(exceptionRows) ? exceptionRows : [])
+    .filter(exception => Number(exception.year) === CURRENT_YEAR)
+    .map(exception => `${exception.server}:${exception.sensor_id}`));
+  const isException = sensor => exceptionKeys.has(`${sensor.server}:${sensor.sensor_id}`);
+  const calibrated = sensors.filter(sensor =>
+    !isException(sensor) && isCalibrated(sensor) && !isFailed(sensor)
+  ).length;
+  const exceptions = sensors.filter(isException).length;
+  const failures = sensors.filter(sensor =>
+    !isException(sensor) && isCalibrated(sensor) && isFailed(sensor)
+  ).length;
+  const remaining = Math.max(0, sensors.length - calibrated - exceptions - failures);
+  const progress = { total: sensors.length, calibrated, exceptions, failures, remaining };
+  return {
+    calibratedCount: calibrated,
+    exceptionCount: exceptions,
+    failureCount: failures,
+    totalSensors: progress.total,
+    percent: progress.total ? getProgressPercent(progress) : null,
+  };
+}
+
+function chooseActiveCalibrationEvent(events, today) {
+  return [...events].sort((a, b) => {
+    const aCurrent = a.start_date <= today && a.end_date >= today;
+    const bCurrent = b.start_date <= today && b.end_date >= today;
+    if (aCurrent !== bCurrent) return aCurrent ? -1 : 1;
+    const aDistance = aCurrent ? 0 : Math.min(Math.abs(new Date(`${a.start_date}T12:00:00`) - new Date(`${today}T12:00:00`)), Math.abs(new Date(`${a.end_date}T12:00:00`) - new Date(`${today}T12:00:00`)));
+    const bDistance = bCurrent ? 0 : Math.min(Math.abs(new Date(`${b.start_date}T12:00:00`) - new Date(`${today}T12:00:00`)), Math.abs(new Date(`${b.end_date}T12:00:00`) - new Date(`${today}T12:00:00`)));
+    return aDistance - bDistance || String(a.start_date).localeCompare(String(b.start_date));
+  })[0];
+}
+
+async function loadActiveCalibrationJobs() {
+  if (activeCalibrationLoadPromise) return activeCalibrationLoadPromise;
+  activeCalibrationLoadPromise = (async () => {
+    const today = localIsoDate();
+    const start = localIsoDate(-ACTIVE_CALIBRATION_WINDOW_DAYS);
+    const end = localIsoDate(ACTIVE_CALIBRATION_WINDOW_DAYS);
+    try {
+      const [eventsResponse, jobsResponse] = await Promise.all([
+        fetch(`${CONFIG.WORKER_URL}/calendar/events?start=${start}&end=${end}`, { headers: siteApiHeaders() }),
+        fetch(`${CONFIG.WORKER_URL}/jobinfo/all`, { headers: siteApiHeaders() }),
+      ]);
+      if (!eventsResponse.ok || !jobsResponse.ok) throw new Error('Could not load active calibration schedule');
+      const [events, jobs] = await Promise.all([eventsResponse.json(), jobsResponse.json()]);
+      const jobRows = Array.isArray(jobs) ? jobs : [];
+      const jobById = new Map(jobRows.map(job => [String(job.id), job]));
+      const candidates = (Array.isArray(events) ? events : []).filter(event => {
+        const status = String(event.status || '').trim().toLowerCase();
+        return String(event.event_type || '').trim().toLowerCase() === 'calibration'
+          && status !== 'cancelled' && status !== 'canceled' && status !== 'deleted';
+      });
+      const grouped = new Map();
+      candidates.forEach(event => {
+        const job = event.job_info_id
+          ? jobById.get(String(event.job_info_id))
+          : jobRows.find(row => String(row.job_name || '').trim().toLowerCase() === String(event.title || '').trim().toLowerCase());
+        if (!job || String(job.active ?? '1') === '0') return;
+        const key = String(job.id || job.job_name);
+        if (!grouped.has(key)) grouped.set(key, { job, events: [] });
+        grouped.get(key).events.push(event);
+      });
+
+      activeCalibrationJobs = await Promise.all([...grouped.values()].map(async ({ job, events: jobEvents }) => {
+        const event = chooseActiveCalibrationEvent(jobEvents, today);
+        const serverIds = [...new Set(String(job.servers || '').split(',').map(server => server.trim()).filter(Boolean))];
+        const serverResults = (await Promise.all(serverIds.map(async server => {
+          const [calibrationsResponse, exceptionsResponse] = await Promise.all([
+            fetch(`${CONFIG.WORKER_URL}/calibrations?server=${encodeURIComponent(server)}&limit=1000`, { headers: siteApiHeaders() }),
+            fetch(`${CONFIG.WORKER_URL}/exceptions?server=${encodeURIComponent(server)}`, { headers: siteApiHeaders() }),
+          ]);
+          return {
+            sensors: calibrationsResponse.ok ? await calibrationsResponse.json() : [],
+            exceptions: exceptionsResponse.ok ? await exceptionsResponse.json() : [],
+          };
+        })));
+        const sensorRows = serverResults.flatMap(result => result.sensors);
+        const exceptionRows = serverResults.flatMap(result => result.exceptions);
+        const progress = getActiveCalibrationProgress(sensorRows, exceptionRows);
+        return {
+          jobName: job.job_name || job.customer || 'Unnamed calibration',
+          event,
+          serverIds,
+          calibratedCount: progress.calibratedCount,
+          exceptionCount: progress.exceptionCount,
+          failureCount: progress.failureCount,
+          totalSensors: progress.totalSensors,
+          percent: progress.percent,
+        };
+      }));
+      activeCalibrationJobs.sort((a, b) => String(a.event.start_date).localeCompare(String(b.event.start_date)) || a.jobName.localeCompare(b.jobName));
+      renderActiveCalibrationJobs();
+    } catch (error) {
+      console.error('Failed to load active calibration jobs', error);
+      activeCalibrationJobs = [];
+      renderActiveCalibrationJobs();
+    } finally {
+      activeCalibrationLoadPromise = null;
+    }
+  })();
+  return activeCalibrationLoadPromise;
+}
+
+function renderActiveCalibrationJobs() {
+  const wrapper = document.getElementById('active-calibrations');
+  const label = document.getElementById('active-calibrations-label');
+  const popover = document.getElementById('active-calibrations-popover');
+  if (!wrapper || !label || !popover) return;
+  wrapper.hidden = activeCalibrationJobs.length === 0;
+  label.textContent = `${activeCalibrationJobs.length} ongoing calibration${activeCalibrationJobs.length === 1 ? '' : 's'}`;
+  popover.innerHTML = `
+    <div class="active-calibrations-heading"><span>Calibrations on Calendar</span><span>±${ACTIVE_CALIBRATION_WINDOW_DAYS} days</span></div>
+    <div class="active-calibrations-list">
+      ${activeCalibrationJobs.map((job, index) => {
+        const progress = job.percent === null
+          ? 'Progress unavailable'
+          : `${job.percent}% · ${job.calibratedCount + job.exceptionCount + job.failureCount} / ${job.totalSensors}`;
+        const tentative = String(job.event.status || '').toLowerCase() === 'tentative' ? ' · Tentative' : '';
+        return `<button class="active-calibration-row" type="button" data-load-active-job="${index}" title="Load all servers for ${escapeHtml(job.jobName)}">
+          <span><span class="active-calibration-name">${escapeHtml(job.jobName)}</span><span class="active-calibration-meta">${escapeHtml(activeCalibrationDateLabel(job.event))}${tentative} · ${job.serverIds.length} server${job.serverIds.length === 1 ? '' : 's'}</span></span>
+          <span class="active-calibration-progress">${progress}</span>
+        </button>`;
+      }).join('')}
+    </div>`;
+}
+
+function toggleActiveCalibrationPopover(force) {
+  const trigger = document.getElementById('active-calibrations-trigger');
+  const popover = document.getElementById('active-calibrations-popover');
+  if (!trigger || !popover) return;
+  activeCalibrationPopoverOpen = typeof force === 'boolean' ? force : !activeCalibrationPopoverOpen;
+  popover.hidden = !activeCalibrationPopoverOpen;
+  trigger.setAttribute('aria-expanded', String(activeCalibrationPopoverOpen));
+}
+
+async function loadActiveCalibrationJob(index) {
+  const job = activeCalibrationJobs[Number(index)];
+  if (!job) return;
+  servers = [...job.serverIds];
+  saveServers();
+  renderServerTags();
+  toggleActiveCalibrationPopover(false);
+  await loadData();
 }
 
 function serverOverviewRows(server) {
@@ -985,6 +1161,7 @@ function setButtonActive(id, active) {
 /* ─── Data loading ──────────────────────────────────────── */
 async function loadData() {
   try { await siteAuth.ensure(); } catch (_) { return; }
+  loadActiveCalibrationJobs();
   if (historicalRunId) {
     showEmpty(false);
     setStatus('Loading historical calibration…');
@@ -3866,6 +4043,16 @@ serverTags.addEventListener('click', event => {
   }
   const tag = event.target.closest('[data-server-overview]');
   if (tag) openServerOverview(tag.dataset.serverOverview);
+});
+
+document.getElementById('active-calibrations-trigger')?.addEventListener('click', () => toggleActiveCalibrationPopover());
+document.getElementById('active-calibrations-popover')?.addEventListener('click', event => {
+  const jobButton = event.target.closest('[data-load-active-job]');
+  if (jobButton) loadActiveCalibrationJob(jobButton.dataset.loadActiveJob);
+});
+document.addEventListener('click', event => {
+  const wrapper = document.getElementById('active-calibrations');
+  if (activeCalibrationPopoverOpen && wrapper && !wrapper.contains(event.target)) toggleActiveCalibrationPopover(false);
 });
 
 const serverOverviewModal = document.getElementById('server-overview-modal');
