@@ -1879,6 +1879,8 @@ const SERIAL_TYPE_PREFIXES = [
   { prefix: 'HU', type: 'Humidity' },
   { prefix: 'TC', type: 'Temp-TC' },
   { prefix: 'SC', type: 'Temp-SC' },
+  { prefix: 'DP', type: 'DiffPress' },
+  { prefix: 'GDP', type: 'DiffPress' },
 ];
 
 const SERIAL_CHECKED_TYPES = [...new Set(SERIAL_TYPE_PREFIXES.map(({ type }) => type))];
