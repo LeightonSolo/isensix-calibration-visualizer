@@ -299,7 +299,10 @@ export default {
 
     const isCalibrationIngestion = request.method === 'POST'
       && (pathname === '/calibration' || pathname === '/calibrations/batch' || pathname === '/calibration-runs');
-    if (!isCalibrationIngestion && !hasSiteAccess(request, env)) {
+    const isExtensionSensorState = pathname === '/live-view/state'
+      || pathname === '/exceptions'
+      || pathname.startsWith('/exceptions/');
+    if (!isCalibrationIngestion && !isExtensionSensorState && !hasSiteAccess(request, env)) {
       return json({ error: 'Site login required' }, 401);
     }
 
@@ -588,6 +591,27 @@ export default {
       return json(results);
     }
 
+    // GET /live-view/state — the shared current state consumed by the browser extension.
+    if (request.method === 'GET' && pathname === '/live-view/state') {
+      const server = String(url.searchParams.get('server') || '').trim();
+      if (!server) return json({ error: 'Missing server' }, 400);
+      const { results } = await env.DB.prepare(`
+        SELECT
+          c.sensor_id, c.server, c.sensor_name, c.zone, c.serial_number,
+          c.calibrated_at, c.calibrated_by,
+          e.id AS exception_id, e.reason AS exception_reason,
+          e.added_by AS exception_added_by, e.added_at AS exception_added_at
+        FROM calibrations c
+        LEFT JOIN exceptions e
+          ON e.server = c.server
+         AND e.sensor_id = c.sensor_id
+         AND e.year = ?
+        WHERE c.server = ?
+        ORDER BY c.sensor_id
+      `).bind(new Date().getUTCFullYear(), server).all();
+      return json({ server, sensors: results });
+    }
+
     // POST /exceptions — add an exception
     if (request.method === 'POST' && pathname === '/exceptions') {
       const body = await request.json() as Record<string, any>;
@@ -608,7 +632,12 @@ export default {
         sensor_id, server, sensor_name ?? null, zone ?? null,
         reason, year, added_by ?? null
       ).run();
-      return json({ ok: true });
+
+      const saved = await env.DB.prepare(`
+        SELECT id, sensor_id, server, sensor_name, zone, reason, year, added_by, added_at
+        FROM exceptions WHERE sensor_id = ? AND server = ? AND year = ?
+      `).bind(sensor_id, server, year).first();
+      return json({ ok: true, exception: saved });
     }
 
     // DELETE /exceptions/:id
@@ -682,6 +711,13 @@ export default {
       const run = await ensureCalibrationRun(env.DB, [body], body);
       await snapshotCalibrationRun(env.DB, run, [body]);
 
+      // An exception means the sensor could not be calibrated in the current
+      // cycle. A confirmed calibration therefore resolves the active exception.
+      if (server) {
+        await env.DB.prepare(`DELETE FROM exceptions WHERE sensor_id = ? AND server = ?`)
+          .bind(sensor_id, server).run();
+      }
+
       return json({ ok: true });
     }
 
@@ -734,7 +770,7 @@ export default {
           captured_at   = datetime('now')
       `);
 
-    await env.DB.batch(
+      await env.DB.batch(
       sensors.map(s => stmt.bind(
         s.sensor_id,
         s.cp_address    ?? null, s.sensor_name   ?? null, s.serial_number ?? null,
@@ -744,6 +780,18 @@ export default {
         s.cal_cert      ?? null, s.server        ?? null,
       ))
     );
+
+      // Calibration reports are authoritative for the current cycle. Any
+      // exception on a sensor that now has a calibration timestamp is resolved.
+      const resolvedExceptions = sensors
+        .filter(s => s.sensor_id && s.server && normalizeMinute(s.calibrated_at))
+        .map(s => env.DB.prepare(`
+          DELETE FROM exceptions
+          WHERE sensor_id = ? AND server = ?
+            AND date(?) >= date(added_at)
+        `)
+          .bind(s.sensor_id, s.server, normalizeMinute(s.calibrated_at)));
+      if (resolvedExceptions.length) await env.DB.batch(resolvedExceptions);
 
       const run = await ensureCalibrationRun(env.DB, sensors, body);
       await snapshotCalibrationRun(env.DB, run, sensors);

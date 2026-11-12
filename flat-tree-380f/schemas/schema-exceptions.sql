@@ -10,3 +10,6 @@ CREATE TABLE IF NOT EXISTS exceptions (
   added_at    TEXT DEFAULT (datetime('now')),
   UNIQUE(sensor_id, server, year)
 );
+
+CREATE INDEX IF NOT EXISTS idx_exceptions_server_sensor
+  ON exceptions(server, sensor_id, year);
