@@ -813,7 +813,7 @@
     const overview = state.stats.overview || {};
     const cards = [
       ['Jobs', overview.total_jobs, `${Number(overview.total_sensors || 0).toLocaleString()} sensors`],
-      ['Sensors', overview.total_sensors, 'Across active jobs'],
+      ['Sensors', overview.total_sensors, 'Across active calibration jobs'],
       ['Guardian Only', overview.guardian_jobs, `${Number(overview.guardian_sensors || 0).toLocaleString()} sensors`],
       ['ARMS Only', overview.arms_jobs, `${Number(overview.arms_sensors || 0).toLocaleString()} sensors`],
       ['Mixed hardware', overview.mixed_jobs, `${Number(overview.mixed_sensors || 0).toLocaleString()} sensors`],
