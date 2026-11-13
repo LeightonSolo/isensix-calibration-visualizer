@@ -327,6 +327,17 @@ button.active:hover {
   border-color: var(--border);
 }
 .active-calibration-row:hover { border-color: var(--accent-blue); }
+.active-calibration-row.is-complete {
+  opacity: .62;
+  border-color: var(--border);
+}
+.active-calibration-row.is-complete:hover {
+  opacity: .82;
+  border-color: var(--border-strong);
+}
+.active-calibration-row.is-complete .active-calibration-progress {
+  color: var(--text-muted);
+}
 .active-calibration-name {
   overflow: hidden;
   text-overflow: ellipsis;

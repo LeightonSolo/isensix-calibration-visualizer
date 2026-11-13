@@ -622,7 +622,8 @@ function renderActiveCalibrationJobs() {
           ? 'Progress unavailable'
           : `${job.percent}% · ${job.calibratedCount + job.exceptionCount + job.failureCount} / ${job.totalSensors}`;
         const tentative = String(job.event.status || '').toLowerCase() === 'tentative' ? ' · Tentative' : '';
-        return `<button class="active-calibration-row" type="button" data-load-active-job="${index}" title="Load all servers for ${escapeHtml(job.jobName)}">
+        const completedClass = job.percent === 100 ? ' is-complete' : '';
+        return `<button class="active-calibration-row${completedClass}" type="button" data-load-active-job="${index}" title="Load all servers for ${escapeHtml(job.jobName)}">
           <span><span class="active-calibration-name">${escapeHtml(job.jobName)}</span><span class="active-calibration-meta">${escapeHtml(activeCalibrationDateLabel(job.event))}${tentative} · ${job.serverIds.length} server${job.serverIds.length === 1 ? '' : 's'}</span></span>
           <span class="active-calibration-progress">${progress}</span>
         </button>`;
