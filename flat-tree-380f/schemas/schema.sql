@@ -32,6 +32,10 @@ CREATE TABLE IF NOT EXISTS ap_locations (
   notes        TEXT,
   updated_by   TEXT,
   updated_at   TEXT DEFAULT (datetime('now')),
+  latitude     REAL,
+  longitude    REAL,
+  location_accuracy_m REAL,
+  location_captured_at TEXT,
   PRIMARY KEY (server, access_point)
 );
 

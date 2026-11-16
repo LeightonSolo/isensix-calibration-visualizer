@@ -24,6 +24,7 @@ let sortDir    = 1;
 let allExceptions = [];
 let zoneSort   = { col: 'left',  dir: -1 };
 let typeSort   = { col: 'left',  dir: -1 };
+let apSort     = { col: 'left',  dir: -1 };
 let checkSort  = { col: null,    dir:  1 };
 let excSort    = { col: null,    dir:  1 };
 let validationErrorSort = { col: 'severity', dir: 1 };
@@ -34,6 +35,8 @@ let activeServerZoneDetails = null;
 let activeTypeDetails = null;
 let activeServerTypeDetails = null;
 let apLocationsByServer = {};
+let apLocationsLoadPromise = null;
+let activeApLocationEdit = null;
 let serverOverviewReturnFocus = null;
 const detailSorts = {
   zone: { key: null, dir: 1 },
@@ -825,6 +828,8 @@ function groupServerOverviewApRows(sensors, server, includeSensoNodes = false) {
     return {
       label,
       address: locations[label]?.address || '',
+      floor: locations[label]?.floor || '',
+      room: locations[label]?.room || '',
       total: progress.total,
       calibrated: progress.calibrated,
       exceptions: progress.exceptions,
@@ -850,14 +855,140 @@ async function loadApLocations(server) {
   }
 }
 
-async function saveApLocation(server, accessPoint, address) {
+function getApLocationServerIds() {
+  return [...new Set(getVisibleBreakdownSensors()
+    .map(sensor => String(sensor.server || '').trim())
+    .filter(Boolean))];
+}
+
+async function loadAllApLocations() {
+  const serverIds = getApLocationServerIds();
+  await Promise.all(serverIds.map(server =>
+    Object.prototype.hasOwnProperty.call(apLocationsByServer, server)
+      ? Promise.resolve()
+      : loadApLocations(server)
+  ));
+}
+
+async function saveApLocation(server, accessPoint, location) {
   const response = await fetch(`${CONFIG.WORKER_URL}/ap-locations`, {
     method: 'POST',
     headers: { ...siteApiHeaders(), 'Content-Type': 'application/json' },
-    body: JSON.stringify({ server, access_point: accessPoint, address }),
+    body: JSON.stringify({ server, access_point: accessPoint, ...location }),
   });
   if (!response.ok) throw new Error(`AP location save failed (${response.status})`);
   await loadApLocations(server);
+}
+
+function populateApAddressSuggestions() {
+  const datalist = document.getElementById('ap-address-suggestions');
+  if (!datalist) return;
+  const addresses = [...new Set(Object.values(apLocationsByServer)
+    .flatMap(locations => Object.values(locations || {}).map(location => String(location.address || '').trim()))
+    .filter(Boolean))].sort();
+  datalist.innerHTML = addresses.map(address => `<option value="${escapeHtml(address)}"></option>`).join('');
+}
+
+function openApLocationEditor(server, accessPoint) {
+  const location = apLocationsByServer[server]?.[accessPoint] || {};
+  activeApLocationEdit = {
+    server,
+    accessPoint,
+    location: location.latitude != null && location.longitude != null
+      ? {
+        latitude: location.latitude,
+        longitude: location.longitude,
+        location_accuracy_m: location.location_accuracy_m,
+        location_captured_at: location.location_captured_at,
+      }
+      : null,
+  };
+  document.getElementById('ap-location-context').textContent = `SID ${server} · ${accessPoint}`;
+  document.getElementById('ap-location-address').value = location.address || '';
+  document.getElementById('ap-location-floor').value = location.floor || '';
+  document.getElementById('ap-location-room').value = location.room || '';
+  document.getElementById('ap-location-notes').value = location.notes || '';
+  document.getElementById('ap-current-location-status').textContent = location.latitude != null && location.longitude != null
+    ? `Location captured${location.location_accuracy_m ? ` ±${Math.round(location.location_accuracy_m)} m` : ''}.`
+    : 'Coordinates are optional.';
+  document.getElementById('ap-clear-current-location').hidden = !(location.latitude != null && location.longitude != null);
+  populateApAddressSuggestions();
+  const modal = document.getElementById('ap-location-modal');
+  modal.hidden = false;
+  document.body.classList.add('server-overview-open');
+  document.getElementById('ap-location-address').focus();
+}
+
+function captureCurrentLocation() {
+  const status = document.getElementById('ap-current-location-status');
+  const button = document.getElementById('ap-use-current-location');
+  if (!navigator.geolocation) {
+    status.textContent = 'Location is not available in this browser.';
+    return;
+  }
+  button.disabled = true;
+  status.textContent = 'Requesting location permission…';
+  navigator.geolocation.getCurrentPosition(position => {
+    activeApLocationEdit.location = {
+      latitude: position.coords.latitude,
+      longitude: position.coords.longitude,
+      location_accuracy_m: position.coords.accuracy,
+      location_captured_at: new Date().toISOString(),
+    };
+    document.getElementById('ap-clear-current-location').hidden = false;
+    status.textContent = `Location captured ±${Math.round(position.coords.accuracy)} m. Save to keep it.`;
+    button.disabled = false;
+  }, error => {
+    status.textContent = error.code === error.PERMISSION_DENIED
+      ? 'Location permission was denied.'
+      : 'Could not determine the current location.';
+    button.disabled = false;
+  }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
+}
+
+function clearCurrentLocation() {
+  if (!activeApLocationEdit) return;
+  activeApLocationEdit.location = {
+    latitude: null,
+    longitude: null,
+    location_accuracy_m: null,
+    location_captured_at: null,
+  };
+  document.getElementById('ap-clear-current-location').hidden = true;
+  document.getElementById('ap-current-location-status').textContent = 'Coordinates will be cleared when you save.';
+}
+
+function closeApLocationEditor() {
+  const modal = document.getElementById('ap-location-modal');
+  if (!modal || modal.hidden) return;
+  modal.hidden = true;
+  activeApLocationEdit = null;
+  if (!activeServerOverview) document.body.classList.remove('server-overview-open');
+}
+
+async function submitApLocationEditor(event) {
+  event.preventDefault();
+  if (!activeApLocationEdit) return;
+  const { server, accessPoint } = activeApLocationEdit;
+  const submit = event.target.querySelector('button[type="submit"]');
+  submit.disabled = true;
+  try {
+    await saveApLocation(server, accessPoint, {
+      address: document.getElementById('ap-location-address').value.trim(),
+      floor: document.getElementById('ap-location-floor').value.trim(),
+      room: document.getElementById('ap-location-room').value.trim(),
+      notes: document.getElementById('ap-location-notes').value.trim(),
+      ...(activeApLocationEdit.location || {}),
+    });
+    closeApLocationEditor();
+    if (activeServerOverview) renderServerOverview(activeServerOverview);
+    if (currentTab === 'aps') renderTable();
+  } catch (error) {
+    console.error(error);
+    alert('Could not save the AP location.');
+  } finally {
+    submit.disabled = false;
+  }
 }
 
 function renderServerOverview(server) {
@@ -901,9 +1032,10 @@ function renderServerOverview(server) {
   const apBreakdown = buildServerOverviewTable('aps', 'APs', aps, [
     { label: 'SID', key: 'server', render: () => `<span class="mono">${escapeHtml(server)}</span>` },
     { label: 'AP', key: 'label', render: row => `<span class="mono">${escapeHtml(row.label)}</span>${buildProgressBar(row)}` },
-    { label: 'Address', key: 'address', render: row => row.label === 'No access point'
-      ? '<span class="muted">—</span>'
-      : `<span class="ap-location-editor"><input class="ap-address-input" type="text" value="${escapeHtml(row.address)}" placeholder="Enter address" data-ap-address="${escapeHtml(row.label)}"><button type="button" class="small-btn ap-save-button" data-ap-save="${escapeHtml(row.label)}">Save</button></span>` },
+        { label: 'Address', key: 'address', render: row => row.label === 'No access point'
+          ? '<span class="muted">—</span>'
+          : `<span class="ap-address-cell">${escapeHtml(row.address || 'Address not entered')}</span><button type="button" class="small-btn ap-edit-button" data-ap-edit="${escapeHtml(row.label)}" data-ap-server="${escapeHtml(server)}">Edit</button>` },
+        { label: 'Floor / Room', key: 'floor', render: row => escapeHtml([row.floor, row.room].filter(Boolean).join(' / ') || '—') },
     { label: 'Sensors', key: 'total', render: row => row.total },
     { label: 'Cal.', key: 'calibrated', render: row => `<span class="green-val">${row.calibrated}</span>` },
     { label: 'Left', key: 'remaining', render: row => row.remaining ? `<span class="blue-val">${row.remaining}</span>` : '0' },
@@ -1000,9 +1132,8 @@ function renderServerOverview(server) {
         { label: 'Zone', render: exception => escapeHtml(exception.zone || '—') },
         { label: 'Reason', render: exception => escapeHtml(exception.reason || '—') },
       ], `No exceptions logged for ${CURRENT_YEAR}.`, 'overview-exceptions') : ''}
+      ${apBreakdown}
      </div>`;
-  const apPanel = document.getElementById('server-overview-aps');
-  if (apPanel) apPanel.innerHTML = apBreakdown;
 }
 
 function openServerOverview(server) {
@@ -2633,6 +2764,76 @@ function buildZonesTable() {
 }
 
 /* ─── renderTable ───────────────────────────────────────── */
+function buildApsTable() {
+  const selectedType = document.getElementById('type-filter')?.value || '';
+  const sensors = getVisibleBreakdownSensors().filter(sensor =>
+    !selectedType || sensor.sensor_type === selectedType
+  );
+  const apGroups = new Map();
+  sensors.forEach(sensor => {
+    const accessPoint = String(sensor.access_point || '').trim() || 'No access point';
+    const server = String(sensor.server ?? '');
+    const key = JSON.stringify([accessPoint, server]);
+    if (!apGroups.has(key)) apGroups.set(key, { accessPoint, server, sensors: [] });
+    apGroups.get(key).sensors.push(sensor);
+  });
+  let rows = [...apGroups.values()].map(({ accessPoint, server, sensors: group }) => {
+    if (!hasBreakdownWork(group)) return null;
+    const progress = getProgressBreakdown(group, { includeSensoNodes: showSensoNodes() });
+    return {
+      accessPoint,
+      server,
+      address: apLocationsByServer[server]?.[accessPoint]?.address || '',
+      floor: apLocationsByServer[server]?.[accessPoint]?.floor || '',
+      room: apLocationsByServer[server]?.[accessPoint]?.room || '',
+      total: group.length,
+      cal: progress.calibrated,
+      exc: progress.exceptions,
+      left: progress.remaining,
+      fail: progress.failures,
+      done: progress.remaining <= 0,
+    };
+  }).filter(Boolean);
+  rows = rows.filter(row => matchesPanelSearch([
+    row.accessPoint, row.server, row.address, row.total, row.cal, row.exc, row.left, row.fail,
+  ]));
+  rows = applySummarySort(rows, apSort, 'accessPoint');
+
+  return `<div class="rt-wrap"><table class="rt aps-table" data-resize-key="aps">
+    <thead><tr>
+      ${thSort('AP', 'accessPoint', apSort, 'sortAp')}
+      ${thSort('Address', 'address', apSort, 'sortAp')}
+      ${thSort('Floor / Room', 'floor', apSort, 'sortAp')}
+      ${thSort('SID', 'server', apSort, 'sortAp')}
+      ${thSort('Sensors', 'total', apSort, 'sortAp')}
+      ${thSort('Calibrated', 'cal', apSort, 'sortAp')}
+      ${thSort('Exceptions', 'exc', apSort, 'sortAp')}
+      ${thSort('Remaining', 'left', apSort, 'sortAp')}
+      ${thSort('Failures', 'fail', apSort, 'sortAp')}
+    </tr></thead>
+    <tbody>${rows.length ? rows.map(row => `<tr class="${row.done ? 'done-row' : ''}">
+      <td><span class="mono">${escapeHtml(row.accessPoint)}</span>${buildProgressBar(row)}</td>
+      <td>${row.accessPoint === 'No access point' ? '<span class="muted">—</span>' : `<span class="ap-address-cell">${escapeHtml(row.address || 'Address not entered')}</span><button type="button" class="small-btn ap-edit-button" data-ap-edit="${escapeHtml(row.accessPoint)}" data-ap-server="${escapeHtml(row.server)}">Edit</button>`}</td>
+      <td>${escapeHtml([row.floor, row.room].filter(Boolean).join(' / ') || '—')}</td>
+      <td class="muted">${escapeHtml(row.server || '—')}</td>
+      <td>${row.total}</td>
+      <td class="green-val">${row.cal}</td>
+      <td class="${row.exc > 0 ? 'orange-val' : 'muted'}">${row.exc}</td>
+      <td class="${row.left > 0 ? 'blue-val' : 'muted'}">${row.left}</td>
+      <td class="${row.fail > 0 ? 'fail-val' : 'muted'}">${row.fail}</td>
+    </tr>`).join('') : `<tr><td colspan="9" class="muted" style="text-align:center;">${getPanelSearchQuery() ? 'No APs match your search.' : 'No AP breakdown available.'}</td></tr>`}</tbody>
+  </table></div>`;
+}
+
+function sortAp(column) {
+  if (apSort.col === column) apSort.dir *= -1;
+  else {
+    apSort.col = column;
+    apSort.dir = 1;
+  }
+  renderTable();
+}
+
 function renderTable() {
   const title = document.getElementById('panel-title');
   const count = document.getElementById('panel-count');
@@ -2644,7 +2845,7 @@ function renderTable() {
   const actionableErrorCount = getActionableSensorErrorCount();
   errorTabCount.textContent = actionableErrorCount;
   errorTabCount.hidden = actionableErrorCount === 0;
-  if (currentTab === 'types' || currentTab === 'zones') {
+  if (currentTab === 'types' || currentTab === 'zones' || currentTab === 'aps') {
     panelActions.innerHTML = breakdownToggleHtml();
   }
   document.getElementById('main-panel')?.classList.toggle('job-info-panel-active', currentTab === 'jobinfo');
@@ -2654,17 +2855,17 @@ function renderTable() {
 
   const showFilter = ['left','calibrated','failures','all'].includes(currentTab);
   const showErrorFilters = currentTab === 'errors';
-  const showBreakdownFilters = currentTab === 'types' || currentTab === 'zones';
+  const showBreakdownFilters = currentTab === 'types' || currentTab === 'zones' || currentTab === 'aps';
   const showSharedFilters = showFilter || showErrorFilters || showBreakdownFilters || currentTab === 'exceptions' || currentTab === 'check';
   document.getElementById('filter-bar').style.display = showSharedFilters ? 'flex' : 'none';
   document.querySelector('#server-filter option[value=""]').textContent = 'All Servers';
   document.getElementById('type-filter').style.display =
-    showFilter || showErrorFilters || currentTab === 'zones' ? 'inline-block' : 'none';
+    showFilter || showErrorFilters || currentTab === 'zones' || currentTab === 'aps' ? 'inline-block' : 'none';
   document.getElementById('tech-filter').style.display = showFilter ? 'inline-block' : 'none';
   document.getElementById('exception-added-by-filter').style.display = currentTab === 'exceptions' ? 'inline-block' : 'none';
   document.getElementById('check-quality-filter').style.display = currentTab === 'check' ? 'inline-block' : 'none';
   document.getElementById('validation-error-filter').style.display = showErrorFilters ? 'inline-block' : 'none';
-  const showSearch = showFilter || ['errors', 'exceptions', 'check', 'zones', 'types'].includes(currentTab);
+  const showSearch = showFilter || ['errors', 'exceptions', 'check', 'zones', 'types', 'aps'].includes(currentTab);
   const searchWrap = document.getElementById('panel-search-wrap');
   const searchInput = document.getElementById('search-input');
   const searchQuery = searchInput.value.trim();
@@ -2684,6 +2885,20 @@ function renderTable() {
     title.textContent = 'Sensor type breakdown';
     count.textContent = '';
     setTableContent(area, buildTypesTable());
+    return;
+  }
+  if (currentTab === 'aps') {
+    title.textContent = 'APs';
+    count.textContent = '';
+    setTableContent(area, buildApsTable());
+    const missingApLocations = getApLocationServerIds()
+      .some(server => !Object.prototype.hasOwnProperty.call(apLocationsByServer, server));
+    if (missingApLocations && !apLocationsLoadPromise) {
+      apLocationsLoadPromise = loadAllApLocations().finally(() => { apLocationsLoadPromise = null; });
+      apLocationsLoadPromise.then(() => {
+        if (currentTab === 'aps') renderTable();
+      });
+    }
     return;
   }
   if (currentTab === 'errors') {
@@ -4133,6 +4348,11 @@ document.addEventListener('click', event => {
 const serverOverviewModal = document.getElementById('server-overview-modal');
 document.getElementById('server-overview-close')?.addEventListener('click', closeServerOverview);
 serverOverviewModal?.addEventListener('click', event => {
+  const apEdit = event.target.closest('[data-ap-edit]');
+  if (apEdit) {
+    openApLocationEditor(apEdit.dataset.apServer, apEdit.dataset.apEdit);
+    return;
+  }
   const apSave = event.target.closest('[data-ap-save]');
   if (apSave) {
     const accessPoint = apSave.dataset.apSave;
@@ -4178,6 +4398,27 @@ serverOverviewModal?.addEventListener('click', event => {
   if (event.target === serverOverviewModal) closeServerOverview();
 });
 document.getElementById('table-area')?.addEventListener('click', event => {
+  const apEdit = event.target.closest('[data-ap-edit]');
+  if (apEdit) {
+    openApLocationEditor(apEdit.dataset.apServer, apEdit.dataset.apEdit);
+    return;
+  }
+  const apSave = event.target.closest('[data-ap-save]');
+  if (apSave) {
+    const accessPoint = apSave.dataset.apSave;
+    const server = apSave.dataset.apServer;
+    const input = apSave.closest('tr')?.querySelector('[data-ap-address]');
+    if (!accessPoint || !server || !input) return;
+    apSave.disabled = true;
+    saveApLocation(server, accessPoint, input.value)
+      .then(() => renderTable())
+      .catch(error => {
+        console.error(error);
+        alert('Could not save the AP address.');
+      })
+      .finally(() => { apSave.disabled = false; });
+    return;
+  }
   const typeTrigger = event.target.closest('[data-type-detail]');
   if (typeTrigger) {
     openTypeDetails(typeTrigger.dataset.typeDetail);
@@ -4206,7 +4447,20 @@ typeDetailModal?.addEventListener('click', event => {
   }
   if (event.target === typeDetailModal) closeTypeDetails();
 });
+const apLocationModal = document.getElementById('ap-location-modal');
+document.getElementById('ap-location-close')?.addEventListener('click', closeApLocationEditor);
+document.getElementById('ap-location-cancel')?.addEventListener('click', closeApLocationEditor);
+document.getElementById('ap-location-form')?.addEventListener('submit', submitApLocationEditor);
+document.getElementById('ap-use-current-location')?.addEventListener('click', captureCurrentLocation);
+document.getElementById('ap-clear-current-location')?.addEventListener('click', clearCurrentLocation);
+apLocationModal?.addEventListener('click', event => {
+  if (event.target === apLocationModal) closeApLocationEditor();
+});
 document.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && apLocationModal && !apLocationModal.hidden) {
+    closeApLocationEditor();
+    return;
+  }
   if (event.key === 'Escape' && typeDetailModal && !typeDetailModal.hidden) {
     closeTypeDetails();
     return;

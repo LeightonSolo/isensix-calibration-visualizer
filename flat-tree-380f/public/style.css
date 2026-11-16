@@ -808,15 +808,77 @@ body.server-overview-open { overflow: hidden; }
   border-collapse: collapse;
 }
 
-.server-overview-aps-panel {
-  margin-top: 8px;
-}
+.overview-ap-breakdown { grid-column: 1 / -1; }
 
 .ap-location-editor {
   display: flex;
   align-items: center;
   gap: 5px;
   min-width: 220px;
+}
+
+.ap-address-cell {
+  display: inline-block;
+  max-width: min(460px, 100%);
+  margin-right: 8px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  vertical-align: middle;
+}
+
+.ap-edit-button { vertical-align: middle; }
+
+.ap-location-dialog { max-width: 560px; }
+
+.ap-location-form {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+}
+
+.ap-location-form label {
+  display: grid;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.ap-location-form input,
+.ap-location-form textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 9px 10px;
+  color: var(--text-primary);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  font: inherit;
+  font-weight: 400;
+}
+
+.ap-location-form input:focus,
+.ap-location-form textarea:focus { border-color: var(--accent-blue); }
+
+.ap-location-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.ap-current-location-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+#ap-clear-current-location[hidden] { display: none; }
+
+.ap-location-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .ap-address-input {

@@ -585,7 +585,8 @@ export default {
       const server = String(url.searchParams.get('server') || '').trim();
       if (!server) return json({ error: 'Server is required' }, 400);
       const { results } = await env.DB.prepare(`
-        SELECT server, access_point, address, floor, room, notes, updated_by, updated_at
+        SELECT server, access_point, address, floor, room, notes, updated_by, updated_at,
+               latitude, longitude, location_accuracy_m, location_captured_at
         FROM ap_locations
         WHERE server = ?
         ORDER BY access_point
@@ -599,16 +600,28 @@ export default {
       const server = String(body.server || '').trim();
       const accessPoint = String(body.access_point || '').trim();
       const address = String(body.address || '').trim();
+      const numericOrNull = (value: unknown) => {
+        if (value === null || value === undefined || value === '') return null;
+        const number = Number(value);
+        return Number.isFinite(number) ? number : null;
+      };
       if (!server || !accessPoint) return json({ error: 'Server and access point are required' }, 400);
       await env.DB.prepare(`
-        INSERT INTO ap_locations (server, access_point, address, floor, room, notes, updated_by, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+        INSERT INTO ap_locations (
+          server, access_point, address, floor, room, notes, updated_by, updated_at,
+          latitude, longitude, location_accuracy_m, location_captured_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), ?, ?, ?, ?)
         ON CONFLICT(server, access_point) DO UPDATE SET
           address = excluded.address,
           floor = excluded.floor,
           room = excluded.room,
           notes = excluded.notes,
           updated_by = excluded.updated_by,
+          latitude = excluded.latitude,
+          longitude = excluded.longitude,
+          location_accuracy_m = excluded.location_accuracy_m,
+          location_captured_at = excluded.location_captured_at,
           updated_at = datetime('now')
       `).bind(
         server,
@@ -618,6 +631,10 @@ export default {
         String(body.room || '').trim() || null,
         String(body.notes || '').trim() || null,
         String(body.updated_by || '').trim() || null,
+        numericOrNull(body.latitude),
+        numericOrNull(body.longitude),
+        numericOrNull(body.location_accuracy_m),
+        String(body.location_captured_at || '').trim() || null,
       ).run();
       return json({ ok: true });
     }
