@@ -2369,6 +2369,7 @@ function getFilteredValidationErrors(errors = getSensorErrorRows(getVisibleSenso
         error: [a.issue.field, b.issue.field],
         value: [a.issue.value || '', b.issue.value || ''],
         details: [a.issue.message, b.issue.message],
+        calibrated_at: [a.sensor.calibrated_at || '', b.sensor.calibrated_at || ''],
         severity: [a.issue.severity === 'low' ? 1 : 0, b.issue.severity === 'low' ? 1 : 0],
       }[validationErrorSort.col] || ['', ''];
       const [left, right] = values;
@@ -2418,6 +2419,7 @@ function buildValidationErrorsTable(rows) {
       ${validationErrorSortHeader('Error', 'error')}
       ${validationErrorSortHeader('Value', 'value')}
       ${validationErrorSortHeader('Details', 'details')}
+      ${validationErrorSortHeader('Calibrated', 'calibrated_at')}
     </tr></thead>
     <tbody>${rows.map(({ sensor, issue }) => {
       const url = sensorUrl(sensor.sensor_id, sensor.server);
@@ -2434,6 +2436,7 @@ function buildValidationErrorsTable(rows) {
         <td><strong>${escapeHtml(issue.field)}</strong></td>
         <td class="validation-error-value">${escapeHtml(issue.value || '—')}</td>
         <td>${escapeHtml(issue.message)}</td>
+        <td>${fmtDate(sensor.calibrated_at)}</td>
       </tr>`;
     }).join('')}</tbody>
   </table></div>`;
