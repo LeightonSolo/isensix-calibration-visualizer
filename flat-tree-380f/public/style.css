@@ -808,6 +808,35 @@ body.server-overview-open { overflow: hidden; }
   border-collapse: collapse;
 }
 
+.server-overview-aps-panel {
+  margin-top: 8px;
+}
+
+.ap-location-editor {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 220px;
+}
+
+.ap-address-input {
+  width: 170px;
+  min-width: 0;
+  padding: 4px 6px;
+  color: var(--text-primary);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font: inherit;
+}
+
+.ap-address-input:focus { border-color: var(--accent-blue); }
+
+.ap-save-button {
+  flex: 0 0 auto;
+  padding: 4px 7px;
+}
+
 .server-overview-table thead {
   position: sticky;
   top: 0;

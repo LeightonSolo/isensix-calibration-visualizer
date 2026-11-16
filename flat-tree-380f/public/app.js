@@ -33,6 +33,7 @@ let activeZoneServer = null;
 let activeServerZoneDetails = null;
 let activeTypeDetails = null;
 let activeServerTypeDetails = null;
+let apLocationsByServer = {};
 let serverOverviewReturnFocus = null;
 const detailSorts = {
   zone: { key: null, dir: 1 },
@@ -44,6 +45,7 @@ let historicalRun = null;
 const serverOverviewSorts = {
   zones:      { key: 'remaining', dir: -1 },
   types:      { key: 'remaining', dir: -1 },
+  aps:        { key: 'remaining', dir: -1 },
   calibrated: { key: 'calibrated_at', dir: -1 },
   remaining:  { key: 'zone', dir: 1 },
   failures:   { key: 'calibrated_at', dir: -1 },
@@ -60,6 +62,7 @@ const serverOverviewColumnKeys = {
   Time: 'calibrated_at',
   Quality: 'quality',
   Reason: 'reason',
+  Address: 'address',
 };
 
 const savedRollingDays = localStorage.getItem("rollingDays");
@@ -809,6 +812,54 @@ function groupServerOverviewRows(sensors, key, includeSensoNodes = false) {
   }).sort((a, b) => a.label.localeCompare(b.label));
 }
 
+function groupServerOverviewApRows(sensors, server, includeSensoNodes = false) {
+  const groups = new Map();
+  sensors.forEach(sensor => {
+    const label = String(sensor.access_point || '').trim() || 'No access point';
+    if (!groups.has(label)) groups.set(label, []);
+    groups.get(label).push(sensor);
+  });
+  const locations = apLocationsByServer[server] || {};
+  return [...groups.entries()].filter(([, group]) => hasBreakdownWork(group)).map(([label, group]) => {
+    const progress = getProgressBreakdown(group, { includeSensoNodes });
+    return {
+      label,
+      address: locations[label]?.address || '',
+      total: progress.total,
+      calibrated: progress.calibrated,
+      exceptions: progress.exceptions,
+      remaining: progress.remaining,
+      failures: progress.failures,
+    };
+  }).sort((a, b) => a.label.localeCompare(b.label));
+}
+
+async function loadApLocations(server) {
+  try {
+    const response = await fetch(`${CONFIG.WORKER_URL}/ap-locations?server=${encodeURIComponent(server)}`, {
+      headers: siteApiHeaders(),
+    });
+    if (!response.ok) throw new Error(`AP locations request failed (${response.status})`);
+    const rows = await response.json();
+    apLocationsByServer[server] = Object.fromEntries(
+      (Array.isArray(rows) ? rows : []).map(row => [String(row.access_point), row])
+    );
+  } catch (error) {
+    console.error(`Failed to load AP locations for ${server}`, error);
+    apLocationsByServer[server] = {};
+  }
+}
+
+async function saveApLocation(server, accessPoint, address) {
+  const response = await fetch(`${CONFIG.WORKER_URL}/ap-locations`, {
+    method: 'POST',
+    headers: { ...siteApiHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ server, access_point: accessPoint, address }),
+  });
+  if (!response.ok) throw new Error(`AP location save failed (${response.status})`);
+  await loadApLocations(server);
+}
+
 function renderServerOverview(server) {
   const body = document.getElementById('server-overview-body');
   const title = document.getElementById('server-overview-title');
@@ -846,6 +897,20 @@ function renderServerOverview(server) {
   const breakdownSensors = getVisibleBreakdownSensors(all);
   const zones = groupServerOverviewRows(breakdownSensors, 'zone', showSensoNodes());
   const types = groupServerOverviewRows(breakdownSensors, 'sensor_type', showSensoNodes());
+  const aps = groupServerOverviewApRows(breakdownSensors, server, showSensoNodes());
+  const apBreakdown = buildServerOverviewTable('aps', 'APs', aps, [
+    { label: 'SID', key: 'server', render: () => `<span class="mono">${escapeHtml(server)}</span>` },
+    { label: 'AP', key: 'label', render: row => `<span class="mono">${escapeHtml(row.label)}</span>${buildProgressBar(row)}` },
+    { label: 'Address', key: 'address', render: row => row.label === 'No access point'
+      ? '<span class="muted">—</span>'
+      : `<span class="ap-location-editor"><input class="ap-address-input" type="text" value="${escapeHtml(row.address)}" placeholder="Enter address" data-ap-address="${escapeHtml(row.label)}"><button type="button" class="small-btn ap-save-button" data-ap-save="${escapeHtml(row.label)}">Save</button></span>` },
+    { label: 'Sensors', key: 'total', render: row => row.total },
+    { label: 'Cal.', key: 'calibrated', render: row => `<span class="green-val">${row.calibrated}</span>` },
+    { label: 'Left', key: 'remaining', render: row => row.remaining ? `<span class="blue-val">${row.remaining}</span>` : '0' },
+    { label: 'Exc.', key: 'exceptions', render: row => row.exceptions ? `<span class="orange-val">${row.exceptions}</span>` : '0' },
+    { label: 'Fail', key: 'failures', render: row => row.failures ? `<span class="fail-val">${row.failures}</span>` : '0' },
+  ], 'No enabled sensors have access-point information.', 'overview-breakdown overview-ap-breakdown',
+    row => row.remaining === 0 ? 'overview-done-row' : '');
 
   const tunnelUrl = serverTunnelUrl(server);
   title.innerHTML = tunnelUrl
@@ -935,7 +1000,9 @@ function renderServerOverview(server) {
         { label: 'Zone', render: exception => escapeHtml(exception.zone || '—') },
         { label: 'Reason', render: exception => escapeHtml(exception.reason || '—') },
       ], `No exceptions logged for ${CURRENT_YEAR}.`, 'overview-exceptions') : ''}
-    </div>`;
+     </div>`;
+  const apPanel = document.getElementById('server-overview-aps');
+  if (apPanel) apPanel.innerHTML = apBreakdown;
 }
 
 function openServerOverview(server) {
@@ -945,7 +1012,11 @@ function openServerOverview(server) {
   activeServerZoneDetails = null;
   activeServerTypeDetails = null;
   serverOverviewReturnFocus = document.activeElement;
+  apLocationsByServer[activeServerOverview] = {};
   renderServerOverview(activeServerOverview);
+  loadApLocations(activeServerOverview).then(() => {
+    if (activeServerOverview === String(server)) renderServerOverview(activeServerOverview);
+  });
   modal.hidden = false;
   document.body.classList.add('server-overview-open');
   document.getElementById('server-overview-close')?.focus();
@@ -4062,6 +4133,21 @@ document.addEventListener('click', event => {
 const serverOverviewModal = document.getElementById('server-overview-modal');
 document.getElementById('server-overview-close')?.addEventListener('click', closeServerOverview);
 serverOverviewModal?.addEventListener('click', event => {
+  const apSave = event.target.closest('[data-ap-save]');
+  if (apSave) {
+    const accessPoint = apSave.dataset.apSave;
+    const input = apSave.closest('tr')?.querySelector('[data-ap-address]');
+    if (!accessPoint || !input || !activeServerOverview) return;
+    apSave.disabled = true;
+    saveApLocation(activeServerOverview, accessPoint, input.value)
+      .then(() => renderServerOverview(activeServerOverview))
+      .catch(error => {
+        console.error(error);
+        alert('Could not save the AP address.');
+      })
+      .finally(() => { apSave.disabled = false; });
+    return;
+  }
   const typeTrigger = event.target.closest('[data-server-type-detail]');
   if (typeTrigger) {
     activeServerTypeDetails = typeTrigger.dataset.serverTypeDetail;

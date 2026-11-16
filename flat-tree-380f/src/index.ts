@@ -580,6 +580,48 @@ export default {
       return json({ ok: true });
     }
 
+    // GET /ap-locations — fetch manually maintained AP location mappings.
+    if (request.method === 'GET' && pathname === '/ap-locations') {
+      const server = String(url.searchParams.get('server') || '').trim();
+      if (!server) return json({ error: 'Server is required' }, 400);
+      const { results } = await env.DB.prepare(`
+        SELECT server, access_point, address, floor, room, notes, updated_by, updated_at
+        FROM ap_locations
+        WHERE server = ?
+        ORDER BY access_point
+      `).bind(server).all();
+      return json(results);
+    }
+
+    // POST /ap-locations — create or update one AP location mapping.
+    if (request.method === 'POST' && pathname === '/ap-locations') {
+      const body = await request.json() as Record<string, any>;
+      const server = String(body.server || '').trim();
+      const accessPoint = String(body.access_point || '').trim();
+      const address = String(body.address || '').trim();
+      if (!server || !accessPoint) return json({ error: 'Server and access point are required' }, 400);
+      await env.DB.prepare(`
+        INSERT INTO ap_locations (server, access_point, address, floor, room, notes, updated_by, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+        ON CONFLICT(server, access_point) DO UPDATE SET
+          address = excluded.address,
+          floor = excluded.floor,
+          room = excluded.room,
+          notes = excluded.notes,
+          updated_by = excluded.updated_by,
+          updated_at = datetime('now')
+      `).bind(
+        server,
+        accessPoint,
+        address || null,
+        String(body.floor || '').trim() || null,
+        String(body.room || '').trim() || null,
+        String(body.notes || '').trim() || null,
+        String(body.updated_by || '').trim() || null,
+      ).run();
+      return json({ ok: true });
+    }
+
     // GET /exceptions — fetch all exceptions, optionally filtered by server
     if (request.method === 'GET' && pathname === '/exceptions') {
       const server = url.searchParams.get('server');
