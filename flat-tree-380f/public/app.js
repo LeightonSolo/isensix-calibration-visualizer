@@ -1724,7 +1724,8 @@ function evaluateDashboardMilestones(progress) {
   });
   previousDashboardMilestoneSnapshot = currentSnapshot;
 
-  const milestone = reached.find(item => item.type === 'server-complete')
+  const milestone = reached.find(item => item.type === 'percent' && item.value === 100)
+    || reached.find(item => item.type === 'server-complete')
     || reached.find(item => item.type === 'calibrated-count')
     || reached.filter(item => item.type === 'percent').sort((a, b) => b.value - a.value)[0];
   if (!milestone) return;
