@@ -938,6 +938,7 @@ function openApLocationEditor(server, accessPoint) {
   document.getElementById('ap-location-floor').value = location.floor || '';
   document.getElementById('ap-location-room').value = location.room || '';
   document.getElementById('ap-location-notes').value = location.notes || '';
+  updateMainSiteAddressAction(server);
   document.getElementById('ap-current-location-status').textContent = location.latitude != null && location.longitude != null
     ? `Location captured${location.location_accuracy_m ? ` ±${Math.round(location.location_accuracy_m)} m` : ''}.`
     : 'Coordinates are optional.';
@@ -947,6 +948,40 @@ function openApLocationEditor(server, accessPoint) {
   modal.hidden = false;
   document.body.classList.add('server-overview-open');
   document.getElementById('ap-location-address').focus();
+}
+
+function getMainSiteAddressForServer(server) {
+  const address = String(jobInfo?.site_address || '').trim();
+  if (!address) return '';
+  const jobServers = String(jobInfo?.servers || '')
+    .split(',')
+    .map(value => value.trim())
+    .filter(Boolean);
+  return jobServers.includes(String(server)) ? address : '';
+}
+
+function updateMainSiteAddressAction(server) {
+  const button = document.getElementById('ap-use-main-site-address');
+  const status = document.getElementById('ap-main-address-status');
+  if (!button || !status) return;
+  const address = getMainSiteAddressForServer(server);
+  button.disabled = !address;
+  status.textContent = address
+    ? `Job Info: ${address}`
+    : 'No main site address is available for this SID in Job Info.';
+}
+
+async function useMainSiteAddress() {
+  if (!activeApLocationEdit) return;
+  let address = getMainSiteAddressForServer(activeApLocationEdit.server);
+  if (!address && !jobInfoLoaded) {
+    await loadJobInfo();
+    updateMainSiteAddressAction(activeApLocationEdit.server);
+    address = getMainSiteAddressForServer(activeApLocationEdit.server);
+  }
+  if (!address) return;
+  document.getElementById('ap-location-address').value = address;
+  document.getElementById('ap-main-address-status').textContent = 'Main site address copied from Job Info.';
 }
 
 function captureCurrentLocation() {
@@ -4604,6 +4639,7 @@ const apLocationModal = document.getElementById('ap-location-modal');
 document.getElementById('ap-location-close')?.addEventListener('click', closeApLocationEditor);
 document.getElementById('ap-location-cancel')?.addEventListener('click', closeApLocationEditor);
 document.getElementById('ap-location-form')?.addEventListener('submit', submitApLocationEditor);
+document.getElementById('ap-use-main-site-address')?.addEventListener('click', useMainSiteAddress);
 document.getElementById('ap-use-current-location')?.addEventListener('click', captureCurrentLocation);
 document.getElementById('ap-clear-current-location')?.addEventListener('click', clearCurrentLocation);
 apLocationModal?.addEventListener('click', event => {

@@ -883,6 +883,13 @@ body.server-overview-open { overflow: hidden; }
   gap: 8px;
 }
 
+.ap-main-address-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 #ap-clear-current-location[hidden] { display: none; }
 
 .ap-location-form-actions {
