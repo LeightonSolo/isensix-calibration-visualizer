@@ -34,6 +34,10 @@ let activeZoneServer = null;
 let activeServerZoneDetails = null;
 let activeTypeDetails = null;
 let activeServerTypeDetails = null;
+let activeApDetails = null;
+let activeApServer = null;
+let activeServerApDetails = null;
+let serverOverviewDetailScrollTop = null;
 let apLocationsByServer = {};
 let apLocationsLoadPromise = null;
 let activeApLocationEdit = null;
@@ -41,6 +45,7 @@ let serverOverviewReturnFocus = null;
 const detailSorts = {
   zone: { key: null, dir: 1 },
   type: { key: null, dir: 1 },
+  ap: { key: null, dir: 1 },
 };
 let hideCalibrated = false;
 const historicalRunId = new URLSearchParams(window.location.search).get('run_id');
@@ -827,6 +832,7 @@ function groupServerOverviewApRows(sensors, server, includeSensoNodes = false) {
     const progress = getProgressBreakdown(group, { includeSensoNodes });
     return {
       label,
+      syncInstruction: label === 'No access point' ? getApSyncInstruction(server, group) : '',
       address: locations[label]?.address || '',
       floor: locations[label]?.floor || '',
       room: locations[label]?.room || '',
@@ -837,6 +843,30 @@ function groupServerOverviewApRows(sensors, server, includeSensoNodes = false) {
       failures: progress.failures,
     };
   }).sort((a, b) => a.label.localeCompare(b.label));
+}
+
+function getApSyncInstruction(server, sensors = allSensors) {
+  const meta = serverMeta[String(server)] || {};
+  const version = normalizeServerVersion(meta.version);
+  const sid = String(server || '').trim() || 'requested server';
+  if (version === 'ARMS') {
+    return `View /debug/debug_query.php on SID ${sid}, then refresh the dashboard to sync AP data.`;
+  }
+  return `View the Calibration Summary on SID ${sid}, then refresh the dashboard to sync AP data.`;
+}
+
+function renderApLabel(label, server, sensors = allSensors) {
+  const value = escapeHtml(label);
+  if (label !== 'No access point') return value;
+  const instruction = getApSyncInstruction(server, sensors);
+  return `<span class="ap-missing-label">No access point <span class="ap-sync-flag" title="${escapeHtml(instruction)}" aria-label="${escapeHtml(instruction)}">ⓘ</span></span>`;
+}
+
+function renderAccessPointCell(sensor) {
+  const accessPoint = String(sensor.access_point || '').trim();
+  if (accessPoint) return escapeHtml(accessPoint);
+  const instruction = getApSyncInstruction(sensor.server, [sensor]);
+  return `<span class="ap-missing-label">No access point <span class="ap-sync-flag" title="${escapeHtml(instruction)}" aria-label="${escapeHtml(instruction)}">ⓘ</span></span>`;
 }
 
 async function loadApLocations(server) {
@@ -1031,7 +1061,7 @@ function renderServerOverview(server) {
   const aps = groupServerOverviewApRows(breakdownSensors, server, showSensoNodes());
   const apBreakdown = buildServerOverviewTable('aps', 'APs', aps, [
     { label: 'SID', key: 'server', render: () => `<span class="mono">${escapeHtml(server)}</span>` },
-    { label: 'AP', key: 'label', render: row => `<span class="mono">${escapeHtml(row.label)}</span>${buildProgressBar(row)}` },
+        { label: 'AP', key: 'label', render: row => `<button type="button" class="zone-detail-trigger zone-row-trigger" data-server-ap-detail="${escapeHtml(row.label)}" title="Show sensors on ${escapeHtml(row.label)}"><span class="mono">${renderApLabel(row.label, server, all)}</span>${buildProgressBar(row)}</button>` },
         { label: 'Address', key: 'address', render: row => row.label === 'No access point'
           ? '<span class="muted">—</span>'
           : `<span class="ap-address-cell">${escapeHtml(row.address || 'Address not entered')}</span><button type="button" class="small-btn ap-edit-button" data-ap-edit="${escapeHtml(row.label)}" data-ap-server="${escapeHtml(server)}">Edit</button>` },
@@ -1133,7 +1163,32 @@ function renderServerOverview(server) {
         { label: 'Reason', render: exception => escapeHtml(exception.reason || '—') },
       ], `No exceptions logged for ${CURRENT_YEAR}.`, 'overview-exceptions') : ''}
       ${apBreakdown}
+      ${activeServerApDetails ? buildApDetailsContent(activeServerApDetails, getBreakdownSensors(all), server) : ''}
      </div>`;
+}
+
+function scrollToServerOverviewDetail() {
+  requestAnimationFrame(() => {
+    const detail = document.querySelector('#server-overview-body .zone-details-content');
+    if (!detail) return;
+    detail.classList.remove('server-overview-detail-reveal');
+    void detail.offsetWidth;
+    detail.classList.add('server-overview-detail-reveal');
+    detail.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+}
+
+function rememberServerOverviewScrollPosition() {
+  const body = document.getElementById('server-overview-body');
+  if (body) serverOverviewDetailScrollTop = body.scrollTop;
+}
+
+function restoreServerOverviewScrollPosition() {
+  const body = document.getElementById('server-overview-body');
+  const scrollTop = serverOverviewDetailScrollTop;
+  serverOverviewDetailScrollTop = null;
+  if (!body || scrollTop === null) return;
+  requestAnimationFrame(() => body.scrollTo({ top: scrollTop, behavior: 'smooth' }));
 }
 
 function openServerOverview(server) {
@@ -1142,6 +1197,8 @@ function openServerOverview(server) {
   activeServerOverview = String(server);
   activeServerZoneDetails = null;
   activeServerTypeDetails = null;
+  activeServerApDetails = null;
+  serverOverviewDetailScrollTop = null;
   serverOverviewReturnFocus = document.activeElement;
   apLocationsByServer[activeServerOverview] = {};
   renderServerOverview(activeServerOverview);
@@ -1160,6 +1217,8 @@ function closeServerOverview() {
   activeServerOverview = null;
   activeServerZoneDetails = null;
   activeServerTypeDetails = null;
+  activeServerApDetails = null;
+  serverOverviewDetailScrollTop = null;
   document.body.classList.remove('server-overview-open');
   serverOverviewReturnFocus?.focus?.();
   serverOverviewReturnFocus = null;
@@ -2122,6 +2181,27 @@ function buildZoneDetailsContent(zone, sensors, detailKey = 'zone', server = nul
     </div>`;
 }
 
+function buildApDetailsContent(accessPoint, sensors, server = null) {
+  const matching = sensors.filter(sensor =>
+    String(sensor.access_point || 'No access point').trim() === String(accessPoint) &&
+    (server === null || String(sensor.server ?? '') === String(server))
+  );
+  const serverLabel = server === null ? '' : ` on SID ${server || '—'}`;
+  const closeButton = server === null
+    ? '<button type="button" class="zone-details-close" data-ap-detail-close aria-label="Close AP details">&times;</button>'
+    : '<button type="button" class="zone-details-close" data-server-ap-detail-close aria-label="Close AP details">&times;</button>';
+  return `
+    <div class="zone-details-content ap-details-content">
+      <div class="zone-details-heading">
+        <h3>Sensors on AP ${renderApLabel(accessPoint, server, sensors)}${escapeHtml(serverLabel)}</h3>
+        ${closeButton}
+      </div>
+      <div class="zone-details-table-wrap">
+        ${matching.length ? buildSensorTable(matching, 'ap') : '<div class="server-overview-empty">No sensors found on this AP.</div>'}
+      </div>
+    </div>`;
+}
+
 function openZoneDetails(zone, server = null) {
   const modal = document.getElementById('zone-detail-modal');
   const body = document.getElementById('zone-detail-body');
@@ -2143,7 +2223,26 @@ function closeZoneDetails() {
   modal.hidden = true;
   activeZoneDetails = null;
   activeZoneServer = null;
+  activeApDetails = null;
+  activeApServer = null;
   document.body.classList.remove('server-overview-open');
+}
+
+function openApDetails(accessPoint, server = null) {
+  const modal = document.getElementById('zone-detail-modal');
+  const body = document.getElementById('zone-detail-body');
+  const title = document.getElementById('zone-detail-title');
+  if (!modal || !body || !title) return;
+  activeApDetails = String(accessPoint);
+  activeApServer = server === null ? null : String(server);
+  activeZoneDetails = null;
+  activeZoneServer = null;
+  title.textContent = `AP ${activeApDetails}${activeApServer === null ? '' : ` (SID ${activeApServer || '—'})`}`;
+  updateBreakdownToggle('zone-hide-calibrated');
+  setTableContent(body, buildApDetailsContent(activeApDetails, getBreakdownSensors(), activeApServer));
+  modal.hidden = false;
+  document.body.classList.add('server-overview-open');
+  document.getElementById('zone-detail-close')?.focus();
 }
 
 function buildTypeDetailsContent(type, sensors, detailKey = 'type') {
@@ -2188,6 +2287,9 @@ function refreshDetailViews() {
   updateBreakdownToggle('server-hide-calibrated');
   if (activeZoneDetails && !document.getElementById('zone-detail-modal')?.hidden) {
     setTableContent(document.getElementById('zone-detail-body'), buildZoneDetailsContent(activeZoneDetails, getBreakdownSensors(), 'zone', activeZoneServer));
+  }
+  if (activeApDetails && !document.getElementById('zone-detail-modal')?.hidden) {
+    setTableContent(document.getElementById('zone-detail-body'), buildApDetailsContent(activeApDetails, getBreakdownSensors(), activeApServer));
   }
   if (activeTypeDetails && !document.getElementById('type-detail-modal')?.hidden) {
     setTableContent(document.getElementById('type-detail-body'), buildTypeDetailsContent(activeTypeDetails, getBreakdownSensors(), 'type'));
@@ -2464,7 +2566,11 @@ function sortDetailTable(detailKey, column) {
     sort.key = column;
     sort.dir = 1;
   }
-  if (activeServerOverview && (detailKey === 'zone' ? activeServerZoneDetails : activeServerTypeDetails)) {
+  if (activeServerOverview && (
+    detailKey === 'zone' ? activeServerZoneDetails
+      : detailKey === 'type' ? activeServerTypeDetails
+        : activeServerApDetails
+  )) {
     renderServerOverview(activeServerOverview);
     return;
   }
@@ -2472,6 +2578,8 @@ function sortDetailTable(detailKey, column) {
     setTableContent(document.getElementById('zone-detail-body'), buildZoneDetailsContent(activeZoneDetails, getBreakdownSensors(), 'zone', activeZoneServer));
   } else if (detailKey === 'type' && activeTypeDetails) {
     setTableContent(document.getElementById('type-detail-body'), buildTypeDetailsContent(activeTypeDetails, getBreakdownSensors(), 'type'));
+  } else if (detailKey === 'ap' && activeApDetails) {
+    setTableContent(document.getElementById('zone-detail-body'), buildApDetailsContent(activeApDetails, getBreakdownSensors(), activeApServer));
   }
 }
 
@@ -2480,7 +2588,7 @@ function buildSensorTable(rows, detailKey = null) {
   const displayRows = detailKey ? sortSensorDetailRows(rows, detailKey) : rows;
   const defaultTableWidth = SENSOR_COLS.reduce((width, column) => width + column.defaultW, 0);
   const resizeKey = detailKey
-    ? `${detailKey}:${detailKey === 'zone' ? `${activeZoneDetails}:${activeZoneServer ?? ''}` : activeTypeDetails}`
+    ? `${detailKey}:${detailKey === 'zone' ? `${activeZoneDetails}:${activeZoneServer ?? ''}` : detailKey === 'ap' ? `${activeApDetails}:${activeApServer ?? ''}` : activeTypeDetails}`
     : 'sensors';
   const thead = `<thead><tr>${SENSOR_COLS.map(c => `
     <th style="width:${c.defaultW}px;"
@@ -2532,7 +2640,7 @@ function buildSensorTable(rows, detailKey = null) {
       <td title="${escapeHtml(s.serial_number || '')}">
         ${renderSerialNumber(s)}
       </td>
-      <td class="muted" title="${s.access_point||''}">${s.access_point || '—'}</td>
+       <td class="muted" title="${s.access_point || ''}">${renderAccessPointCell(s)}</td>
       <td>${qualBadge(s.quality)}</td>
       <td>${statusCell(s.status)}</td>
       <td class="mono muted">${fmtOffset(s.old_offset)}</td>
@@ -2813,7 +2921,7 @@ function buildApsTable() {
       ${thSort('Failures', 'fail', apSort, 'sortAp')}
     </tr></thead>
     <tbody>${rows.length ? rows.map(row => `<tr class="${row.done ? 'done-row' : ''}">
-      <td><span class="mono">${escapeHtml(row.accessPoint)}</span>${buildProgressBar(row)}</td>
+      <td><button type="button" class="zone-detail-trigger zone-row-trigger" data-ap-detail="${escapeHtml(row.accessPoint)}" data-ap-server="${escapeHtml(row.server)}" title="Show sensors on ${escapeHtml(row.accessPoint)}"><span class="mono">${renderApLabel(row.accessPoint, row.server, sensors)}</span>${buildProgressBar(row)}</button></td>
       <td>${row.accessPoint === 'No access point' ? '<span class="muted">—</span>' : `<span class="ap-address-cell">${escapeHtml(row.address || 'Address not entered')}</span><button type="button" class="small-btn ap-edit-button" data-ap-edit="${escapeHtml(row.accessPoint)}" data-ap-server="${escapeHtml(row.server)}">Edit</button>`}</td>
       <td>${escapeHtml([row.floor, row.room].filter(Boolean).join(' / ') || '—')}</td>
       <td class="muted">${escapeHtml(row.server || '—')}</td>
@@ -2889,7 +2997,7 @@ function renderTable() {
     return;
   }
   if (currentTab === 'aps') {
-    title.textContent = 'APs';
+    title.textContent = 'Access Points';
     count.textContent = '';
     setTableContent(area, buildApsTable());
     const missingApLocations = getApLocationServerIds()
@@ -3412,6 +3520,9 @@ async function deleteServerConfig(server) {
 //Exception modal and save functions ======================
 function openExceptionModal(sensor_id, server) {
   if (historicalRunId) return;
+  if (activeServerOverview) closeServerOverview();
+  if (activeApDetails || activeZoneDetails || !document.getElementById('zone-detail-modal')?.hidden) closeZoneDetails();
+  if (activeTypeDetails || !document.getElementById('type-detail-modal')?.hidden) closeTypeDetails();
   const sensor = findSensor(sensor_id, server);
   if (!sensor) return;
   if (isSensorDisabled(sensor)) {
@@ -4349,6 +4460,24 @@ document.addEventListener('click', event => {
 const serverOverviewModal = document.getElementById('server-overview-modal');
 document.getElementById('server-overview-close')?.addEventListener('click', closeServerOverview);
 serverOverviewModal?.addEventListener('click', event => {
+  const serverApTrigger = event.target.closest('[data-server-ap-detail]');
+  if (serverApTrigger) {
+    rememberServerOverviewScrollPosition();
+    activeServerApDetails = serverApTrigger.dataset.serverApDetail;
+    if (activeServerOverview) {
+      renderServerOverview(activeServerOverview);
+      scrollToServerOverviewDetail();
+    }
+    return;
+  }
+  if (event.target.closest('[data-server-ap-detail-close]')) {
+    activeServerApDetails = null;
+    if (activeServerOverview) {
+      renderServerOverview(activeServerOverview);
+      restoreServerOverviewScrollPosition();
+    }
+    return;
+  }
   const apEdit = event.target.closest('[data-ap-edit]');
   if (apEdit) {
     openApLocationEditor(apEdit.dataset.apServer, apEdit.dataset.apEdit);
@@ -4371,24 +4500,38 @@ serverOverviewModal?.addEventListener('click', event => {
   }
   const typeTrigger = event.target.closest('[data-server-type-detail]');
   if (typeTrigger) {
+    rememberServerOverviewScrollPosition();
     activeServerTypeDetails = typeTrigger.dataset.serverTypeDetail;
-    if (activeServerOverview) renderServerOverview(activeServerOverview);
+    if (activeServerOverview) {
+      renderServerOverview(activeServerOverview);
+      scrollToServerOverviewDetail();
+    }
     return;
   }
   if (event.target.closest('[data-type-detail-close]')) {
     activeServerTypeDetails = null;
-    if (activeServerOverview) renderServerOverview(activeServerOverview);
+    if (activeServerOverview) {
+      renderServerOverview(activeServerOverview);
+      restoreServerOverviewScrollPosition();
+    }
     return;
   }
   const zoneTrigger = event.target.closest('[data-server-zone-detail]');
   if (zoneTrigger) {
+    rememberServerOverviewScrollPosition();
     activeServerZoneDetails = zoneTrigger.dataset.serverZoneDetail;
-    if (activeServerOverview) renderServerOverview(activeServerOverview);
+    if (activeServerOverview) {
+      renderServerOverview(activeServerOverview);
+      scrollToServerOverviewDetail();
+    }
     return;
   }
   if (event.target.closest('[data-zone-detail-close]')) {
     activeServerZoneDetails = null;
-    if (activeServerOverview) renderServerOverview(activeServerOverview);
+    if (activeServerOverview) {
+      renderServerOverview(activeServerOverview);
+      restoreServerOverviewScrollPosition();
+    }
     return;
   }
   const sortButton = event.target.closest('[data-overview-sort]');
@@ -4399,6 +4542,11 @@ serverOverviewModal?.addEventListener('click', event => {
   if (event.target === serverOverviewModal) closeServerOverview();
 });
 document.getElementById('table-area')?.addEventListener('click', event => {
+  const apTrigger = event.target.closest('[data-ap-detail]');
+  if (apTrigger) {
+    openApDetails(apTrigger.dataset.apDetail, apTrigger.dataset.apServer ?? null);
+    return;
+  }
   const apEdit = event.target.closest('[data-ap-edit]');
   if (apEdit) {
     openApLocationEditor(apEdit.dataset.apServer, apEdit.dataset.apEdit);
@@ -4434,6 +4582,10 @@ const zoneDetailModal = document.getElementById('zone-detail-modal');
 document.getElementById('zone-detail-close')?.addEventListener('click', closeZoneDetails);
 zoneDetailModal?.addEventListener('click', event => {
   if (event.target.closest('[data-zone-detail-close]')) {
+    closeZoneDetails();
+    return;
+  }
+  if (event.target.closest('[data-ap-detail-close]')) {
     closeZoneDetails();
     return;
   }
