@@ -7,7 +7,7 @@
     jobs: [], stats: null, events: [], assignments: [], filtered: [], view: 'directory',
     sortKey: 'job_name', sortDir: 1, preset: 'all',
     columnWidths: {},
-    selected: null, editing: false, dirty: false, pendingAction: null, serverMeta: {}, cmsUnassigned: null, cmsSensorHistory: [],
+    selected: null, editing: false, dirty: false, pendingAction: null, serverMeta: {}, cmsUnassigned: null, cmsSensorHistory: [], mapController: null,
     initialJob: new URLSearchParams(location.search).get('job'), initialJobOpened: false,
   };
 
@@ -434,6 +434,10 @@
       populateFilters();
       applyFilters();
       renderAnalytics();
+      if (state.view === 'map') {
+        if (!state.mapController) mountJobsMap();
+        else state.mapController.refresh();
+      }
       if (state.initialJob && !state.initialJobOpened) {
         state.initialJobOpened = true;
         const match = state.jobs.find(job => job.job_name.toLowerCase() === state.initialJob.toLowerCase());
@@ -714,7 +718,21 @@
     document.querySelectorAll('.jobs-view-tab').forEach(button => button.classList.toggle('active', button.dataset.view === view));
     $('directory-view').hidden = view !== 'directory';
     $('analytics-view').hidden = view !== 'analytics';
+    $('map-view').hidden = view !== 'map';
     $('cms-review-view').hidden = view !== 'cms-review';
+    if (view === 'map') window.setTimeout(mountJobsMap, 0);
+  }
+
+  function mountJobsMap() {
+    if (state.mapController || !window.IsensixMap) return;
+    state.mapController = window.IsensixMap.mount({
+      container: 'jobs-map',
+      status: 'jobs-map-status',
+      list: 'jobs-map-list',
+      refresh: 'jobs-map-refresh',
+      geocode: 'jobs-map-geocode',
+      dataUrl: `${CONFIG.WORKER_URL}/map/ap-locations`,
+    });
   }
 
   function barChart(id, rows, onClick) {

@@ -639,6 +639,71 @@ export default {
       return json({ ok: true });
     }
 
+    // GET /map/ap-locations — current sensor totals grouped by access point.
+    // Coordinates are optional: the dashboard can temporarily geocode saved
+    // addresses while GPS captures are being collected.
+    if (request.method === 'GET' && pathname === '/map/ap-locations') {
+      const requestedServers = String(url.searchParams.get('servers') || '')
+        .split(',')
+        .map(value => value.trim())
+        .filter(Boolean);
+      const bindings: any[] = [];
+      const filters = [
+        `trim(COALESCE(c.access_point, '')) <> ''`,
+        `COALESCE(upper(trim(c.status)), '') NOT IN ('DISABLED', 'DISABLED SENSOR')`,
+        `COALESCE(c.sensor_name, '') NOT LIKE '%◈%'`,
+        `COALESCE(c.zone, '') NOT LIKE '%◈%'`,
+      ];
+      if (requestedServers.length) {
+        filters.push(`c.server IN (${requestedServers.map(() => '?').join(',')})`);
+        bindings.push(...requestedServers);
+      }
+      const { results } = await env.DB.prepare(`
+        SELECT
+          c.server,
+          c.access_point,
+          l.address,
+          l.floor,
+          l.room,
+          l.notes,
+          l.latitude,
+          l.longitude,
+          l.location_accuracy_m,
+          l.location_captured_at,
+          COUNT(*) AS sensor_count,
+          SUM(CASE WHEN c.calibrated_at >= datetime('now', '-7 days') THEN 1 ELSE 0 END) AS calibrated_count,
+          SUM(CASE WHEN e.sensor_id IS NOT NULL THEN 1 ELSE 0 END) AS exception_count
+        FROM calibrations c
+        LEFT JOIN ap_locations l
+          ON l.server = c.server AND l.access_point = c.access_point
+        LEFT JOIN exceptions e
+          ON e.sensor_id = c.sensor_id
+         AND e.server = c.server
+         AND e.year = CAST(strftime('%Y', 'now') AS INTEGER)
+        WHERE ${filters.join(' AND ')}
+        GROUP BY c.server, c.access_point
+        ORDER BY c.server, c.access_point
+      `).bind(...bindings).all<Record<string, any>>();
+
+      return json({
+        rows: (results || []).map(row => {
+          const sensorCount = Number(row.sensor_count) || 0;
+          const calibrated = Number(row.calibrated_count) || 0;
+          const exceptions = Number(row.exception_count) || 0;
+          const remaining = Math.max(0, sensorCount - calibrated - exceptions);
+          return {
+            ...row,
+            sensor_count: sensorCount,
+            calibrated_count: calibrated,
+            exception_count: exceptions,
+            remaining,
+            progress_percent: sensorCount ? Math.round(((sensorCount - remaining) / sensorCount) * 100) : 0,
+          };
+        }),
+        rolling_days: 7,
+      });
+    }
+
     // GET /exceptions — fetch all exceptions, optionally filtered by server
     if (request.method === 'GET' && pathname === '/exceptions') {
       const server = url.searchParams.get('server');

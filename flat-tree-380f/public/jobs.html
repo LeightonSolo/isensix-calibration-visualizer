@@ -10,6 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="jobs.css">
 </head>
@@ -44,6 +45,7 @@
   <div class="jobs-view-tabs" role="tablist" aria-label="Jobs views">
     <button class="jobs-view-tab active" data-view="directory" role="tab">Directory</button>
     <button class="jobs-view-tab" data-view="analytics" role="tab">Analytics</button>
+    <button class="jobs-view-tab" data-view="map" role="tab">Map</button>
     <button class="jobs-view-tab" data-view="cms-review" role="tab">CMS review</button>
   </div>
 
@@ -84,6 +86,18 @@
         </div>
         <div id="jobs-empty" class="jobs-empty" hidden>No jobs match the current filters.</div>
       </div>
+    </section>
+
+    <section id="map-view" hidden>
+      <section class="panel map-panel" aria-labelledby="jobs-map-title">
+        <div class="map-panel-heading">
+          <div><h2 id="jobs-map-title">Sensor Map (Work in Progress)</h2><p>All AP locations with saved coordinates or address-based map estimates.</p></div>
+          <div class="map-actions"><span id="jobs-map-status" role="status">Loading AP locations…</span><button id="jobs-map-geocode" type="button" hidden>Map saved addresses</button><button id="jobs-map-refresh" type="button">Refresh</button></div>
+        </div>
+        <div id="jobs-map" class="isensix-map" role="application" aria-label="Map of AP sensor locations"></div>
+        <div id="jobs-map-list" class="map-details"></div>
+        <p class="map-attribution-note">Green markers are complete for the current 7-day calibration window. Address-based points are estimates and GPS coordinates are used when available.</p>
+      </section>
     </section>
 
     <section id="cms-review-view" hidden>
@@ -213,6 +227,8 @@
 <script src="config.js"></script>
 <script src="site-auth.js"></script>
 <script>siteAuth.init(CONFIG);</script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="map.js"></script>
 <script src="jobs.js"></script>
 </body>
 </html>

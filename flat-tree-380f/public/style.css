@@ -2187,3 +2187,18 @@ table.summary tr:hover td { background: var(--bg-row-hover); }
 .zone-details-table-wrap .rt-wrap {
   margin: 0;
 }
+
+.job-info-map-panel { padding: 0; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-md); }
+.job-info-map-panel .map-panel-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; padding:16px 18px 12px; border-bottom:1px solid var(--border); }
+.job-info-map-panel .map-panel-heading h2 { margin:0; font-size:16px; }
+.job-info-map-panel .map-panel-heading p { margin:5px 0 0; color:var(--text-muted); font-size:12px; }
+.job-info-map-panel .map-actions { display:flex; align-items:center; justify-content:flex-end; flex-wrap:wrap; gap:8px; color:var(--text-muted); font-size:11px; }
+.job-info-map-panel .map-actions button { white-space:nowrap; }
+.job-info-map-panel .isensix-map { height:min(55vh, 520px); min-height:320px; background:#dbe6ef; }
+.job-info-map-panel .map-details { padding:12px 18px 4px; }
+.job-info-map-panel .map-summary { display:flex; flex-wrap:wrap; gap:8px 18px; color:var(--text-muted); font-size:12px; }
+.job-info-map-panel .map-summary strong { color:var(--text-primary); }
+.job-info-map-panel .map-unmapped-list { display:flex; flex-direction:column; gap:4px; margin-top:12px; max-height:160px; overflow:auto; color:var(--text-muted); font-size:11px; }
+.job-info-map-panel .map-unmapped-list strong { color:var(--text-primary); }
+.job-info-map-panel .map-attribution-note { margin:10px 18px 14px; color:var(--text-muted); font-size:10px; }
+@media (max-width:700px) { .job-info-map-panel .map-panel-heading { flex-direction:column; } .job-info-map-panel .map-actions { justify-content:flex-start; } .job-info-map-panel .isensix-map { min-height:280px; } }

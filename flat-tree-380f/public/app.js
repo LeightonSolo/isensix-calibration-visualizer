@@ -4234,6 +4234,23 @@ function buildJobInfoTab() {
   updateJobInfoUrlLinks();
   setVal('ji-other',          jobInfo.other_notes);
   setVal('ji-primary-tech',   jobInfo.primary_tech);
+  window.setTimeout(mountJobInfoMap, 0);
+}
+
+function mountJobInfoMap() {
+  const container = document.getElementById('job-info-map');
+  if (!container || !window.IsensixMap) return;
+  const serverQuery = servers.length
+    ? `?servers=${servers.map(server => encodeURIComponent(server)).join(',')}`
+    : '?servers=__none__';
+  window.IsensixMap.mount({
+    container: 'job-info-map',
+    status: 'job-info-map-status',
+    list: 'job-info-map-list',
+    refresh: 'job-info-map-refresh',
+    geocode: 'job-info-map-geocode',
+    dataUrl: `${CONFIG.WORKER_URL}/map/ap-locations${serverQuery}`,
+  });
 }
 
 function buildJobInfoHTML() {
@@ -4348,6 +4365,16 @@ function buildJobInfoHTML() {
 
       </tbody>
     </table>
+
+    <section class="job-info-map-panel" aria-labelledby="job-info-map-title">
+      <div class="map-panel-heading">
+        <div><h2 id="job-info-map-title">AP sensor map</h2><p>AP locations for the selected server set.</p></div>
+        <div class="map-actions"><span id="job-info-map-status" role="status">Loading AP locations…</span><button id="job-info-map-geocode" type="button" hidden>Map saved addresses</button><button id="job-info-map-refresh" type="button">Refresh</button></div>
+      </div>
+      <div id="job-info-map" class="isensix-map" role="application" aria-label="Map of AP sensor locations for this job"></div>
+      <div id="job-info-map-list" class="map-details"></div>
+      <p class="map-attribution-note">Green markers are complete for the current 7-day calibration window. Address-based points are estimates and should be reviewed before operational use.</p>
+    </section>
 
     <div class="job-info-actions" style="display:flex;gap:10px;align-items:center;padding:14px 9px 9px;">
       ${historicalRunId ? '<span style="font-size:12px;color:var(--text-muted);">Historical run · read-only</span>' : '<button class="primary" onclick="saveJobInfo()">Save job info</button>'}
