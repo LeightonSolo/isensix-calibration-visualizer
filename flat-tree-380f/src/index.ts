@@ -586,7 +586,7 @@ export default {
       if (!server) return json({ error: 'Server is required' }, 400);
       const { results } = await env.DB.prepare(`
         SELECT server, access_point, address, floor, room, notes, updated_by, updated_at,
-               latitude, longitude, location_accuracy_m, location_captured_at
+               latitude, longitude, location_accuracy_m, location_captured_at, location_source
         FROM ap_locations
         WHERE server = ?
         ORDER BY access_point
@@ -609,9 +609,9 @@ export default {
       await env.DB.prepare(`
         INSERT INTO ap_locations (
           server, access_point, address, floor, room, notes, updated_by, updated_at,
-          latitude, longitude, location_accuracy_m, location_captured_at
+           latitude, longitude, location_accuracy_m, location_captured_at, location_source
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), ?, ?, ?, ?, ?)
         ON CONFLICT(server, access_point) DO UPDATE SET
           address = excluded.address,
           floor = excluded.floor,
@@ -622,6 +622,7 @@ export default {
           longitude = excluded.longitude,
           location_accuracy_m = excluded.location_accuracy_m,
           location_captured_at = excluded.location_captured_at,
+           location_source = excluded.location_source,
           updated_at = datetime('now')
       `).bind(
         server,
@@ -635,8 +636,64 @@ export default {
         numericOrNull(body.longitude),
         numericOrNull(body.location_accuracy_m),
         String(body.location_captured_at || '').trim() || null,
+         String(body.location_source || '').trim() || null,
       ).run();
       return json({ ok: true });
+    }
+
+    // POST /ap-locations/batch — save one manually adjusted pin for several APs.
+    if (request.method === 'POST' && pathname === '/ap-locations/batch') {
+      const body = await request.json() as Record<string, any>;
+      const locations = Array.isArray(body.locations) ? body.locations : [];
+      if (!locations.length || locations.length > 250) {
+        return json({ error: 'Provide between 1 and 250 AP locations' }, 400);
+      }
+      if (locations.some((location: any) => !String(location?.server || '').trim() || !String(location?.access_point || '').trim())) {
+        return json({ error: 'Each AP location requires a server and access point' }, 400);
+      }
+      const numericOrNull = (value: unknown) => {
+        if (value === null || value === undefined || value === '') return null;
+        const number = Number(value);
+        return Number.isFinite(number) ? number : null;
+      };
+      const statements = locations.map((location: Record<string, any>) => {
+        const server = String(location.server || '').trim();
+        const accessPoint = String(location.access_point || '').trim();
+        return env.DB.prepare(`
+          INSERT INTO ap_locations (
+            server, access_point, address, floor, room, notes, updated_by, updated_at,
+            latitude, longitude, location_accuracy_m, location_captured_at, location_source
+          )
+          VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), ?, ?, ?, ?, ?)
+          ON CONFLICT(server, access_point) DO UPDATE SET
+            address = excluded.address,
+            floor = excluded.floor,
+            room = excluded.room,
+            notes = excluded.notes,
+            updated_by = excluded.updated_by,
+            latitude = excluded.latitude,
+            longitude = excluded.longitude,
+            location_accuracy_m = excluded.location_accuracy_m,
+            location_captured_at = excluded.location_captured_at,
+            location_source = excluded.location_source,
+            updated_at = datetime('now')
+        `).bind(
+          server,
+          accessPoint,
+          String(location.address || '').trim() || null,
+          String(location.floor || '').trim() || null,
+          String(location.room || '').trim() || null,
+          String(location.notes || '').trim() || null,
+          String(location.updated_by || '').trim() || null,
+          numericOrNull(location.latitude),
+          numericOrNull(location.longitude),
+          numericOrNull(location.location_accuracy_m),
+          String(location.location_captured_at || '').trim() || null,
+          String(location.location_source || '').trim() || null,
+        );
+      });
+      await env.DB.batch(statements);
+      return json({ ok: true, saved: locations.length });
     }
 
     // GET /map/ap-locations — current sensor totals grouped by access point.
@@ -662,6 +719,16 @@ export default {
         SELECT
           c.server,
           c.access_point,
+          s.hostname AS server_hostname,
+          s.customer AS server_customer,
+          MAX((
+            SELECT j.job_name
+            FROM job_info j
+            WHERE (',' || replace(COALESCE(j.servers, ''), ' ', '') || ',')
+              LIKE '%,' || replace(c.server, ' ', '') || ',%'
+            ORDER BY CASE WHEN j.active = 1 THEN 0 ELSE 1 END, j.id DESC
+            LIMIT 1
+          )) AS job_name,
           l.address,
           l.floor,
           l.room,
@@ -670,10 +737,13 @@ export default {
           l.longitude,
           l.location_accuracy_m,
           l.location_captured_at,
+          l.location_source,
+          CASE WHEN l.server IS NOT NULL THEN 1 ELSE 0 END AS location_saved,
           COUNT(*) AS sensor_count,
           SUM(CASE WHEN c.calibrated_at >= datetime('now', '-7 days') THEN 1 ELSE 0 END) AS calibrated_count,
           SUM(CASE WHEN e.sensor_id IS NOT NULL THEN 1 ELSE 0 END) AS exception_count
         FROM calibrations c
+        LEFT JOIN servers s ON s.server = c.server
         LEFT JOIN ap_locations l
           ON l.server = c.server AND l.access_point = c.access_point
         LEFT JOIN exceptions e
@@ -681,7 +751,7 @@ export default {
          AND e.server = c.server
          AND e.year = CAST(strftime('%Y', 'now') AS INTEGER)
         WHERE ${filters.join(' AND ')}
-        GROUP BY c.server, c.access_point
+        GROUP BY c.server, c.access_point, s.hostname, s.customer
         ORDER BY c.server, c.access_point
       `).bind(...bindings).all<Record<string, any>>();
 
@@ -693,6 +763,9 @@ export default {
           const remaining = Math.max(0, sensorCount - calibrated - exceptions);
           return {
             ...row,
+            location_saved: Number(row.location_saved) === 1,
+            coordinates_saved: row.latitude !== null && row.latitude !== undefined
+              && row.longitude !== null && row.longitude !== undefined,
             sensor_count: sensorCount,
             calibrated_count: calibrated,
             exception_count: exceptions,

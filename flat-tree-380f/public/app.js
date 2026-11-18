@@ -930,6 +930,7 @@ function openApLocationEditor(server, accessPoint) {
         longitude: location.longitude,
         location_accuracy_m: location.location_accuracy_m,
         location_captured_at: location.location_captured_at,
+         location_source: location.location_source,
       }
       : null,
   };
@@ -999,6 +1000,7 @@ function captureCurrentLocation() {
       longitude: position.coords.longitude,
       location_accuracy_m: position.coords.accuracy,
       location_captured_at: new Date().toISOString(),
+      location_source: 'gps',
     };
     document.getElementById('ap-clear-current-location').hidden = false;
     status.textContent = `Location captured ±${Math.round(position.coords.accuracy)} m. Save to keep it.`;
@@ -1018,6 +1020,7 @@ function clearCurrentLocation() {
     longitude: null,
     location_accuracy_m: null,
     location_captured_at: null,
+      location_source: null,
   };
   document.getElementById('ap-clear-current-location').hidden = true;
   document.getElementById('ap-current-location-status').textContent = 'Coordinates will be cleared when you save.';
@@ -4249,6 +4252,7 @@ function mountJobInfoMap() {
     list: 'job-info-map-list',
     refresh: 'job-info-map-refresh',
     geocode: 'job-info-map-geocode',
+    jobName: jobInfo.job_name || currentCustomer || '',
     dataUrl: `${CONFIG.WORKER_URL}/map/ap-locations${serverQuery}`,
   });
 }
@@ -4373,7 +4377,7 @@ function buildJobInfoHTML() {
       </div>
       <div id="job-info-map" class="isensix-map" role="application" aria-label="Map of AP sensor locations for this job"></div>
       <div id="job-info-map-list" class="map-details"></div>
-      <p class="map-attribution-note">Green markers are complete for the current 7-day calibration window. Address-based points are estimates and should be reviewed before operational use.</p>
+      <p class="map-attribution-note">Markers aggregate APs within roughly 75 meters. Green markers are complete for the current 7-day calibration window. Address-based points are estimates and should be reviewed before operational use.</p>
     </section>
 
     <div class="job-info-actions" style="display:flex;gap:10px;align-items:center;padding:14px 9px 9px;">

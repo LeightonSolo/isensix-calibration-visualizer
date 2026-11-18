@@ -2195,6 +2195,18 @@ table.summary tr:hover td { background: var(--bg-row-hover); }
 .job-info-map-panel .map-actions { display:flex; align-items:center; justify-content:flex-end; flex-wrap:wrap; gap:8px; color:var(--text-muted); font-size:11px; }
 .job-info-map-panel .map-actions button { white-space:nowrap; }
 .job-info-map-panel .isensix-map { height:min(55vh, 520px); min-height:320px; background:#dbe6ef; }
+.isensix-map { position:relative; }
+.map-pin-adjust { margin-top:5px; padding:3px 7px; border:1px solid var(--border); border-radius:4px; background:var(--bg-input); color:var(--text-primary); cursor:pointer; font-size:11px; }
+.map-pin-adjust:hover { border-color:var(--accent-blue); }
+.map-location-summary { display:flex; flex-direction:column; gap:3px; margin-bottom:8px; }
+.map-location-summary span { color:var(--text-muted); font-size:11px; }
+.map-job-name { color:var(--text-primary); font-weight:700; }
+.map-job-section + .map-job-section { margin-top:10px; padding-top:8px; border-top:1px solid var(--border); }
+.map-server-link { color:var(--accent-light-blue); text-decoration:underline; text-underline-offset:2px; }
+.map-sensor-tooltip { border:1px solid #477db4; background:#173451; color:#fff; font-weight:600; }
+.map-pin-editor { position:absolute; z-index:1000; top:12px; left:50%; display:flex; flex-direction:column; gap:7px; width:min(310px,calc(100% - 24px)); padding:10px 12px; transform:translateX(-50%); border:1px solid var(--accent-light-blue); border-radius:var(--radius-md); background:var(--bg-panel); box-shadow:0 6px 22px rgba(0,0,0,.28); color:var(--text-primary); font-size:12px; }
+.map-pin-editor span { color:var(--text-muted); font-family:var(--font-mono); font-size:11px; }
+.map-pin-editor > div { display:flex; justify-content:flex-end; gap:7px; }
 .job-info-map-panel .map-details { padding:12px 18px 4px; }
 .job-info-map-panel .map-summary { display:flex; flex-wrap:wrap; gap:8px 18px; color:var(--text-muted); font-size:12px; }
 .job-info-map-panel .map-summary strong { color:var(--text-primary); }
@@ -2202,3 +2214,10 @@ table.summary tr:hover td { background: var(--bg-row-hover); }
 .job-info-map-panel .map-unmapped-list strong { color:var(--text-primary); }
 .job-info-map-panel .map-attribution-note { margin:10px 18px 14px; color:var(--text-muted); font-size:10px; }
 @media (max-width:700px) { .job-info-map-panel .map-panel-heading { flex-direction:column; } .job-info-map-panel .map-actions { justify-content:flex-start; } .job-info-map-panel .isensix-map { min-height:280px; } }
+
+:root[data-theme="dark"] .isensix-map .leaflet-tile-pane { filter:invert(90%) hue-rotate(180deg) brightness(.78) contrast(.92); }
+:root[data-theme="dark"] .isensix-map .leaflet-popup-content-wrapper,
+:root[data-theme="dark"] .isensix-map .leaflet-popup-tip { background:#20252d; color:var(--text-primary); }
+:root[data-theme="dark"] .isensix-map .leaflet-popup-close-button { color:var(--text-secondary); }
+:root[data-theme="dark"] .isensix-map .leaflet-tooltip { background:#20252d; border-color:#477db4; color:var(--text-primary); }
+:root[data-theme="dark"] .isensix-map .leaflet-tooltip-top:before { border-top-color:#477db4; }
