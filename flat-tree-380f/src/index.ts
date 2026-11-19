@@ -580,13 +580,112 @@ export default {
       return json({ ok: true });
     }
 
+    // GET /physical-locations — reusable building/campus notes.
+    if (request.method === 'GET' && pathname === '/physical-locations') {
+      const requestedId = Number(url.searchParams.get('id'));
+      if (Number.isInteger(requestedId) && requestedId > 0) {
+        const location = await env.DB.prepare(`SELECT * FROM physical_locations WHERE id = ?`).bind(requestedId).first();
+        return json(location || {});
+      }
+      const { results } = await env.DB.prepare(`SELECT * FROM physical_locations ORDER BY lower(name), id`).all();
+      return json(results);
+    }
+
+    // POST /physical-locations — create or update reusable building/campus notes.
+    if (request.method === 'POST' && pathname === '/physical-locations') {
+      const body = await request.json() as Record<string, any>;
+      const name = String(body.name || '').trim();
+      if (!name) return json({ error: 'Location name is required' }, 400);
+      const numericOrNull = (value: unknown) => {
+        if (value === null || value === undefined || value === '') return null;
+        const number = Number(value);
+        return Number.isFinite(number) ? number : null;
+      };
+      const values = [
+        name,
+        String(body.address || '').trim() || null,
+        numericOrNull(body.latitude),
+        numericOrNull(body.longitude),
+        String(body.location_source || '').trim() || null,
+        String(body.access_hours || '').trim() || null,
+        String(body.contact_name || '').trim() || null,
+        String(body.contact_phone || '').trim() || null,
+        String(body.contact_email || '').trim() || null,
+        String(body.notes || '').trim() || null,
+        String(body.updated_by || '').trim() || null,
+      ];
+      const id = Number(body.id);
+      if (Number.isInteger(id) && id > 0) {
+        await env.DB.prepare(`
+          UPDATE physical_locations SET
+            name = ?, address = ?, latitude = ?, longitude = ?, location_source = ?,
+            access_hours = ?, contact_name = ?, contact_phone = ?, contact_email = ?,
+            notes = ?, updated_by = ?, updated_at = datetime('now')
+          WHERE id = ?
+        `).bind(...values, id).run();
+        return json({ ok: true, id });
+      }
+      const result = await env.DB.prepare(`
+        INSERT INTO physical_locations
+          (name, address, latitude, longitude, location_source, access_hours,
+           contact_name, contact_phone, contact_email, notes, updated_by, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+      `).bind(...values).run();
+      return json({ ok: true, id: result.meta.last_row_id });
+    }
+
+    // POST /physical-locations/assign — link one or more APs to shared location notes.
+    if (request.method === 'POST' && pathname === '/physical-locations/assign') {
+      const body = await request.json() as Record<string, any>;
+      const locationId = Number(body.location_id);
+      const locations = Array.isArray(body.locations) ? body.locations : [];
+      if (!Number.isInteger(locationId) || locationId <= 0) return json({ error: 'A valid location_id is required' }, 400);
+      if (!locations.length || locations.length > 250) return json({ error: 'Provide between 1 and 250 AP locations' }, 400);
+      const location = await env.DB.prepare(`SELECT id FROM physical_locations WHERE id = ?`).bind(locationId).first();
+      if (!location) return json({ error: 'Physical location not found' }, 404);
+      const numericOrNull = (value: unknown) => {
+        if (value === null || value === undefined || value === '') return null;
+        const number = Number(value);
+        return Number.isFinite(number) ? number : null;
+      };
+      if (locations.some((row: any) => !String(row?.server || '').trim() || !String(row?.access_point || '').trim())) {
+        return json({ error: 'Each AP location requires a server and access point' }, 400);
+      }
+      const statements = locations.map((row: Record<string, any>) => env.DB.prepare(`
+        INSERT INTO ap_locations (
+          server, access_point, address, floor, room, notes, updated_by, updated_at,
+          latitude, longitude, location_accuracy_m, location_captured_at, location_source, location_id
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(server, access_point) DO UPDATE SET
+          location_id = excluded.location_id,
+          updated_at = datetime('now')
+      `).bind(
+        String(row.server).trim(),
+        String(row.access_point).trim(),
+        String(row.address || '').trim() || null,
+        String(row.floor || '').trim() || null,
+        String(row.room || '').trim() || null,
+        String(row.notes || '').trim() || null,
+        String(row.updated_by || '').trim() || null,
+        numericOrNull(row.latitude),
+        numericOrNull(row.longitude),
+        numericOrNull(row.location_accuracy_m),
+        String(row.location_captured_at || '').trim() || null,
+        String(row.location_source || '').trim() || null,
+        locationId,
+      ));
+      await env.DB.batch(statements);
+      return json({ ok: true, saved: locations.length, location_id: locationId });
+    }
+
     // GET /ap-locations — fetch manually maintained AP location mappings.
     if (request.method === 'GET' && pathname === '/ap-locations') {
       const server = String(url.searchParams.get('server') || '').trim();
       if (!server) return json({ error: 'Server is required' }, 400);
       const { results } = await env.DB.prepare(`
         SELECT server, access_point, address, floor, room, notes, updated_by, updated_at,
-               latitude, longitude, location_accuracy_m, location_captured_at, location_source
+               latitude, longitude, location_accuracy_m, location_captured_at, location_source, location_id
         FROM ap_locations
         WHERE server = ?
         ORDER BY access_point
@@ -696,6 +795,183 @@ export default {
       return json({ ok: true, saved: locations.length });
     }
 
+    // GET /job-locations — structured main/offsite locations for a Job Info record.
+    if (request.method === 'GET' && pathname === '/job-locations') {
+      const jobInfoId = Number(url.searchParams.get('job_id'));
+      if (!Number.isInteger(jobInfoId) || jobInfoId <= 0) return json({ error: 'A valid job_id is required' }, 400);
+      const { results } = await env.DB.prepare(`
+        SELECT jl.*, p.name AS physical_location_name, p.address AS physical_location_address,
+               p.latitude AS physical_location_latitude, p.longitude AS physical_location_longitude,
+               p.location_source AS physical_location_source, p.access_hours,
+               p.contact_name, p.contact_phone, p.contact_email, p.notes AS physical_location_notes
+        FROM job_locations jl
+        LEFT JOIN physical_locations p ON p.id = jl.physical_location_id
+        WHERE jl.job_info_id = ?
+        ORDER BY CASE WHEN jl.location_role = 'main_site' THEN 0 ELSE 1 END, jl.id
+      `).bind(jobInfoId).all();
+      return json(results);
+    }
+
+    // POST /job-locations — add or update a structured Job Info location.
+    if (request.method === 'POST' && pathname === '/job-locations') {
+      const body = await request.json() as Record<string, any>;
+      const jobInfoId = Number(body.job_info_id);
+      const id = Number(body.id);
+      const role = String(body.location_role || 'offsite').trim().toLowerCase();
+      if (!Number.isInteger(jobInfoId) || jobInfoId <= 0) return json({ error: 'A valid job_info_id is required' }, 400);
+      if (!['main_site', 'offsite'].includes(role)) return json({ error: 'location_role must be main_site or offsite' }, 400);
+      const job = await env.DB.prepare(`SELECT id FROM job_info WHERE id = ?`).bind(jobInfoId).first();
+      if (!job) return json({ error: 'Job Info record not found' }, 404);
+      const numericOrNull = (value: unknown) => {
+        if (value === null || value === undefined || value === '') return null;
+        const number = Number(value);
+        return Number.isFinite(number) ? number : null;
+      };
+      const values = [
+        jobInfoId,
+        role,
+        String(body.name || '').trim() || null,
+        String(body.address || '').trim() || null,
+        numericOrNull(body.latitude),
+        numericOrNull(body.longitude),
+        String(body.location_source || '').trim() || null,
+        numericOrNull(body.physical_location_id),
+        String(body.notes || '').trim() || null,
+        String(body.updated_by || '').trim() || null,
+      ];
+      if (Number.isInteger(id) && id > 0) {
+        await env.DB.prepare(`
+          UPDATE job_locations SET
+            job_info_id = ?, location_role = ?, name = ?, address = ?, latitude = ?, longitude = ?,
+            location_source = ?, physical_location_id = ?, notes = ?, updated_by = ?, updated_at = datetime('now')
+          WHERE id = ?
+        `).bind(...values, id).run();
+        return json({ ok: true, id });
+      }
+      if (role === 'offsite' && values[3]) {
+        const existing = await env.DB.prepare(`
+          SELECT id FROM job_locations
+          WHERE job_info_id = ? AND location_role = 'offsite'
+            AND lower(trim(address)) = lower(trim(?))
+          ORDER BY id LIMIT 1
+        `).bind(jobInfoId, values[3]).first<{ id: number }>();
+        if (existing?.id) {
+          await env.DB.prepare(`
+            UPDATE job_locations SET
+              name = ?, address = ?, latitude = ?, longitude = ?, location_source = ?,
+              physical_location_id = ?, notes = ?, updated_by = ?, updated_at = datetime('now')
+            WHERE id = ?
+          `).bind(
+            values[2], values[3], values[4], values[5], values[6], values[7], values[8], values[9], existing.id,
+          ).run();
+          return json({ ok: true, id: existing.id });
+        }
+      }
+      const result = await env.DB.prepare(`
+        INSERT INTO job_locations
+          (job_info_id, location_role, name, address, latitude, longitude,
+           location_source, physical_location_id, notes, updated_by, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+      `).bind(...values).run();
+      return json({ ok: true, id: result.meta.last_row_id });
+    }
+
+    // POST /job-locations/batch — persist geocoded or manually supplied job locations.
+    if (request.method === 'POST' && pathname === '/job-locations/batch') {
+      const body = await request.json() as Record<string, any>;
+      const locations = Array.isArray(body.locations) ? body.locations : [];
+      if (!locations.length || locations.length > 250) {
+        return json({ error: 'Provide between 1 and 250 job locations' }, 400);
+      }
+      const numericOrNull = (value: unknown) => {
+        if (value === null || value === undefined || value === '') return null;
+        const number = Number(value);
+        return Number.isFinite(number) ? number : null;
+      };
+      const savedIds: number[] = [];
+      for (const location of locations) {
+        const jobInfoId = Number(location?.job_info_id);
+        const id = Number(location?.id);
+        const role = String(location?.location_role || 'offsite').trim().toLowerCase();
+        if (!Number.isInteger(jobInfoId) || jobInfoId <= 0 || !['main_site', 'offsite'].includes(role)) {
+          return json({ error: 'Each job location requires a valid job_info_id and location_role' }, 400);
+        }
+        const values = [
+          jobInfoId,
+          role,
+          String(location.name || '').trim() || null,
+          String(location.address || '').trim() || null,
+          numericOrNull(location.latitude),
+          numericOrNull(location.longitude),
+          String(location.location_source || '').trim() || null,
+          numericOrNull(location.physical_location_id),
+          String(location.notes || '').trim() || null,
+          String(location.updated_by || '').trim() || null,
+        ];
+        if (Number.isInteger(id) && id > 0) {
+          await env.DB.prepare(`
+            UPDATE job_locations SET
+              job_info_id = ?, location_role = ?, name = ?, address = ?, latitude = ?, longitude = ?,
+              location_source = ?, physical_location_id = ?, notes = ?, updated_by = ?, updated_at = datetime('now')
+            WHERE id = ?
+          `).bind(...values, id).run();
+          savedIds.push(id);
+          continue;
+        }
+        if (role === 'main_site') {
+          const existing = await env.DB.prepare(`
+            SELECT id FROM job_locations WHERE job_info_id = ? AND location_role = 'main_site' ORDER BY id LIMIT 1
+          `).bind(jobInfoId).first<{ id: number }>();
+          if (existing?.id) {
+            await env.DB.prepare(`
+              UPDATE job_locations SET name = ?, address = ?, latitude = ?, longitude = ?,
+                location_source = ?, physical_location_id = ?, notes = ?, updated_by = ?, updated_at = datetime('now')
+              WHERE id = ?
+            `).bind(
+              values[2], values[3], values[4], values[5], values[6], values[7], values[8], values[9], existing.id,
+            ).run();
+            savedIds.push(existing.id);
+            continue;
+          }
+        }
+        if (role === 'offsite' && values[3]) {
+          const existing = await env.DB.prepare(`
+            SELECT id FROM job_locations
+            WHERE job_info_id = ? AND location_role = 'offsite'
+              AND lower(trim(address)) = lower(trim(?))
+            ORDER BY id LIMIT 1
+          `).bind(jobInfoId, values[3]).first<{ id: number }>();
+          if (existing?.id) {
+            await env.DB.prepare(`
+              UPDATE job_locations SET name = ?, address = ?, latitude = ?, longitude = ?,
+                location_source = ?, physical_location_id = ?, notes = ?, updated_by = ?, updated_at = datetime('now')
+              WHERE id = ?
+            `).bind(
+              values[2], values[3], values[4], values[5], values[6], values[7], values[8], values[9], existing.id,
+            ).run();
+            savedIds.push(existing.id);
+            continue;
+          }
+        }
+        const result = await env.DB.prepare(`
+          INSERT INTO job_locations
+            (job_info_id, location_role, name, address, latitude, longitude,
+             location_source, physical_location_id, notes, updated_by, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+        `).bind(...values).run();
+        savedIds.push(Number(result.meta.last_row_id));
+      }
+      return json({ ok: true, saved: savedIds.length, ids: savedIds });
+    }
+
+    // DELETE /job-locations/:id — remove only the structured location row.
+    if (request.method === 'DELETE' && pathname.startsWith('/job-locations/')) {
+      const id = Number(pathname.split('/').pop());
+      if (!Number.isInteger(id) || id <= 0) return json({ error: 'A valid location id is required' }, 400);
+      await env.DB.prepare(`DELETE FROM job_locations WHERE id = ?`).bind(id).run();
+      return json({ ok: true });
+    }
+
     // GET /map/ap-locations — current sensor totals grouped by access point.
     // Coordinates are optional: the dashboard can temporarily geocode saved
     // addresses while GPS captures are being collected.
@@ -729,16 +1005,27 @@ export default {
             ORDER BY CASE WHEN j.active = 1 THEN 0 ELSE 1 END, j.id DESC
             LIMIT 1
           )) AS job_name,
-          l.address,
-          l.floor,
-          l.room,
-          l.notes,
-          l.latitude,
-          l.longitude,
-          l.location_accuracy_m,
-          l.location_captured_at,
-          l.location_source,
-          CASE WHEN l.server IS NOT NULL THEN 1 ELSE 0 END AS location_saved,
+          COALESCE(MAX(p.address), MAX(l.address)) AS address,
+          MAX(l.floor) AS floor,
+          MAX(l.room) AS room,
+          MAX(l.notes) AS notes,
+          MAX(l.latitude) AS latitude,
+          MAX(l.longitude) AS longitude,
+          MAX(l.location_accuracy_m) AS location_accuracy_m,
+          MAX(l.location_captured_at) AS location_captured_at,
+          MAX(l.location_source) AS ap_location_source,
+          MAX(l.location_id) AS location_id,
+          MAX(p.name) AS location_name,
+          MAX(p.address) AS location_address,
+          MAX(p.latitude) AS location_latitude,
+          MAX(p.longitude) AS location_longitude,
+          MAX(p.location_source) AS location_source,
+          MAX(p.access_hours) AS access_hours,
+          MAX(p.contact_name) AS contact_name,
+          MAX(p.contact_phone) AS contact_phone,
+          MAX(p.contact_email) AS contact_email,
+          MAX(p.notes) AS location_notes,
+          CASE WHEN MAX(l.server) IS NOT NULL THEN 1 ELSE 0 END AS location_saved,
           COUNT(*) AS sensor_count,
           SUM(CASE WHEN c.calibrated_at >= datetime('now', '-7 days') THEN 1 ELSE 0 END) AS calibrated_count,
           SUM(CASE WHEN e.sensor_id IS NOT NULL THEN 1 ELSE 0 END) AS exception_count
@@ -746,6 +1033,7 @@ export default {
         LEFT JOIN servers s ON s.server = c.server
         LEFT JOIN ap_locations l
           ON l.server = c.server AND l.access_point = c.access_point
+        LEFT JOIN physical_locations p ON p.id = l.location_id
         LEFT JOIN exceptions e
           ON e.sensor_id = c.sensor_id
          AND e.server = c.server
@@ -775,6 +1063,99 @@ export default {
         }),
         rolling_days: 7,
       });
+    }
+
+    // GET /map/jobs — managerial map data. Main sites come from Job Info,
+    // structured offsites come from job_locations, and AP-backed sensor
+    // locations provide additional sites as they are mapped.
+    if (request.method === 'GET' && pathname === '/map/jobs') {
+      const [jobsQuery, locationsQuery, apQuery] = await Promise.all([
+        env.DB.prepare(`
+          ${JOB_SCHEDULE_CTE}
+          SELECT j.id AS job_id, j.customer, j.job_name, j.servers, j.sensors,
+                 j.last_calibrated, j.primary_tech, j.site_address, j.offsites,
+                 j.main_contact, j.active
+          FROM job_info j
+          JOIN canonical_job_info cj ON cj.id = j.id AND cj.name_rank = 1
+          WHERE j.active = 1
+          ORDER BY lower(COALESCE(j.job_name, j.customer)), j.id
+        `).all<Record<string, any>>(),
+        env.DB.prepare(`
+          SELECT jl.id AS job_location_id, jl.job_info_id AS job_id, jl.location_role,
+                 jl.name, jl.address, jl.latitude, jl.longitude, jl.location_source,
+                 jl.physical_location_id, jl.notes,
+                 p.name AS physical_location_name, p.address AS physical_location_address,
+                 p.latitude AS physical_location_latitude, p.longitude AS physical_location_longitude,
+                 p.location_source AS physical_location_source, p.access_hours,
+                 p.contact_name, p.contact_phone, p.contact_email,
+                 p.notes AS physical_location_notes,
+                 j.job_name, j.customer, j.sensors, j.last_calibrated, j.primary_tech
+          FROM job_locations jl
+          JOIN job_info j ON j.id = jl.job_info_id AND j.active = 1
+          LEFT JOIN physical_locations p ON p.id = jl.physical_location_id
+          ORDER BY lower(COALESCE(j.job_name, j.customer)), jl.id
+        `).all<Record<string, any>>(),
+        env.DB.prepare(`
+          SELECT
+            c.server, c.access_point, s.hostname AS server_hostname,
+            s.customer AS server_customer,
+            (SELECT j.id FROM job_info j
+              WHERE j.active = 1
+                AND (',' || replace(COALESCE(j.servers, ''), ' ', '') || ',')
+                  LIKE '%,' || replace(c.server, ' ', '') || ',%'
+              ORDER BY j.id DESC LIMIT 1) AS job_id,
+            (SELECT j.job_name FROM job_info j
+              WHERE j.active = 1
+                AND (',' || replace(COALESCE(j.servers, ''), ' ', '') || ',')
+                  LIKE '%,' || replace(c.server, ' ', '') || ',%'
+              ORDER BY j.id DESC LIMIT 1) AS job_name,
+            COALESCE(MAX(p.address), MAX(l.address)) AS address,
+            COALESCE(MAX(p.latitude), MAX(l.latitude)) AS latitude,
+            COALESCE(MAX(p.longitude), MAX(l.longitude)) AS longitude,
+            MAX(l.floor) AS floor,
+            MAX(l.room) AS room,
+            MAX(l.notes) AS notes,
+            MAX(l.location_source) AS ap_location_source,
+            MAX(p.name) AS physical_location_name,
+            MAX(p.location_source) AS physical_location_source,
+            MAX(p.access_hours) AS access_hours,
+            MAX(p.contact_name) AS contact_name,
+            MAX(p.contact_phone) AS contact_phone,
+            MAX(p.contact_email) AS contact_email,
+            MAX(p.notes) AS physical_location_notes,
+            COUNT(*) AS sensor_count,
+            SUM(CASE WHEN c.calibrated_at >= datetime('now', '-7 days') THEN 1 ELSE 0 END) AS calibrated_count,
+            SUM(CASE WHEN e.sensor_id IS NOT NULL THEN 1 ELSE 0 END) AS exception_count
+          FROM calibrations c
+          LEFT JOIN servers s ON s.server = c.server
+          LEFT JOIN ap_locations l ON l.server = c.server AND l.access_point = c.access_point
+          LEFT JOIN physical_locations p ON p.id = l.location_id
+          LEFT JOIN exceptions e
+            ON e.sensor_id = c.sensor_id AND e.server = c.server
+           AND e.year = CAST(strftime('%Y', 'now') AS INTEGER)
+          WHERE trim(COALESCE(c.access_point, '')) <> ''
+            AND COALESCE(upper(trim(c.status)), '') NOT IN ('DISABLED', 'DISABLED SENSOR')
+            AND COALESCE(c.sensor_name, '') NOT LIKE '%â—ˆ%'
+            AND COALESCE(c.zone, '') NOT LIKE '%â—ˆ%'
+          GROUP BY c.server, c.access_point, s.hostname, s.customer
+          ORDER BY c.server, c.access_point
+        `).all<Record<string, any>>(),
+      ]);
+      const apLocations = (apQuery.results || []).map(row => {
+        const sensorCount = Number(row.sensor_count) || 0;
+        const calibrated = Number(row.calibrated_count) || 0;
+        const exceptions = Number(row.exception_count) || 0;
+        return {
+          ...row,
+          location_kind: 'sensor_location',
+          location_role: 'sensor_location',
+          remaining: Math.max(0, sensorCount - calibrated - exceptions),
+          sensor_count: sensorCount,
+          calibrated_count: calibrated,
+          exception_count: exceptions,
+        };
+      });
+      return json({ jobs: jobsQuery.results || [], locations: locationsQuery.results || [], ap_locations: apLocations });
     }
 
     // GET /exceptions — fetch all exceptions, optionally filtered by server

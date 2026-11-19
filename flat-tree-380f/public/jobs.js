@@ -725,13 +725,14 @@
 
   function mountJobsMap() {
     if (state.mapController || !window.IsensixMap) return;
-    state.mapController = window.IsensixMap.mount({
+    state.mapController = window.IsensixMap.mountJobs({
       container: 'jobs-map',
       status: 'jobs-map-status',
       list: 'jobs-map-list',
       refresh: 'jobs-map-refresh',
       geocode: 'jobs-map-geocode',
-      dataUrl: `${CONFIG.WORKER_URL}/map/ap-locations`,
+      search: 'jobs-map-search',
+      dataUrl: `${CONFIG.WORKER_URL}/map/jobs`,
     });
   }
 

@@ -2985,6 +2985,8 @@ function renderTable() {
   const title = document.getElementById('panel-title');
   const count = document.getElementById('panel-count');
   const area  = document.getElementById('table-area');
+  const mainPanel = document.getElementById('main-panel');
+  const mapView = document.getElementById('calibration-map-view');
   title.dataset.tab = currentTab;
   const panelActions = document.getElementById('panel-actions');
   panelActions.innerHTML = '';
@@ -2995,7 +2997,10 @@ function renderTable() {
   if (currentTab === 'types' || currentTab === 'zones' || currentTab === 'aps') {
     panelActions.innerHTML = breakdownToggleHtml();
   }
-  document.getElementById('main-panel')?.classList.toggle('job-info-panel-active', currentTab === 'jobinfo');
+  mainPanel?.classList.toggle('job-info-panel-active', currentTab === 'jobinfo');
+  if (mainPanel) mainPanel.hidden = currentTab === 'map';
+  if (mapView) mapView.hidden = currentTab !== 'map';
+  document.getElementById('dashboard-page')?.classList.toggle('calibration-map-open', currentTab === 'map');
   document.body.classList.toggle('job-info-open', currentPage === 'dashboard' && currentTab === 'jobinfo');
   const panelHeader = title.closest('.panel-hdr');
   panelHeader?.removeAttribute('title');
@@ -3032,6 +3037,12 @@ function renderTable() {
     title.textContent = 'Sensor type breakdown';
     count.textContent = '';
     setTableContent(area, buildTypesTable());
+    return;
+  }
+  if (currentTab === 'map') {
+    title.textContent = 'Calibration map';
+    count.textContent = servers.length ? `${servers.length} selected server${servers.length === 1 ? '' : 's'}` : 'No servers selected';
+    mountCalibrationMap();
     return;
   }
   if (currentTab === 'aps') {
@@ -3986,6 +3997,8 @@ let jobInfo = {};
 let currentCustomer = null;
 let jobInfoLoaded = false;
 let autoSavedCompletionKey = null;
+let calibrationMapController = null;
+let calibrationMapKey = '';
 
 function detectHardware(sourceSensors = allSensors) {
   const active = getCalibrationSensors(sourceSensors).filter(s => !isSensorDisabled(s));
@@ -4237,24 +4250,47 @@ function buildJobInfoTab() {
   updateJobInfoUrlLinks();
   setVal('ji-other',          jobInfo.other_notes);
   setVal('ji-primary-tech',   jobInfo.primary_tech);
-  window.setTimeout(mountJobInfoMap, 0);
+  // The calibration map is a separate dashboard view next to Job Info.
 }
 
-function mountJobInfoMap() {
-  const container = document.getElementById('job-info-map');
-  if (!container || !window.IsensixMap) return;
+function buildCalibrationMapHTML() {
+  return `<section class="calibration-map-panel" aria-labelledby="calibration-map-title">
+      <div class="map-panel-heading">
+        <div><h2 id="calibration-map-title">Calibration map</h2><p>Mapped sensor locations for the currently selected servers. Use the popup pages to review every AP at a location.</p></div>
+        <div class="map-actions"><span id="calibration-map-status" role="status">Loading AP locations…</span><button id="calibration-map-geocode" type="button" hidden>Map saved addresses</button><button id="calibration-map-refresh" type="button">Refresh</button></div>
+      </div>
+      <div id="calibration-map" class="isensix-map" role="application" aria-label="Calibration map for selected servers"></div>
+      <div class="map-legend" aria-label="Map legend"><span><i class="map-legend-marker"></i>Mapped location</span><span><i class="map-legend-size"></i>Marker size represents sensors</span><span>Green markers are complete for the current calibration window</span></div>
+      <div id="calibration-map-list" class="map-details"></div>
+      <p class="map-attribution-note">Markers aggregate APs within roughly 75 meters. Address-based points are estimates; GPS coordinates are used when available.</p>
+    </section>`;
+}
+
+function mountCalibrationMap() {
+  const view = document.getElementById('calibration-map-view');
+  if (!view || !window.IsensixMap) return;
   const serverQuery = servers.length
     ? `?servers=${servers.map(server => encodeURIComponent(server)).join(',')}`
     : '?servers=__none__';
-  window.IsensixMap.mount({
-    container: 'job-info-map',
-    status: 'job-info-map-status',
-    list: 'job-info-map-list',
-    refresh: 'job-info-map-refresh',
-    geocode: 'job-info-map-geocode',
+  const key = servers.join('\u0000');
+  if (calibrationMapController && calibrationMapKey === key) {
+    calibrationMapController.refresh();
+    return;
+  }
+  calibrationMapController?.map?.remove();
+  view.innerHTML = buildCalibrationMapHTML();
+  const container = document.getElementById('calibration-map');
+  if (!container) return;
+  calibrationMapController = window.IsensixMap.mount({
+    container: 'calibration-map',
+    status: 'calibration-map-status',
+    list: 'calibration-map-list',
+    refresh: 'calibration-map-refresh',
+    geocode: 'calibration-map-geocode',
     jobName: jobInfo.job_name || currentCustomer || '',
     dataUrl: `${CONFIG.WORKER_URL}/map/ap-locations${serverQuery}`,
   });
+  calibrationMapKey = key;
 }
 
 function buildJobInfoHTML() {
@@ -4369,16 +4405,6 @@ function buildJobInfoHTML() {
 
       </tbody>
     </table>
-
-    <section class="job-info-map-panel" aria-labelledby="job-info-map-title">
-      <div class="map-panel-heading">
-        <div><h2 id="job-info-map-title">AP sensor map</h2><p>AP locations for the selected server set.</p></div>
-        <div class="map-actions"><span id="job-info-map-status" role="status">Loading AP locations…</span><button id="job-info-map-geocode" type="button" hidden>Map saved addresses</button><button id="job-info-map-refresh" type="button">Refresh</button></div>
-      </div>
-      <div id="job-info-map" class="isensix-map" role="application" aria-label="Map of AP sensor locations for this job"></div>
-      <div id="job-info-map-list" class="map-details"></div>
-      <p class="map-attribution-note">Markers aggregate APs within roughly 75 meters. Green markers are complete for the current 7-day calibration window. Address-based points are estimates and should be reviewed before operational use.</p>
-    </section>
 
     <div class="job-info-actions" style="display:flex;gap:10px;align-items:center;padding:14px 9px 9px;">
       ${historicalRunId ? '<span style="font-size:12px;color:var(--text-muted);">Historical run · read-only</span>' : '<button class="primary" onclick="saveJobInfo()">Save job info</button>'}
