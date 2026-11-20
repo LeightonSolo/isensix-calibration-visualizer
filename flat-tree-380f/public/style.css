@@ -827,6 +827,8 @@ body.server-overview-open { overflow: hidden; }
   overflow-wrap: anywhere;
   vertical-align: middle;
 }
+.ap-location-complete { color: var(--accent-green); font-weight: 600; }
+.ap-location-check { color: var(--accent-green); font-weight: 700; }
 
 .ap-edit-button { vertical-align: middle; }
 

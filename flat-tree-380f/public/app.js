@@ -833,7 +833,8 @@ function groupServerOverviewApRows(sensors, server, includeSensoNodes = false) {
     return {
       label,
       syncInstruction: label === 'No access point' ? getApSyncInstruction(server, group) : '',
-      address: locations[label]?.address || '',
+      location: locations[label] || {},
+      address: apLocationDisplayAddress(locations[label]),
       floor: locations[label]?.floor || '',
       room: locations[label]?.room || '',
       total: progress.total,
@@ -867,6 +868,38 @@ function renderAccessPointCell(sensor) {
   if (accessPoint) return escapeHtml(accessPoint);
   const instruction = getApSyncInstruction(sensor.server, [sensor]);
   return `<span class="ap-missing-label">No access point <span class="ap-sync-flag" title="${escapeHtml(instruction)}" aria-label="${escapeHtml(instruction)}">ⓘ</span></span>`;
+}
+
+function apLocationHasCoordinates(location = {}) {
+  const latitude = location.latitude;
+  const longitude = location.longitude;
+  return latitude !== null && latitude !== undefined && String(latitude).trim() !== ''
+    && longitude !== null && longitude !== undefined && String(longitude).trim() !== ''
+    && Number.isFinite(Number(latitude)) && Number.isFinite(Number(longitude));
+}
+
+function renderApLocationCell(location = {}) {
+  const address = String(location.address || '').trim();
+  if (!apLocationHasCoordinates(location)) {
+    return `<span class="ap-address-cell">${escapeHtml(address || 'Address not entered')}</span>`;
+  }
+  const coordinates = `${Number(location.latitude).toFixed(6)}, ${Number(location.longitude).toFixed(6)}`;
+  const label = address || 'Coordinates saved';
+  return `<span class="ap-address-cell ap-location-complete" title="Coordinates saved: ${escapeHtml(coordinates)}"><span class="ap-location-check" aria-hidden="true">✓</span> ${escapeHtml(label)}</span>`;
+}
+
+function renderApLocationDisplayCell(location = {}) {
+  const address = String(location.address || '').trim();
+  return apLocationHasCoordinates(location)
+    ? `✓ ${address || 'Coordinates saved'}`
+    : address;
+}
+
+function apLocationDisplayAddress(location = {}) {
+  const address = String(location.address || '').trim();
+  return apLocationHasCoordinates(location)
+    ? `${String.fromCodePoint(0x2705)} ${address || 'Coordinates saved'}`
+    : address;
 }
 
 async function loadApLocations(server) {
@@ -1102,7 +1135,7 @@ function renderServerOverview(server) {
         { label: 'AP', key: 'label', render: row => `<button type="button" class="zone-detail-trigger zone-row-trigger" data-server-ap-detail="${escapeHtml(row.label)}" title="Show sensors on ${escapeHtml(row.label)}"><span class="mono">${renderApLabel(row.label, server, all)}</span>${buildProgressBar(row)}</button>` },
         { label: 'Address', key: 'address', render: row => row.label === 'No access point'
           ? '<span class="muted">—</span>'
-          : `<span class="ap-address-cell">${escapeHtml(row.address || 'Address not entered')}</span><button type="button" class="small-btn ap-edit-button" data-ap-edit="${escapeHtml(row.label)}" data-ap-server="${escapeHtml(server)}">Edit</button>` },
+          : `${renderApLocationCell(row.location)}<button type="button" class="small-btn ap-edit-button" data-ap-edit="${escapeHtml(row.label)}" data-ap-server="${escapeHtml(server)}">Edit</button>` },
         { label: 'Floor / Room', key: 'floor', render: row => escapeHtml([row.floor, row.room].filter(Boolean).join(' / ') || '—') },
     { label: 'Sensors', key: 'total', render: row => row.total },
     { label: 'Cal.', key: 'calibrated', render: row => `<span class="green-val">${row.calibrated}</span>` },
@@ -1999,9 +2032,11 @@ function populateFilters() {
 function getSensorRowsForTab(tab) {
   let rows = tab === 'calibrated'
     ? getCalibrationSensors().filter(sensor => isCalibrated(sensor) && !isExcepted(sensor))
-    : ['left', 'all'].includes(tab) && showSensoNodes()
-      ? [...getActiveSensors(), ...allSensors.filter(isSensoNode)]
-      : getActiveSensors();
+    : tab === 'all'
+      ? (showSensoNodes() ? allSensors : getCalibrationSensors())
+      : tab === 'left' && showSensoNodes()
+        ? [...getActiveSensors(), ...allSensors.filter(isSensoNode)]
+        : getActiveSensors();
 
   if (tab === 'left') rows = rows.filter(sensor => isSensoNode(sensor) || !isCalibrated(sensor));
   else if (tab === 'calibrated') rows = rows.filter(isCalibrated);
@@ -2930,7 +2965,8 @@ function buildApsTable() {
     return {
       accessPoint,
       server,
-      address: apLocationsByServer[server]?.[accessPoint]?.address || '',
+      location: apLocationsByServer[server]?.[accessPoint] || {},
+      address: apLocationDisplayAddress(apLocationsByServer[server]?.[accessPoint]),
       floor: apLocationsByServer[server]?.[accessPoint]?.floor || '',
       room: apLocationsByServer[server]?.[accessPoint]?.room || '',
       total: group.length,

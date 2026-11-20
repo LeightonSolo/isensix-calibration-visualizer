@@ -528,7 +528,7 @@
           row._mapFromAddress = false;
         });
         closePinEditor();
-        renderMarkers();
+        renderMarkers(true);
         setStatus(`Saved manual pin for ${editRows.length} AP${editRows.length === 1 ? '' : 's'}`);
       } catch (error) {
         if (saveButton) { saveButton.disabled = false; saveButton.textContent = 'Save pin'; }
@@ -601,7 +601,7 @@
           }
         });
         closePinEditor();
-        renderMarkers();
+        renderMarkers(true);
         setStatus(`Saved main-site pin for ${row.job_name || row.customer || 'job'}; new unmapped APs will use it by default.`);
       } catch (error) {
         if (saveButton) { saveButton.disabled = false; saveButton.textContent = 'Save pin'; }
@@ -736,7 +736,7 @@
         row._mapFromAddress = !useManualAp;
         row.location_source = useManualAp ? 'manual' : 'address_geocode';
         const saved = await persistJobLocationRows([row]);
-        renderMarkers();
+        renderMarkers(true);
         renderList();
         const counts = mapCounts(visibleRows());
         if (geocodeButton) geocodeButton.hidden = counts.distinctAddressOnly === 0;
@@ -764,7 +764,7 @@
         });
         const saved = await persistJobLocationRows(matchingRows.length ? matchingRows : [row]);
         closePinEditor();
-        renderMarkers();
+        renderMarkers(true);
         setStatus(`Saved manual location for ${row.job_name || row.customer || 'offsite'}${saved.error}`);
       } catch (error) {
         if (saveButton) { saveButton.disabled = false; saveButton.textContent = 'Save pin'; }
@@ -834,7 +834,7 @@
         });
         if (!response.ok) throw new Error(`${response.status} ${await response.text()}`);
         rows = rows.filter(candidate => Number(candidate.job_location_id) !== id);
-        renderMarkers();
+        renderMarkers(true);
         setStatus(`Deleted saved map location for ${row.name || row.address || 'offsite'}`);
       } catch (error) {
         setStatus(`Location could not be deleted: ${error.message}`);
@@ -876,7 +876,8 @@
       });
     }
 
-    function renderMarkers() {
+    function renderMarkers(preserveView = false) {
+      const savedView = preserveView ? { center: map.getCenter(), zoom: map.getZoom() } : null;
       closePinEditor();
       markers.forEach(marker => marker.remove());
       markers = [];
@@ -985,7 +986,9 @@
         marker.on('popupopen', bindPopupControls);
         markers.push(marker);
       });
-      if (grouped.size) {
+      if (savedView) {
+        map.setView(savedView.center, savedView.zoom, { animate: false });
+      } else if (grouped.size) {
         const bounds = global.L.latLngBounds([...grouped.values()].map(group => group.point));
         map.fitBounds(bounds.pad(0.18), { maxZoom: 15 });
       } else map.setView(DEFAULT_CENTER, DEFAULT_ZOOM);
@@ -1213,7 +1216,7 @@
           row.location_saved = true;
         });
         closeLocationEditor();
-        renderMarkers();
+        renderMarkers(true);
         setStatus(`Saved shared location for ${linkedRows.length} AP${linkedRows.length === 1 ? '' : 's'}`);
       } catch (error) {
         if (saveButton) { saveButton.disabled = false; saveButton.textContent = 'Save location'; }
@@ -1292,7 +1295,7 @@
           row._mapFromAddress = false;
         });
         closePinEditor();
-        renderMarkers();
+        renderMarkers(true);
         setStatus(`Saved manual pin for ${editRows.length} AP${editRows.length === 1 ? '' : 's'}`);
       } catch (error) {
         if (saveButton) { saveButton.disabled = false; saveButton.textContent = 'Save pin'; }
@@ -1344,7 +1347,8 @@
         `<span>${escapeHtml(row.server)} · ${escapeHtml(row.access_point)} — ${escapeHtml(row.address)}</span>`).join('')}</div>` : ''}`;
     }
 
-    function renderMarkers() {
+    function renderMarkers(preserveView = false) {
+      const savedView = preserveView ? { center: map.getCenter(), zoom: map.getZoom() } : null;
       closePinEditor();
       closeLocationEditor();
       markers.forEach(marker => marker.remove());
@@ -1457,7 +1461,9 @@
         markers.push(marker);
       });
 
-      if (grouped.size) {
+      if (savedView) {
+        map.setView(savedView.center, savedView.zoom, { animate: false });
+      } else if (grouped.size) {
         const bounds = global.L.latLngBounds([...grouped.values()].map(group => group.point));
         map.fitBounds(bounds.pad(0.18), { maxZoom: 15 });
       } else {
