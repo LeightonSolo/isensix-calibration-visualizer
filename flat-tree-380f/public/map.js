@@ -1130,6 +1130,7 @@
     let editState = null;
     let locationEditState = null;
     let locationRecords = [];
+    let refreshPromise = null;
 
     function setStatus(message) { if (status) status.textContent = message; }
 
@@ -1345,8 +1346,9 @@
       setStatus(`Moving ${editRows.length} AP${editRows.length === 1 ? '' : 's'} at one location`);
     }
 
-    async function pickApLocation({ server, accessPoint, initialPoint = null, fallbackAddress = '', onSaved = null } = {}) {
-      if (!rows.length) await refresh();
+    async function pickApLocation({ server, accessPoint, initialPoint = null, fallbackAddress = '', preferFallback = false, onSaved = null } = {}) {
+      if (refreshPromise) await refreshPromise;
+      else if (!rows.length) await refresh();
       const target = rows.find(row => String(row.server) === String(server)
         && String(row.access_point) === String(accessPoint));
       if (!target) {
@@ -1354,7 +1356,7 @@
         return;
       }
 
-      let point = validPoint(initialPoint) || coordinate(target);
+      let point = validPoint(initialPoint) || (preferFallback ? null : coordinate(target));
       if (!point && String(fallbackAddress || '').trim()) {
         setStatus('Finding the main site address on the mapâ€¦');
         try {
@@ -1364,7 +1366,7 @@
           // Fall back to the map's current view if geocoding is unavailable.
         }
       }
-      point ||= validPoint(map.getCenter()) || DEFAULT_CENTER;
+      point ||= coordinate(target) || validPoint(map.getCenter()) || DEFAULT_CENTER;
       map.setView(point, Math.max(map.getZoom(), initialPoint ? 16 : 14), { animate: false });
       beginPinEdit(target, { initialPoint: point, mode: 'pick', onSaved });
     }
@@ -1510,7 +1512,7 @@
       renderList();
     }
 
-    async function refresh() {
+    async function refreshData() {
       if (refreshButton) refreshButton.disabled = true;
       setStatus('Loading AP locations…');
       try {
@@ -1536,6 +1538,17 @@
         setStatus(`Map could not load: ${error.message}`);
       } finally {
         if (refreshButton) refreshButton.disabled = false;
+      }
+    }
+
+    async function refresh() {
+      if (refreshPromise) return refreshPromise;
+      const operation = refreshData();
+      refreshPromise = operation;
+      try {
+        return await operation;
+      } finally {
+        if (refreshPromise === operation) refreshPromise = null;
       }
     }
 

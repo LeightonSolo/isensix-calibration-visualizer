@@ -1018,48 +1018,20 @@ async function useMainSiteAddress() {
   document.getElementById('ap-main-address-status').textContent = 'Main site address copied from Job Info.';
 }
 
-function captureCurrentLocation() {
-  const status = document.getElementById('ap-current-location-status');
-  const button = document.getElementById('ap-use-current-location');
-  if (!navigator.geolocation) {
-    status.textContent = 'Location is not available in this browser.';
-    return;
-  }
-  button.disabled = true;
-  status.textContent = 'Requesting location permission…';
-  navigator.geolocation.getCurrentPosition(position => {
-    activeApLocationEdit.location = {
-      latitude: position.coords.latitude,
-      longitude: position.coords.longitude,
-      location_accuracy_m: position.coords.accuracy,
-      location_captured_at: new Date().toISOString(),
-      location_source: 'gps',
-    };
-    document.getElementById('ap-clear-current-location').hidden = false;
-    status.textContent = `Location captured ±${Math.round(position.coords.accuracy)} m. Save to keep it.`;
-    button.disabled = false;
-  }, error => {
-    status.textContent = error.code === error.PERMISSION_DENIED
-      ? 'Location permission was denied.'
-      : 'Could not determine the current location.';
-    button.disabled = false;
-  }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
-}
-
-async function pickApLocationOnMap() {
+async function openApLocationMap(initialPoint = null) {
   if (!activeApLocationEdit) return;
   const { server, accessPoint } = activeApLocationEdit;
   let fallbackAddress = getMainSiteAddressForServer(server);
-  const openPicker = initialPoint => {
+  const openPicker = point => {
     switchTab('map');
     window.setTimeout(async () => {
-      mountCalibrationMap();
       if (!calibrationMapController?.pickApLocation) return;
       await calibrationMapController.pickApLocation({
         server,
         accessPoint,
-        initialPoint,
+        initialPoint: point,
         fallbackAddress,
+        preferFallback: true,
         onSaved: async () => {
           await loadApLocations(server);
           if (currentTab === 'aps') renderTable();
@@ -1075,15 +1047,29 @@ async function pickApLocationOnMap() {
     await loadJobInfo();
     fallbackAddress = getMainSiteAddressForServer(server);
   }
+  openPicker(initialPoint);
+}
+
+function captureCurrentLocation() {
+  const status = document.getElementById('ap-current-location-status');
+  const button = document.getElementById('ap-use-current-location');
   if (!navigator.geolocation) {
-    openPicker(null);
+    status.textContent = 'Location is not available; opening the main-site map instead.';
+    openApLocationMap(null);
     return;
   }
-  navigator.geolocation.getCurrentPosition(
-    position => openPicker([position.coords.latitude, position.coords.longitude]),
-    () => openPicker(null),
-    { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 },
-  );
+  button.disabled = true;
+  status.textContent = 'Requesting location permission...';
+  navigator.geolocation.getCurrentPosition(position => {
+    openApLocationMap([position.coords.latitude, position.coords.longitude]);
+  }, () => {
+    status.textContent = 'Location unavailable; opening the main-site map instead.';
+    openApLocationMap(null);
+  }, { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 });
+}
+
+function pickApLocationOnMap() {
+  openApLocationMap(null);
 }
 
 function clearCurrentLocation() {
