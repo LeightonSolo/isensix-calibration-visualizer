@@ -32,6 +32,14 @@
       : null;
   }
 
+  function validPoint(value) {
+    const latitude = numeric(Array.isArray(value) ? value[0] : value?.lat);
+    const longitude = numeric(Array.isArray(value) ? value[1] : value?.lng);
+    return latitude !== null && longitude !== null && Math.abs(latitude) <= 90 && Math.abs(longitude) <= 180
+      ? [latitude, longitude]
+      : null;
+  }
+
   function markerColor(row) {
     if (Number(row.remaining) === 0 && Number(row.sensor_count) > 0) return '#2f9e44';
     if (Number(row.calibrated_count) > 0 || Number(row.exception_count) > 0) return '#287fd1';
@@ -1258,7 +1266,7 @@
 
     async function savePin() {
       if (!editState) return;
-      const { rows: editRows, marker, editor } = editState;
+      const { rows: editRows, marker, editor, onSaved } = editState;
       const point = marker.getLatLng();
       const saveButton = editor.querySelector('[data-map-pin-save]');
       if (saveButton) { saveButton.disabled = true; saveButton.textContent = 'Saving…'; }
@@ -1297,15 +1305,16 @@
         closePinEditor();
         renderMarkers(true);
         setStatus(`Saved manual pin for ${editRows.length} AP${editRows.length === 1 ? '' : 's'}`);
+        if (typeof onSaved === 'function') await onSaved(point);
       } catch (error) {
         if (saveButton) { saveButton.disabled = false; saveButton.textContent = 'Save pin'; }
         setStatus(`Pin could not be saved: ${error.message}`);
       }
     }
 
-    function beginPinEdit(rowsToMove) {
+    function beginPinEdit(rowsToMove, { initialPoint = null, mode = 'move', onSaved = null } = {}) {
       const editRows = Array.isArray(rowsToMove) ? rowsToMove : [rowsToMove];
-      const point = coordinate(editRows[0]);
+      const point = validPoint(initialPoint) || coordinate(editRows[0]);
       if (!point) {
         setStatus('Map the saved address first, then move its pin.');
         return;
@@ -1327,8 +1336,37 @@
       });
       editor.querySelector('[data-map-pin-cancel]')?.addEventListener('click', closePinEditor);
       editor.querySelector('[data-map-pin-save]')?.addEventListener('click', savePin);
+      if (mode === 'pick') {
+        editor.querySelector('strong').textContent = `Pick ${editRows.length} AP${editRows.length === 1 ? '' : 's'} - ${summary.sensorCount} sensors`;
+        editor.querySelector('[data-map-pin-coordinates]').textContent = 'Drag the pin to the precise AP location, then save.';
+      }
+      editState.onSaved = onSaved;
       marker.bindTooltip('Drag to move this AP pin', { permanent: true, direction: 'top', offset: [0, -8] }).openTooltip();
       setStatus(`Moving ${editRows.length} AP${editRows.length === 1 ? '' : 's'} at one location`);
+    }
+
+    async function pickApLocation({ server, accessPoint, initialPoint = null, fallbackAddress = '', onSaved = null } = {}) {
+      if (!rows.length) await refresh();
+      const target = rows.find(row => String(row.server) === String(server)
+        && String(row.access_point) === String(accessPoint));
+      if (!target) {
+        setStatus(`AP ${accessPoint || ''} could not be found on the map.`.trim());
+        return;
+      }
+
+      let point = validPoint(initialPoint) || coordinate(target);
+      if (!point && String(fallbackAddress || '').trim()) {
+        setStatus('Finding the main site address on the mapâ€¦');
+        try {
+          const result = await geocode(fallbackAddress);
+          point = validPoint([result.latitude, result.longitude]);
+        } catch (_) {
+          // Fall back to the map's current view if geocoding is unavailable.
+        }
+      }
+      point ||= validPoint(map.getCenter()) || DEFAULT_CENTER;
+      map.setView(point, Math.max(map.getZoom(), initialPoint ? 16 : 14), { animate: false });
+      beginPinEdit(target, { initialPoint: point, mode: 'pick', onSaved });
     }
 
     function renderList() {
@@ -1533,7 +1571,7 @@
     geocodeButton?.addEventListener('click', geocodeMissing);
     refresh();
     window.setTimeout(() => map.invalidateSize(), 0);
-    return { map, refresh };
+    return { map, refresh, pickApLocation };
   }
 
   global.IsensixMap = { mount, mountJobs };

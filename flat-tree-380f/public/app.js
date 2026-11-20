@@ -1046,6 +1046,46 @@ function captureCurrentLocation() {
   }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
 }
 
+async function pickApLocationOnMap() {
+  if (!activeApLocationEdit) return;
+  const { server, accessPoint } = activeApLocationEdit;
+  let fallbackAddress = getMainSiteAddressForServer(server);
+  const openPicker = initialPoint => {
+    switchTab('map');
+    window.setTimeout(async () => {
+      mountCalibrationMap();
+      if (!calibrationMapController?.pickApLocation) return;
+      await calibrationMapController.pickApLocation({
+        server,
+        accessPoint,
+        initialPoint,
+        fallbackAddress,
+        onSaved: async () => {
+          await loadApLocations(server);
+          if (currentTab === 'aps') renderTable();
+          if (activeServerOverview) renderServerOverview(activeServerOverview);
+        },
+      });
+    }, 0);
+  };
+
+  closeApLocationEditor();
+  if (activeServerOverview) closeServerOverview();
+  if (!fallbackAddress && !jobInfoLoaded) {
+    await loadJobInfo();
+    fallbackAddress = getMainSiteAddressForServer(server);
+  }
+  if (!navigator.geolocation) {
+    openPicker(null);
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(
+    position => openPicker([position.coords.latitude, position.coords.longitude]),
+    () => openPicker(null),
+    { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 },
+  );
+}
+
 function clearCurrentLocation() {
   if (!activeApLocationEdit) return;
   activeApLocationEdit.location = {
@@ -4734,6 +4774,7 @@ document.getElementById('ap-location-cancel')?.addEventListener('click', closeAp
 document.getElementById('ap-location-form')?.addEventListener('submit', submitApLocationEditor);
 document.getElementById('ap-use-main-site-address')?.addEventListener('click', useMainSiteAddress);
 document.getElementById('ap-use-current-location')?.addEventListener('click', captureCurrentLocation);
+document.getElementById('ap-pick-on-map')?.addEventListener('click', pickApLocationOnMap);
 document.getElementById('ap-clear-current-location')?.addEventListener('click', clearCurrentLocation);
 apLocationModal?.addEventListener('click', event => {
   if (event.target === apLocationModal) closeApLocationEditor();
