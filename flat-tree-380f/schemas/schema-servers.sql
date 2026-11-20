@@ -8,5 +8,8 @@ CREATE TABLE IF NOT EXISTS servers (
   ),
   notes       TEXT,
   customer    TEXT,
+  active      INTEGER NOT NULL DEFAULT 1,
+  active_source TEXT NOT NULL DEFAULT 'manual',
+  active_updated_at TEXT DEFAULT (datetime('now')),
   updated_at  TEXT DEFAULT (datetime('now'))
 );

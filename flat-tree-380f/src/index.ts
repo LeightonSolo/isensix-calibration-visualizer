@@ -545,6 +545,31 @@ export default {
       return json(results);
     }
 
+    // Add current Job Info SIDs without reactivating records that CMS marked inactive.
+    if (request.method === 'POST' && pathname === '/servers/sync-jobinfo') {
+      const { results } = await env.DB.prepare(`
+        SELECT job_name, servers, server_version
+        FROM job_info
+        WHERE active IS NULL OR CAST(active AS INTEGER) = 1
+      `).all<{ job_name: string; servers: string | null; server_version: string | null }>();
+      const statements: D1PreparedStatement[] = [];
+      for (const job of results) {
+        const ids = [...new Set(String(job.servers || '').split(',').map(value => value.trim()).filter(Boolean))];
+        const versionParts = [...new Set(String(job.server_version || '').split(',').map(value => value.trim()).filter(Boolean))];
+        const version = versionParts.length === 1 ? versionParts[0] : '3.0';
+        for (const server of ids) {
+          statements.push(env.DB.prepare(`
+            INSERT OR IGNORE INTO servers (
+              server, version, customer, active, active_source, active_updated_at
+            ) VALUES (?, ?, ?, 1, 'job_info', datetime('now'))
+          `).bind(server, version, job.job_name || null));
+        }
+      }
+      const resultsAfterSync = statements.length ? await env.DB.batch(statements) : [];
+      const added = resultsAfterSync.reduce((total, result) => total + Number(result.meta.changes || 0), 0);
+      return json({ ok: true, added });
+    }
+
     // POST /servers — upsert a server record
     if (request.method === 'POST' && pathname === '/servers') {
       const body = await request.json() as Record<string, any>;
@@ -560,8 +585,8 @@ export default {
         return new Response('Invalid calibration path', { status: 400 });
       }
       await env.DB.prepare(`
-        INSERT INTO servers (server, version, hostname, calibration_path, notes, customer)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO servers (server, version, hostname, calibration_path, notes, customer, active, active_source, active_updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, 1, 'manual', datetime('now'))
         ON CONFLICT(server) DO UPDATE SET
           version    = excluded.version,
           hostname   = excluded.hostname,

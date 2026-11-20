@@ -505,15 +505,55 @@ export async function syncCmsInventory(env: CmsSyncEnv): Promise<CmsSyncResult> 
     ));
     await runBatches(env.DB, inventoryStatements);
 
+    const preview = await buildJobInfoPreview(env.DB, rows);
+
+    // CMS owns activity and per-SID version. Job Info supplies the durable
+    // customer grouping, which lets new CMS SIDs become usable immediately.
+    const customerByServer = new Map<string, string>();
+    for (const job of preview.jobs) {
+      for (const server of splitServerIds(job.proposed.servers)) {
+        customerByServer.set(server, job.proposed.job_name);
+      }
+    }
+    const cmsServersByCustomer = new Map<string, string[]>();
+    for (const row of rows) {
+      const customer = customerByServer.get(row.customerId);
+      if (!customer) continue;
+      const ids = cmsServersByCustomer.get(customer) ?? [];
+      ids.push(row.customerId);
+      cmsServersByCustomer.set(customer, ids);
+    }
     const serverStatements = rows.map(row => env.DB.prepare(`
-      UPDATE servers SET
-        version = COALESCE(?, version),
+      INSERT INTO servers (
+        server, version, customer, active, active_source, active_updated_at
+      ) VALUES (?, COALESCE(?, '3.0'), ?, ?, 'cms', datetime('now'))
+      ON CONFLICT(server) DO UPDATE SET
+        version = COALESCE(excluded.version, servers.version),
+        customer = COALESCE(excluded.customer, servers.customer),
+        active = excluded.active,
+        active_source = 'cms',
+        active_updated_at = datetime('now'),
         updated_at = datetime('now')
-      WHERE CAST(server AS TEXT) = ?
-    `).bind(row.serverVersion, row.customerId));
+    `).bind(
+      row.customerId,
+      row.serverVersion,
+      customerByServer.get(row.customerId) ?? null,
+      row.active,
+    ));
     await runBatches(env.DB, serverStatements);
 
-    const preview = await buildJobInfoPreview(env.DB, rows);
+    // A customer roster change retires old SIDs without deleting them.
+    for (const [customer, customerIds] of cmsServersByCustomer) {
+      const ids = [...new Set(customerIds)];
+      if (!ids.length) continue;
+      const placeholders = ids.map(() => '?').join(', ');
+      await env.DB.prepare(`
+        UPDATE servers
+        SET active = 0, active_source = 'cms', active_updated_at = datetime('now'), updated_at = datetime('now')
+        WHERE lower(trim(customer)) = lower(trim(?))
+          AND CAST(server AS TEXT) NOT IN (${placeholders})
+      `).bind(customer, ...ids).run();
+    }
 
     let jobsUpdated = 0;
     for (const job of preview.jobs) {

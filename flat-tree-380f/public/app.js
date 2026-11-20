@@ -8,7 +8,7 @@ let typeColors = JSON.parse(localStorage.getItem('cal_type_colors') || 'null')
 // Load server metadata after authentication so server suggestions are available
 // even when no servers have been added to the dashboard yet.
 siteReady.then(() => {
-  loadServerMeta();
+  loadServerMeta({ syncServers: true });
   loadActiveCalibrationJobs();
 }).catch(error => console.error('Failed to initialize dashboard metadata', error));
                  
@@ -477,13 +477,14 @@ function renderServerTags() {
       !isSensorDisabled(sensor)
     );
     const complete = sensors.length > 0 && getProgressBreakdown(sensors).remaining === 0;
+    const inactive = Number(serverMeta[s]?.active) === 0;
     return `
-    <span class="server-tag${complete ? ' server-tag-complete' : ''}">
+    <span class="server-tag${complete ? ' server-tag-complete' : ''}${inactive ? ' server-tag-inactive' : ''}">
       <button class="server-overview-trigger" data-server-overview="${escapeHtml(s)}" type="button"
               title="Open Server ${escapeHtml(s)} overview${complete ? ' — calibration complete' : ''}"
               aria-label="Open Server ${escapeHtml(s)} overview${complete ? ', calibration complete' : ''}">
         <i class="ti ti-server-2" style="font-size:13px;"></i>
-        Server ${escapeHtml(s)}
+         Server ${escapeHtml(s)}${inactive ? ' <span class="server-inactive-label">(inactive)</span>' : ''}
       </button>
       <button class="remove-btn" data-remove-server="${escapeHtml(s)}" type="button"
               title="Remove server ${escapeHtml(s)}" aria-label="Remove server ${escapeHtml(s)}">×</button>
@@ -1518,7 +1519,7 @@ function setButtonActive(id, active) {
 }
 
 /* ─── Data loading ──────────────────────────────────────── */
-async function loadData() {
+async function loadData({ syncServers = false } = {}) {
   try { await siteAuth.ensure(); } catch (_) { return; }
   loadActiveCalibrationJobs();
   if (historicalRunId) {
@@ -1570,7 +1571,7 @@ async function loadData() {
         }).then(r => r.json())
       )),
       loadExceptions(),
-      loadServerMeta(),
+      loadServerMeta({ syncServers }),
     ]);
     if (!servers.length) {
       clearDashboardHeader();
@@ -3245,9 +3246,40 @@ function startResize(e, handle) {
 }
 
 let serverMeta = {}; // populated on load, keyed by server ID
+let serverRosterSyncPromise = null;
+let serverRosterSyncedAt = 0;
+const SERVER_ROSTER_SYNC_CACHE_MS = 15 * 60 * 1000;
 
-async function loadServerMeta() {
+function compareServerMeta(left, right) {
+  const activeDifference = Number(right.active ?? 1) - Number(left.active ?? 1);
+  if (activeDifference) return activeDifference;
+  const numericDifference = Number(left.server) - Number(right.server);
+  return Number.isFinite(numericDifference) && numericDifference !== 0
+    ? numericDifference
+    : String(left.server).localeCompare(String(right.server));
+}
+
+async function syncServersFromJobInfo(force = false) {
+  const now = Date.now();
+  if (!force && serverRosterSyncedAt && now - serverRosterSyncedAt < SERVER_ROSTER_SYNC_CACHE_MS) return;
+  if (serverRosterSyncPromise) return serverRosterSyncPromise;
+  serverRosterSyncPromise = fetch(`${CONFIG.WORKER_URL}/servers/sync-jobinfo`, {
+    method: 'POST',
+    headers: siteApiHeaders()
+  }).then(response => {
+    if (!response.ok) throw new Error(`Could not sync Job Info servers (${response.status})`);
+    serverRosterSyncedAt = Date.now();
+  }).catch(error => {
+    console.error('Failed to sync Job Info servers', error);
+  }).finally(() => {
+    serverRosterSyncPromise = null;
+  });
+  return serverRosterSyncPromise;
+}
+
+async function loadServerMeta({ syncServers = false } = {}) {
   try {
+    await syncServersFromJobInfo(syncServers);
     const res = await fetch(`${CONFIG.WORKER_URL}/servers`, {
       headers: siteApiHeaders()
     });
@@ -3259,9 +3291,9 @@ async function loadServerMeta() {
     if (datalist) {
       datalist.innerHTML = ''; // Clear just in case it runs twice
       
-      Object.values(serverMeta).forEach(s => {
+      Object.values(serverMeta).sort(compareServerMeta).forEach(s => {
         // Fallback to notes if customer is null/empty
-        const displayName = s.customer || s.notes || 'Unknown Location';
+        const displayName = `${s.customer || s.notes || 'Unknown Location'}${Number(s.active) === 0 ? ' (inactive)' : ''}`;
         
         const option = document.createElement('option');
         // Setting the value to "ID - Name" allows searching by both!
@@ -3435,12 +3467,12 @@ async function renderServerConfig() {
       <span class="server-actions">Actions</span>
     </div>
 
-    ${Object.values(serverMeta).map(r => {
+    ${Object.values(serverMeta).sort(compareServerMeta).map(r => {
       const configuredHostname = normalizeHostname(r.hostname);
       const usedFallback = !TUNNEL_HOSTNAMES.has(configuredHostname);
       return `
-        <div class="threshold-row">
-          <span class="threshold-type">${r.server}</span>
+        <div class="threshold-row server-config-row${Number(r.active) === 0 ? ' server-config-row-inactive' : ''}">
+          <span class="threshold-type">${r.server}${Number(r.active) === 0 ? ' <span class="server-inactive-label">(inactive)</span>' : ''}</span>
           <span class="badge">v${r.version}</span>
           <span class="server-customer">${r.customer || '<span class="muted">No customer</span>'}</span>
           <span class="server-notes">${r.notes || '—'}</span>

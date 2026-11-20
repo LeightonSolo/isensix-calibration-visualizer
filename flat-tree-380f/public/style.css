@@ -484,6 +484,10 @@ button.danger { color: var(--accent-red); }
     font-size: 11px;
     color: var(--text-primary);
 }
+.server-config-row-inactive { opacity: .58; }
+.server-config-row-inactive:hover { opacity: .82; }
+.server-inactive-label { color: var(--text-muted); font-size: 10px; font-weight: 500; }
+.server-tag-inactive { opacity: .62; }
 
 .server-notes {
     flex: 1;
