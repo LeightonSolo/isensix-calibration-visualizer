@@ -1376,6 +1376,7 @@
       const mapped = rows.filter(row => coordinate(row));
       const missing = rows.filter(row => !coordinate(row) && String(row.address || '').trim());
       const noAddress = rows.filter(row => !coordinate(row) && !String(row.address || '').trim());
+      const unmapped = rows.filter(row => !coordinate(row));
       const saved = rows.filter(hasSavedLocation);
       list.innerHTML = `<div class="map-summary">
         <span><strong>${rows.length}</strong> AP groups</span>
@@ -1383,8 +1384,30 @@
         <span><strong>${mapped.length}</strong> mapped</span>
         <span><strong>${missing.length}</strong> address-only</span>
         ${noAddress.length ? `<span><strong>${noAddress.length}</strong> missing address</span>` : ''}
-      </div>${missing.length ? `<div class="map-unmapped-list"><strong>Address-only locations</strong>${missing.slice(0, 80).map(row =>
-        `<span>${escapeHtml(row.server)} · ${escapeHtml(row.access_point)} — ${escapeHtml(row.address)}</span>`).join('')}</div>` : ''}`;
+        <span><strong>${unmapped.length}</strong> still needing a location</span>
+      </div>${unmapped.length ? `<div class="map-unmapped-list"><strong>APs still needing a location</strong>${unmapped.map(row => {
+        const accessPoint = String(row.access_point || '').trim();
+        const editable = accessPoint && !/^no access point$/i.test(accessPoint);
+        return `<div class="map-unmapped-row">
+          <div class="map-unmapped-main">
+            <strong>${escapeHtml(row.server)} · ${escapeHtml(accessPoint || 'No access point')}</strong>
+            <span>${escapeHtml(String(row.address || '').trim() || 'No address entered')}</span>
+            <span class="map-unmapped-meta">${Number(row.sensor_count) || 0} sensors · ${Number(row.remaining) || 0} remaining</span>
+          </div>
+          ${editable
+            ? `<button type="button" data-map-edit-ap="${escapeHtml(encodeURIComponent(rowKey(row)))}">Edit AP location</button>`
+            : '<span class="map-unmapped-meta">No AP data</span>'}
+        </div>`;
+      }).join('')}</div>` : '<div class="map-unmapped-list"><strong>All AP groups have saved map locations.</strong></div>'}`;
+      list.querySelectorAll('[data-map-edit-ap]').forEach(button => {
+        button.addEventListener('click', event => {
+          event.preventDefault();
+          event.stopPropagation();
+          const encodedKey = button.getAttribute('data-map-edit-ap') || '';
+          const row = rows.find(candidate => encodeURIComponent(rowKey(candidate)) === encodedKey);
+          if (row && typeof options.onEditAp === 'function') options.onEditAp(row);
+        });
+      });
     }
 
     function renderMarkers(preserveView = false) {

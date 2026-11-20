@@ -4383,6 +4383,13 @@ function mountCalibrationMap() {
     geocode: 'calibration-map-geocode',
     jobName: jobInfo.job_name || currentCustomer || '',
     dataUrl: `${CONFIG.WORKER_URL}/map/ap-locations${serverQuery}`,
+    onEditAp: async row => {
+      const server = String(row.server || '').trim();
+      const accessPoint = String(row.access_point || '').trim();
+      if (!server || !accessPoint || /^no access point$/i.test(accessPoint)) return;
+      await loadApLocations(server);
+      openApLocationEditor(server, accessPoint);
+    },
   });
   calibrationMapKey = key;
 }
