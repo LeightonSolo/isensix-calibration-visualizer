@@ -1,8 +1,112 @@
-The Isensix Calibration Dashboard is a work in progress tool to visualize multiple Isensix servers simultaneously to monitor, validate, summarize, and improve efficiency of the Isensix calibration process.
-It will eventually replace the Google Sheets based tool. 
-<img width="1782" height="1073" alt="calibration dashboard v1" src="https://github.com/user-attachments/assets/5c5d9008-e280-4003-9dc2-7cf8ae24d042" />
+# Isensix Operations Dashboard
 
-The dashboard can also generate full calibration summarys for the customer to digitally sign and print
+The Isensix Operations Dashboard is a shared workspace for planning, performing, validating, and reporting Isensix operations. It brings calibrations, server inventory, Job Information, scheduling, travel planning, site details, and customer-ready reports into one connected system.
+
+Instead of maintaining separate spreadsheets, notes, calendars, and one-off status checks, Field Operations can use the same operational record from preparation to completion. This reduces duplicate data entry, makes work easier to share, and gives technicians and managers a clearer view of what needs attention.
+
+## Features at a glance
+
+- **Calibration overview** — Monitor multiple Isensix servers and all of their sensors, review progress, inspect failures and exceptions, and identify sensors that still needs attention.
+- **Live calibration state** — Keep dashboard status connected to technician activity and synchronized calibration data from customer servers.
+- **Server and sensor inventory** — Search, filter, configure, and review current server, hardware, software, and sensor information.
+- **Job Information management** — Maintain customer jobs, server assignments, contacts, equipment, access details, travel information, and planning notes.
+- **Calendar and scheduling** — Schedule jobs, assign technicians, track event status and type, and show ongoing or upcoming calibration work.
+- **Travel and location planning** — Organize main sites, offsites, access points, addresses, rooms, coordinates, and reusable physical-location notes.
+- **CMS reconciliation and cleanup** — Compare Job Information with current CMS inventory, explain unmatched servers, and find records that need cleanup.
+- **Analytics and exports** — Analyze active jobs, sensor workload, Isensix hardware, technician assignments, calibration history, and filtered Job Information; export filtered data with one click.
+- **Validation and exception handling** — Review validation and calibration errors and exceptions with dates and context so unresolved work is visible immediately instead of being rediscovered manually.
+- **Customer-ready documentation** — Generate calibration summaries and full reports for review, signature, printing, and customer records.
+- **Operational resources** — Keep calibration references, sensor specifications, hardware comparisons, and workflow guidance close to the work.
+- **Universal Light and Dark mode** — Every page on the dashboard supports both light and dark themes to suit the personal preferences and environment of every user. Users preferred theme is stored by the dashboard. 
+
+## How the dashboard improves productivity
+
+### One operational source of truth
+
+The dashboard combines information that previously had to be assembled from customer servers, spreadsheets, calendar entries, email, and shared documents. A technician can start with the job, see all of its information in one place, see its servers and all sensor data, review calibration progress, and record exceptions and notes without rebuilding the same context in multiple places.
+
+### Less repeated data entry
+
+Data collected by the browser extension is normalized and synchronized through the Cloudflare Worker into the shared database. Job, server, sensor, calendar, and location records can then be reused across the overview, planning tools, analytics, maps, and reports instead of being copied into separate tracking systems.
+
+### Faster preparation and sharing
+
+Job Information, equipment counts, sensor totals, site addresses, offsites, access notes, technician assignments, and travel details are available before work begins. This makes it easier to estimate effort, prepare materials, and coordinate with multiple technicians.
+
+### Clearer exception-driven work
+
+Progress views and validation tables focus attention on failures, errors, missing data, and other exceptions. Successful calibration removes the active exception from the working view, helping technicians spend time on the remaining work rather than rechecking completed items.
+
+### Better scheduling and workload visibility
+
+The calendar connects scheduled work with actual calibration activity. Managers can see upcoming and ongoing jobs, technician assignments, travel requirements, job status, and sensor workload together, making it easier to balance capacity and avoid redundant coordination.
+
+### More reliable data maintenance
+
+CMS review and cleanup views highlight differences between active Job Information and current CMS inventory. Rather than silently duplicating or deleting records, the dashboard identifies unmatched servers and preserves explanations so data-quality issues can be resolved deliberately.
+
+### Consistent customer deliverables
+
+Calibration summaries and full reports are autogenerated from the same data used for internal review. This reduces reformatting and transcription errors while making customer documentation faster to produce accurately and easier to keep aligned with the completed work.
+
+## Main areas
+
+### Calibration
+
+The calibration overview provides a multi-server view of sensor status, progress, remaining work, validation results, exceptions, access points, and server details. Calibration history, summaries, full reports, and reference resources are available from the Calibration dropdown menu.
+
+### Jobs
+
+The Jobs area provides a searchable directory of all Field Operations relevant Isensix customer data. Seperate views can be opened for planning, equipment, travel, and all fields. It also includes analytics, filtered CSV export, job and sensor maps, CMS review, cleanup details, and an authenticated editor for maintaining Job Information for all Isensix customers.
+
+### Calendar
+
+The calendar supports job events, technician events, assignments, statuses, multiple event types, travel details, and ongoing-calibration management. It provides a shared planning area for work that is scheduled, in progress, tentative, or upcoming. Yearly calibrations will be intelligently autoscheduled as tentative each year based on the previous calibration, with a manager just needing to confirm the event. 
+
+### Locations and maps
+
+Main sites, offsites, and access-point (AP) locations can be represented with addresses, floor and room details, notes, reusable location records, and optional coordinates. This supports national and multi-site jobs while preserving the distinction between an address estimate and a captured location.
+
+## Data flow and system boundaries
+
+1. Tampermonkey/Chrome extension scripts read relevant data from Isensix customer servers in a technician’s browser.
+2. The scripts normalize and send that data to the Cloudflare Worker.
+3. The Worker stores and serves shared operational data through the `calibration-db` Cloudflare D1 database.
+4. This repository provides the dashboard, Worker API, D1 schemas and migrations, scheduling tools, analytics, maps, and reports.
+
+The Chrome extension is maintained in the separate [IsensixScripts repository](https://github.com/LeightonSolo/IsensixScripts). Changes to shared payloads or fields should be reviewed across both repositories.
+
+## Repository layout
+
+- `flat-tree-380f/` — Primary Cloudflare Worker application and dashboard assets.
+- `calendar/` — Calendar application source and build output.
+- `schemas/` — Database schemas and related definitions.
+
+## Development
+
+From `flat-tree-380f/`:
+
+```powershell
+npm.cmd install
+npm.cmd run dev
+```
+
+Useful commands:
+
+```powershell
+npm.cmd test
+npm.cmd run cf-typegen
+npm.cmd run deploy
+```
+
+Cloudflare-specific instructions are in [`flat-tree-380f/AGENTS.md`](flat-tree-380f/AGENTS.md). The dashboard uses Cloudflare Workers and D1; deployment and database changes should be reviewed carefully because they affect shared operational data.
+
+## Screenshots and reports
+
+The dashboard provides interactive operational views as well as customer-facing calibration summaries and full reports. Example media will be added here as the interface evolves.
+
+<img width="1782" height="1073" alt="Calibration dashboard overview" src="https://github.com/user-attachments/assets/5c5d9008-e280-4003-9dc2-7cf8ae24d042" />
+
 <video src="https://github.com/user-attachments/assets/ce9eb33c-3b39-40dc-b0d6-c86a19550937" width="320" height="240" controls></video>
 
 
