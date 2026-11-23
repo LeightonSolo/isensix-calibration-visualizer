@@ -112,6 +112,7 @@ The dashboard provides interactive operational views as well as customer-facing 
 <img width="1979" height="512" alt="image" src="https://github.com/user-attachments/assets/13a58bc2-a619-498c-b7d9-df97be2df301" />
 <img width="1972" height="830" alt="image" src="https://github.com/user-attachments/assets/7a9b08e2-c3d5-48db-af31-cc713a4a4ff9" />
 <img width="1747" height="1234" alt="image" src="https://github.com/user-attachments/assets/82ecbe25-88f9-43c1-92bb-48a5a8d04d7e" />
+<img width="2310" height="1270" alt="image" src="https://github.com/user-attachments/assets/a5384eb6-f139-4c27-9ff1-3d9dc2b62bc8" />
 
 
 
