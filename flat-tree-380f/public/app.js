@@ -16,7 +16,10 @@ let allSensors = [];
 let activeCalibrationJobs = [];
 let activeCalibrationPopoverOpen = false;
 let activeCalibrationLoadPromise = null;
+// Keep the list focused on nearby calendar work while allowing completion to
+// reflect calibration activity from the previous ten days.
 const ACTIVE_CALIBRATION_WINDOW_DAYS = 3;
+const ACTIVE_CALIBRATION_COMPLETION_WINDOW_DAYS = 10;
 let currentTab = 'left';
 const tableResizeStates = new Map();
 let sortCol    = null;
@@ -214,8 +217,12 @@ function saveTypeColors() { localStorage.setItem('cal_type_colors', JSON.stringi
 
 /* ─── Derived state helpers ─────────────────────────────── */
 function getCutoff() {
+  return getCutoffForDays(CONFIG.ROLLING_DAYS);
+}
+
+function getCutoffForDays(days) {
   const d = new Date();
-  d.setDate(d.getDate() - CONFIG.ROLLING_DAYS);
+  d.setDate(d.getDate() - days);
   return d;
 }
 
@@ -515,16 +522,19 @@ function activeCalibrationDateLabel(event) {
 
 function getActiveCalibrationProgress(sensorRows, exceptionRows) {
   const sensors = filterDashboardSensors(sensorRows).filter(sensor => !isSensorDisabled(sensor));
+  const activeCalibrationCutoff = getCutoffForDays(ACTIVE_CALIBRATION_COMPLETION_WINDOW_DAYS);
+  const isActiveCalibrationCalibrated = sensor => sensor.calibrated_at
+    && new Date(sensor.calibrated_at) >= activeCalibrationCutoff;
   const exceptionKeys = new Set((Array.isArray(exceptionRows) ? exceptionRows : [])
     .filter(exception => Number(exception.year) === CURRENT_YEAR)
     .map(exception => `${exception.server}:${exception.sensor_id}`));
   const isException = sensor => exceptionKeys.has(`${sensor.server}:${sensor.sensor_id}`);
   const calibrated = sensors.filter(sensor =>
-    !isException(sensor) && isCalibrated(sensor) && !isFailed(sensor)
+    !isException(sensor) && isActiveCalibrationCalibrated(sensor) && !isFailed(sensor)
   ).length;
   const exceptions = sensors.filter(isException).length;
   const failures = sensors.filter(sensor =>
-    !isException(sensor) && isCalibrated(sensor) && isFailed(sensor)
+    !isException(sensor) && isActiveCalibrationCalibrated(sensor) && isFailed(sensor)
   ).length;
   const remaining = Math.max(0, sensors.length - calibrated - exceptions - failures);
   const progress = { total: sensors.length, calibrated, exceptions, failures, remaining };
