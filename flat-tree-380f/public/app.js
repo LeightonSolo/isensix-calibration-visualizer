@@ -867,18 +867,78 @@ function getApSyncInstruction(server, sensors = allSensors) {
   return `View the Calibration Summary on SID ${sid}, then refresh the dashboard to sync AP data.`;
 }
 
+const SOURCE_PAGE_FIELDS = [
+  { key: 'cp_address', label: 'CP address' },
+  { key: 'sensor_name', label: 'sensor name' },
+  { key: 'zone', label: 'zone' },
+  { key: 'sensor_type', label: 'type' },
+  { key: 'quality', label: 'quality' },
+  { key: 'access_point', label: 'AP' },
+  { key: 'new_offset', label: 'offset' },
+  { key: 'serial_number', label: 'serial' },
+];
+
+function isMissingSourcePageValue(value) {
+  return value === null || value === undefined || String(value).trim() === '';
+}
+
+function getMissingSourcePageFields(sensor) {
+  return SOURCE_PAGE_FIELDS.filter(field => isMissingSourcePageValue(sensor?.[field.key]));
+}
+
+function getSourcePageInstruction(sensor, missingFields = getMissingSourcePageFields(sensor)) {
+  const server = String(sensor?.server || '').trim() || 'the affected server';
+  const meta = serverMeta[server] || {};
+  const sourcePage = normalizeServerVersion(meta.version) === 'ARMS'
+    ? 'the Debug Query page (/debug/debug_query.php)'
+    : 'the Calibration Summary page';
+  const fields = missingFields.map(field => field.label).join(', ');
+  return `Missing ${fields || 'source data'}. View ${sourcePage} on SID ${server}, then refresh the dashboard.`;
+}
+
+function summaryPagePath(meta, version) {
+  if (version === 'ARMS') return '/arms/debug/debug_query.php';
+  if (version === '2.0') {
+    return calibrationPath(meta, version).startsWith('/arms/')
+      ? '/arms/iserep1.php'
+      : '/arms2/iserep1.php';
+  }
+  if (version === '2.1') return '/arms2/iserep1.php';
+  return '/guardian/iserep1.php';
+}
+
+function sourcePageUrl(server) {
+  const serverId = String(server || '').trim();
+  if (!/^\d{3}$/.test(serverId)) return null;
+  const meta = serverMeta[serverId] || {};
+  const version = normalizeServerVersion(meta.version);
+  const portForVersion = VERSION_PORTS[version];
+  if (!portForVersion) return null;
+  return `https://${tunnelHostname(meta.hostname)}:${portForVersion(serverId)}${summaryPagePath(meta, version)}`;
+}
+
+function renderSourcePageFlag(sensor, fieldKey = null, missingFields = getMissingSourcePageFields(sensor)) {
+  if (!missingFields.length) return '';
+  const field = fieldKey ? SOURCE_PAGE_FIELDS.find(item => item.key === fieldKey) : null;
+  if (field && !missingFields.some(item => item.key === fieldKey)) return '';
+  const instruction = getSourcePageInstruction(sensor, field ? [field] : missingFields);
+  const url = sourcePageUrl(sensor?.server);
+  const action = url
+    ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">update</a>`
+    : 'update';
+  return `<span class="source-sync-flag" title="${escapeHtml(instruction)}" aria-label="${escapeHtml(instruction)}">ⓘ ${action}</span>`;
+}
+
 function renderApLabel(label, server, sensors = allSensors) {
   const value = escapeHtml(label);
   if (label !== 'No access point') return value;
-  const instruction = getApSyncInstruction(server, sensors);
-  return `<span class="ap-missing-label">No access point <span class="ap-sync-flag" title="${escapeHtml(instruction)}" aria-label="${escapeHtml(instruction)}">ⓘ</span></span>`;
+  return `<span class="ap-missing-label">No access point ${renderSourcePageFlag({ server }, 'access_point', [{ key: 'access_point', label: 'AP' }])}</span>`;
 }
 
 function renderAccessPointCell(sensor) {
   const accessPoint = String(sensor.access_point || '').trim();
   if (accessPoint) return escapeHtml(accessPoint);
-  const instruction = getApSyncInstruction(sensor.server, [sensor]);
-  return `<span class="ap-missing-label">No access point <span class="ap-sync-flag" title="${escapeHtml(instruction)}" aria-label="${escapeHtml(instruction)}">ⓘ</span></span>`;
+  return `<span class="ap-missing-label">No access point ${renderSourcePageFlag(sensor, 'access_point')}</span>`;
 }
 
 function apLocationHasCoordinates(location = {}) {
@@ -2730,6 +2790,7 @@ function buildSensorTable(rows, detailKey = null) {
     const done = isCalibrated(s) && !fail && !qualityError;
     const calibratedBy = displayCalibratedBy(s.calibrated_by);
     const validationIssues = getSensorValidationIssues(s);
+    const missingSourceFields = getMissingSourcePageFields(s);
     const meterIssue = validationIssues.find(issue => issue.field === 'Certificate');
     const cannedIssue = validationIssues.find(issue => issue.field === 'Calibration message');
     const validationSeverity = validationIssues.some(issue => issue.severity === 'high') ? 'high' : 'low';
@@ -2741,21 +2802,21 @@ function buildSensorTable(rows, detailKey = null) {
       validationIssues.length ? 'sensor-validation-row' : '',
     ].filter(Boolean).join(' ');
     return `<tr class="${rowClasses}">
-      <td class="muted mono">#${s.sensor_id}</td>
-      <td class="mono muted" title="${s.cp_address||''}">${s.cp_address || '<span class="muted">—</span>'}</td>
-      <td title="${escapeHtml(s.sensor_name || '')}">${nameCell}${repeatBadge}${validationBadge}</td>
-      <td class="muted" title="${s.zone||''}">${s.zone || '—'}</td>
+       <td class="muted mono">#${s.sensor_id}</td>
+       <td class="mono muted" title="${escapeHtml(s.cp_address || '')}">${escapeHtml(s.cp_address || '—')}${renderSourcePageFlag(s, 'cp_address', missingSourceFields)}</td>
+       <td title="${escapeHtml(s.sensor_name || '')}">${nameCell}${renderSourcePageFlag(s, 'sensor_name', missingSourceFields)}${repeatBadge}${validationBadge}</td>
+       <td class="muted" title="${escapeHtml(s.zone || '')}">${escapeHtml(s.zone || '—')}${renderSourcePageFlag(s, 'zone', missingSourceFields)}</td>
       <td class="muted mono">${s.server || '—'}</td>
-      <td>${badge(s.sensor_type)}</td>
+       <td>${badge(s.sensor_type)}${renderSourcePageFlag(s, 'sensor_type', missingSourceFields)}</td>
       <td title="${escapeHtml(s.serial_number || '')}">
-        ${renderSerialNumber(s)}
+         ${renderSerialNumber(s)}${renderSourcePageFlag(s, 'serial_number', missingSourceFields)}
       </td>
        <td class="muted" title="${s.access_point || ''}">${renderAccessPointCell(s)}</td>
-      <td>${qualBadge(s.quality)}</td>
+       <td>${qualBadge(s.quality)}${renderSourcePageFlag(s, 'quality', missingSourceFields)}</td>
       <td>${statusCell(s.status)}</td>
       <td class="mono muted">${fmtOffset(s.old_offset)}</td>
-      <td class="${fail ? 'fail-val' : 'mono muted'}">${fmtOffset(s.new_offset)}</td>
-      <td>${fmtDate(s.calibrated_at)}</td>
+       <td class="${fail ? 'fail-val' : 'mono muted'}">${fmtOffset(s.new_offset)}${renderSourcePageFlag(s, 'new_offset', missingSourceFields)}</td>
+       <td>${fmtDate(s.calibrated_at)}${renderSourcePageFlag(s, 'calibrated_at', missingSourceFields)}</td>
       <td class="muted" title="${escapeHtml(calibratedBy)}">${escapeHtml(calibratedBy) || '—'}</td>
       <td title="${escapeHtml(s.cal_cert || '')}"><span class="${meterIssue ? 'sensor-validation-error' : 'muted'}">${escapeHtml(s.cal_cert || '—')}</span></td>
       <td title="${escapeHtml(s.canned_msg || '')}"><span class="${cannedIssue ? 'sensor-validation-error' : 'muted'}">${escapeHtml(s.canned_msg || '—')}</span></td>

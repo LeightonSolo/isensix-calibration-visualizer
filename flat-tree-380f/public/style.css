@@ -846,6 +846,19 @@ body.server-overview-open { overflow: hidden; }
   font-weight: 700;
 }
 
+.source-sync-flag {
+  display: inline-block;
+  margin-left: 4px;
+  color: var(--accent-orange);
+  cursor: help;
+  font-weight: 700;
+}
+
+.source-sync-flag a {
+  color: inherit;
+  text-decoration: underline;
+}
+
 .ap-location-dialog { max-width: 560px; }
 
 .ap-location-form {
