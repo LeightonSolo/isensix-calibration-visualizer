@@ -106,6 +106,17 @@ Cloudflare-specific instructions are in [`flat-tree-380f/AGENTS.md`](flat-tree-3
 The dashboard provides interactive operational views as well as customer-facing calibration summaries and full reports. Example media will be added here as the interface evolves.
 
 <img width="1782" height="1073" alt="Calibration dashboard overview" src="https://github.com/user-attachments/assets/5c5d9008-e280-4003-9dc2-7cf8ae24d042" />
+<img width="1991" height="930" alt="image" src="https://github.com/user-attachments/assets/efec304a-f7df-4b7a-9582-d46f4c1617e4" />
+<img width="1994" height="561" alt="image" src="https://github.com/user-attachments/assets/717e86db-b26c-404e-acf8-db3364237c79" />
+<img width="1977" height="252" alt="image" src="https://github.com/user-attachments/assets/af94fee9-0a5f-4d22-b877-88fc250897a1" />
+<img width="1979" height="512" alt="image" src="https://github.com/user-attachments/assets/13a58bc2-a619-498c-b7d9-df97be2df301" />
+<img width="1972" height="830" alt="image" src="https://github.com/user-attachments/assets/7a9b08e2-c3d5-48db-af31-cc713a4a4ff9" />
+<img width="1747" height="1234" alt="image" src="https://github.com/user-attachments/assets/82ecbe25-88f9-43c1-92bb-48a5a8d04d7e" />
+
+
+
+
+
 
 <video src="https://github.com/user-attachments/assets/ce9eb33c-3b39-40dc-b0d6-c86a19550937" width="320" height="240" controls></video>
 
