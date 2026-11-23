@@ -2237,6 +2237,11 @@ table.summary tr:hover td { background: var(--bg-row-hover); }
 .map-ap-detail-body { padding:5px 5px 2px 17px; line-height:1.35; }
 .map-server-link { color:var(--accent-light-blue); text-decoration:underline; text-underline-offset:2px; }
 .map-sensor-tooltip { border:1px solid #477db4; background:#173451; color:#fff; font-weight:600; }
+.map-marker-count { padding:0 !important; border:0 !important; background:transparent !important; box-shadow:none !important; color:#fff !important; font-size:11px; font-weight:700; line-height:1; pointer-events:none; text-shadow:0 1px 2px rgba(0,0,0,.95); white-space:nowrap; }
+.map-marker-count::before { display:none !important; }
+.map-marker-count-icon { width:0 !important; height:0 !important; border:0 !important; background:transparent !important; pointer-events:none; }
+.map-marker-count-label { position:absolute; top:0; left:0; display:block; transform:translate(-50%,-50%); color:#fff; font-size:11px; font-weight:700; line-height:1; pointer-events:none; text-shadow:0 1px 2px rgba(0,0,0,.95); white-space:nowrap; }
+.map-job-tooltip { max-width:280px; white-space:normal; }
 .map-pin-editor { position:absolute; z-index:1000; top:12px; left:50%; display:flex; flex-direction:column; gap:7px; width:min(310px,calc(100% - 24px)); padding:10px 12px; transform:translateX(-50%); border:1px solid var(--accent-light-blue); border-radius:var(--radius-md); background:var(--bg-panel); box-shadow:0 6px 22px rgba(0,0,0,.28); color:var(--text-primary); font-size:12px; }
 .map-pin-editor span { color:var(--text-muted); font-family:var(--font-mono); font-size:11px; }
 .map-pin-editor > div { display:flex; justify-content:flex-end; gap:7px; }

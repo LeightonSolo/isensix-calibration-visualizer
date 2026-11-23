@@ -209,8 +209,8 @@
     const sharedLocationId = locationIds.length === 1 && group.rows.every(row => Number(row.location_id) === locationIds[0])
       ? locationIds[0]
       : null;
-    const groupAdjust = group.rows.length > 1
-      ? '<button type="button" class="map-pin-adjust" data-map-adjust-group="true">Move all APs together</button>'
+    const groupAdjust = canBulkMoveRows(group.rows, coordinate)
+      ? `<button type="button" class="map-pin-adjust" data-map-adjust-group="true">Move all ${group.rows.length} APs for this job</button>`
       : '';
     const groupLocationAction = `<button type="button" class="map-location-edit" data-map-location-group="true">${sharedLocationId ? 'Edit location details' : 'Create location details'}</button>`;
     const sharedLocationDetails = sharedLocationId ? locationDetailsHtml(group.rows[0]) : '';
@@ -260,13 +260,121 @@
     return `${Math.round(latitude / latitudeStep)}:${Math.round(longitude / longitudeStep)}`;
   }
 
+  function mapClusterRadiusPixels(zoom) {
+    return Math.max(16, Math.min(72, 72 - Math.max(0, zoom - 4) * 7));
+  }
+
+  function markerRadius(sensorCount, maxRadius) {
+    return Math.max(8, Math.min(maxRadius, 8 + Math.sqrt(Math.max(1, Number(sensorCount) || 0))));
+  }
+
+  function addMarkerCountLabel(map, point, count) {
+    return global.L.marker(point, {
+      icon: global.L.divIcon({
+        className: 'map-marker-count-icon',
+        html: `<span class="map-marker-count-label">${escapeHtml((Number(count) || 0).toLocaleString())}</span>`,
+        iconSize: [0, 0],
+        iconAnchor: [0, 0],
+      }),
+      interactive: false,
+      keyboard: false,
+      zIndexOffset: 1000,
+    }).addTo(map);
+  }
+
+  function jobMarkerTooltip(group) {
+    const names = [];
+    const seen = new Set();
+    group.rows.forEach(row => {
+      const name = String(row.job_name || row.customer || 'Unassigned job').trim() || 'Unassigned job';
+      const key = String(row.job_id || name);
+      if (seen.has(key)) return;
+      seen.add(key);
+      names.push(name);
+    });
+    if (!names.length) return `${Number(group.sensorCount) || 0} sensors`;
+    const visible = names.slice(0, 3).map(escapeHtml).join(', ');
+    const remaining = names.length - 3;
+    return `${visible}${remaining > 0 ? `, ${remaining} more...` : ''}`;
+  }
+
+  function mapLocationGroups(sourceRows, map, coordinateFn) {
+    const baseGroups = new Map();
+    sourceRows.forEach(row => {
+      const point = coordinateFn(row);
+      if (!point) return;
+      const key = locationGroupKey(point);
+      if (!baseGroups.has(key)) baseGroups.set(key, { point, rows: [] });
+      baseGroups.get(key).rows.push(row);
+    });
+
+    const radius = mapClusterRadiusPixels(map.getZoom());
+    const radiusSquared = radius * radius;
+    const clusters = [];
+    baseGroups.forEach(baseGroup => {
+      const projected = map.project(baseGroup.point, map.getZoom());
+      let closest = null;
+      let closestDistance = Infinity;
+      clusters.forEach(cluster => {
+        const dx = projected.x - cluster.projected.x;
+        const dy = projected.y - cluster.projected.y;
+        const distance = dx * dx + dy * dy;
+        if (distance <= radiusSquared && distance < closestDistance) {
+          closest = cluster;
+          closestDistance = distance;
+        }
+      });
+      if (!closest) {
+        clusters.push({ point: baseGroup.point, rows: [...baseGroup.rows], projected });
+        return;
+      }
+      closest.rows.push(...baseGroup.rows);
+      const points = closest.rows.map(row => coordinateFn(row));
+      closest.point = [
+        points.reduce((sum, point) => sum + point[0], 0) / points.length,
+        points.reduce((sum, point) => sum + point[1], 0) / points.length,
+      ];
+      closest.projected = map.project(closest.point, map.getZoom());
+    });
+    return clusters.map(({ point, rows }) => ({ point, rows }));
+  }
+
+  function jobMarkerStyle(group) {
+    const sensorRows = group.rows.filter(row => row.location_kind === 'sensor_location');
+    const assessedRows = sensorRows.length
+      ? sensorRows
+      : group.rows.filter(row => row.location_kind !== 'legacy_offsite');
+    const needsAttention = sensorRows.some(row => row.uses_job_fallback);
+    const verified = assessedRows.length > 0 && assessedRows.every(row => {
+      const source = String(row.ap_location_source || row.location_source || '').toLowerCase();
+      return !row._mapFromAddress && !row.uses_job_fallback && (source === 'manual' || source === 'gps');
+    });
+    if (needsAttention) return { color: '#c92a2a', fillColor: '#ff8787' };
+    if (verified) return { color: '#2f9e44', fillColor: '#69db7c' };
+    return { color: '#d8782f', fillColor: '#f0a04b' };
+  }
+
+  function canBulkMoveRows(rows, coordinateFn) {
+    const apRows = rows.filter(row => {
+      const accessPoint = String(row.access_point || '').trim();
+      return accessPoint && !/^no access point$/i.test(accessPoint);
+    });
+    if (apRows.length < 2 || apRows.length !== rows.length) return false;
+    const points = apRows.map(row => coordinateFn(row));
+    if (points.some(point => !point)) return false;
+    const jobs = new Set(apRows.map(row => String(row.job_id || row.job_name || row.customer || row.server_customer || 'unassigned')));
+    const locations = new Set(points.map(point => locationGroupKey(point)));
+    return jobs.size === 1 && locations.size === 1;
+  }
+
   function legacyOffsiteRows(job) {
     const raw = String(job.offsites || '').trim();
     if (!raw || /^(none|no|n\/a|na|unknown|0)$/i.test(raw)) return [];
     const fullAddresses = [...new Set((raw.match(/\b\d{1,6}\s+[^,\n]+,\s*[^,\n]+,\s*[A-Z]{2}\s+\d{5}(?:-\d{4})?\b/gi) || []).map(value => value.trim()))];
-    const candidates = fullAddresses.length > 1 ? fullAddresses : raw.split(/\r?\n+/).map(value => value.trim()).filter(value => {
+    const rawCandidates = fullAddresses.length > 1 ? fullAddresses : raw.split(/\r?\n+/).map(value => value.trim()).filter(value => {
       return value && !/^https?:\/\//i.test(value) && looksLikeOffsiteAddress(value);
     });
+    const candidates = [...new Set(rawCandidates)];
     return candidates.map((value, index) => {
       const address = value
         .replace(/^\d+\s+sensors?\s+at\s*:?\s*/i, '')
@@ -328,9 +436,19 @@
         remaining: Number(job.sensors) || 0,
       });
     });
+    const seenOffsiteKeys = new Set();
     structuredLocations.filter(location => location.location_role !== 'main_site'
       && !isPlaceholderOffsiteText(location.address)
-      && !adoptedMainLocationIds.has(Number(location.job_location_id))).forEach(location => rows.push({
+      && !adoptedMainLocationIds.has(Number(location.job_location_id))).forEach(location => {
+      const key = [
+        location.job_id,
+        location.location_role || 'offsite',
+        location.name || location.physical_location_name || '',
+        location.physical_location_address || location.address || '',
+      ].map(value => cacheKey(value)).join('|');
+      if (seenOffsiteKeys.has(key)) return;
+      seenOffsiteKeys.add(key);
+      rows.push({
       ...location,
       location_kind: 'job_location',
       address: location.physical_location_address || location.address || '',
@@ -343,7 +461,8 @@
       calibrated_count: 0,
       exception_count: 0,
       remaining: 0,
-    }));
+      });
+    });
     (payload?.ap_locations || []).forEach(location => {
       const job = jobById.get(String(location.job_id));
       const savedMain = mainLocations.get(String(location.job_id));
@@ -380,6 +499,7 @@
   }
 
   function jobLocationDetails(row) {
+    const addressKey = cacheKey(row.address);
     const details = [
       row.access_hours && `Hours: ${row.access_hours}`,
       row.contact_name && `Contact: ${row.contact_name}`,
@@ -387,11 +507,12 @@
       row.contact_email,
       row.physical_location_notes,
       row.notes && row.location_kind !== 'legacy_offsite' && row.notes,
-    ].filter(Boolean);
+    ].filter(Boolean)
+      .filter(value => !addressKey || cacheKey(value) !== addressKey);
     return details.length ? `<div class="map-location-details">${details.map(value => escapeHtml(value)).join('<br>')}</div>` : '';
   }
 
-  const JOB_POPUP_PAGE_SIZE = 5;
+  const JOB_POPUP_PAGE_SIZE = 3;
 
   function locationSensorCount(group) {
     const countsByJob = new Map();
@@ -408,7 +529,7 @@
     return [...countsByJob.values()].reduce((sum, count) => sum + count, orphanCount);
   }
 
-  function buildJobApSection(group, page = 0) {
+  function buildJobApSection(group, page = 0, coordinateFn = coordinate) {
     const sensorRows = group.rows.filter(row => row.location_kind === 'sensor_location' && row.access_point);
     if (!sensorRows.length) return '';
     const pageCount = Math.max(1, Math.ceil(sensorRows.length / JOB_POPUP_PAGE_SIZE));
@@ -418,18 +539,24 @@
     const pageStart = currentPage * JOB_POPUP_PAGE_SIZE + 1;
     const pageEnd = Math.min(sensorRows.length, (currentPage + 1) * JOB_POPUP_PAGE_SIZE);
     const pageControls = pageCount > 1 ? `<div class="map-job-pagination"><button type="button" data-map-page="${currentPage - 1}" ${currentPage === 0 ? 'disabled' : ''}>Previous</button><span>APs ${pageStart}-${pageEnd} of ${sensorRows.length}</span><button type="button" data-map-page="${currentPage + 1}" ${currentPage >= pageCount - 1 ? 'disabled' : ''}>Next</button></div>` : '';
-    const moveAll = sensorRows.length > 1 ? `<button type="button" class="map-pin-adjust" data-map-move-all>Move all ${sensorRows.length} APs</button>` : '';
+    const moveAll = canBulkMoveRows(sensorRows, coordinateFn)
+      ? `<button type="button" class="map-pin-adjust" data-map-move-all>Move all ${sensorRows.length} APs for this job</button>`
+      : '';
     return `<section class="map-job-ap-section"><div class="map-job-ap-heading"><strong>Access points</strong><span>${sensorRows.length} APs at this location</span>${moveAll}</div>${apRows}${pageControls}</section>`;
   }
 
-  function buildJobPopup(group, page = 0) {
+  function buildJobPopupPage(group, page = 0) {
     const groupedJobs = new Map();
     group.rows.forEach(row => {
       const key = String(row.job_id || row.job_name || row.customer || 'unassigned');
       if (!groupedJobs.has(key)) groupedJobs.set(key, []);
       groupedJobs.get(key).push(row);
     });
-    const jobSections = [...groupedJobs.values()].map(rowsForJob => {
+    const jobEntries = [...groupedJobs.values()];
+    const pageCount = Math.max(1, Math.ceil(jobEntries.length / JOB_POPUP_PAGE_SIZE));
+    const currentPage = Math.min(Math.max(0, Number(page) || 0), pageCount - 1);
+    const pageRows = jobEntries.slice(currentPage * JOB_POPUP_PAGE_SIZE, (currentPage + 1) * JOB_POPUP_PAGE_SIZE);
+    const jobSections = pageRows.map(rowsForJob => {
       const first = rowsForJob[0];
       const name = String(first.job_name || first.customer || 'Unassigned job').trim();
       const href = first.job_name ? `jobs.html?job=${encodeURIComponent(first.job_name)}` : 'jobs.html';
@@ -458,11 +585,21 @@
       const legacyNote = /^(none|no|n\/a|na|unknown|0)$/i.test(String(legacyValue).trim()) ? '' : legacyValue;
       return `<section class="map-job-section"><a class="map-job-name map-job-link" href="${escapeHtml(href)}">${escapeHtml(name)}</a><span>Job total: ${totalSensors} sensors</span>${locationRows}${legacyNote ? `<div class="map-location-details"><strong>Existing offsite notes:</strong><br>${escapeHtml(legacyNote)}</div>` : ''}</section>`;
     }).join('');
+    const pageStart = currentPage * JOB_POPUP_PAGE_SIZE + 1;
+    const pageEnd = Math.min(jobEntries.length, (currentPage + 1) * JOB_POPUP_PAGE_SIZE);
+    const pagination = pageCount > 1
+      ? `<div class="map-job-pagination"><button type="button" data-map-job-page="${currentPage - 1}" ${currentPage === 0 ? 'disabled' : ''}>Previous</button><span>Jobs ${pageStart}-${pageEnd} of ${jobEntries.length}</span><button type="button" data-map-job-page="${currentPage + 1}" ${currentPage >= pageCount - 1 ? 'disabled' : ''}>Next</button></div>`
+      : '';
+    return `<div data-map-job-popup-page>${jobSections}${pagination}</div>`;
+  }
+
+  function buildJobPopup(group, page = 0, coordinateFn = coordinate) {
+    const groupedJobs = new Set(group.rows.map(row => String(row.job_id || row.job_name || row.customer || 'unassigned')));
     const jobCount = groupedJobs.size;
     const sensorRows = group.rows.filter(row => row.location_kind === 'sensor_location' && row.access_point);
-    const apSection = buildJobApSection(group, page);
+    const apSection = buildJobApSection(group, group.popupPage || 0, coordinateFn);
     const recordCount = sensorRows.length || group.rows.length;
-    return `<div class="map-location-summary"><strong>${group.sensorCount} sensors represented at this location</strong><span>${jobCount} job${jobCount === 1 ? '' : 's'} &middot; ${recordCount} mapped record${recordCount === 1 ? '' : 's'}</span></div>${jobSections}${apSection}`;
+    return `<div class="map-location-summary"><strong>${group.sensorCount} sensors represented at this location</strong><span>${jobCount} job${jobCount === 1 ? '' : 's'} &middot; ${recordCount} mapped record${recordCount === 1 ? '' : 's'}</span></div>${buildJobPopupPage(group, page)}${apSection}`;
   }
 
   function mountJobs(options) {
@@ -889,31 +1026,30 @@
       closePinEditor();
       markers.forEach(marker => marker.remove());
       markers = [];
-      const grouped = new Map();
-      visibleRows().forEach(row => {
-        const point = jobCoordinate(row);
-        if (!point) return;
-        const key = locationGroupKey(point);
-        if (!grouped.has(key)) grouped.set(key, { point, rows: [], jobsById: new Map(), sensorCount: 0 });
-        const group = grouped.get(key);
-        group.rows.push(row);
-        if (row.job_id) {
-          const existing = group.jobsById.get(String(row.job_id));
-          if (!existing || (Number(row.job_sensors) || 0) > (Number(existing.job_sensors) || 0)) group.jobsById.set(String(row.job_id), row);
-        }
-      });
+      const grouped = mapLocationGroups(visibleRows(), map, jobCoordinate);
       grouped.forEach(group => {
         const points = group.rows.map(row => jobCoordinate(row));
         group.point = [
           points.reduce((sum, point) => sum + point[0], 0) / points.length,
           points.reduce((sum, point) => sum + point[1], 0) / points.length,
         ];
+        group.jobsById = new Map();
+        group.rows.forEach(row => {
+          if (!row.job_id) return;
+          const existing = group.jobsById.get(String(row.job_id));
+          if (!existing || (Number(row.job_sensors) || 0) > (Number(existing.job_sensors) || 0)) group.jobsById.set(String(row.job_id), row);
+        });
         group.sensorCount = locationSensorCount(group);
         group.popupPage = 0;
+        group.jobPopupPage = 0;
+        const markerStyle = jobMarkerStyle(group);
         const marker = global.L.circleMarker(group.point, {
-          radius: Math.max(7, Math.min(19, 7 + Math.sqrt(Math.max(1, group.sensorCount)) / 2)),
-          color: '#d8782f', fillColor: '#f0a04b', fillOpacity: 0.86, weight: 2,
-        }).addTo(map).bindPopup(buildJobPopup(group)).bindTooltip(`${group.sensorCount} sensors`, { className: 'map-sensor-tooltip', direction: 'top', offset: [0, -8] });
+          radius: markerRadius(group.sensorCount, 30),
+          ...markerStyle, fillOpacity: 0.86, weight: 2,
+        }).addTo(map).bindPopup(buildJobPopup(group, group.jobPopupPage, jobCoordinate)).bindTooltip(jobMarkerTooltip(group), {
+          direction: 'top', className: 'map-sensor-tooltip map-job-tooltip', offset: [0, -8],
+        });
+        const countLabel = addMarkerCountLabel(map, group.point, group.sensorCount);
         const bindPopupControls = () => {
           const popupRoot = marker.getPopup()?.getElement();
           if (popupRoot && global.L.DomEvent?.disableClickPropagation) global.L.DomEvent.disableClickPropagation(popupRoot);
@@ -928,8 +1064,25 @@
               const currentSection = marker.getPopup()?.getElement()?.querySelector('.map-job-ap-section');
               if (!currentSection) return;
               const replacement = document.createElement('div');
-              replacement.innerHTML = buildJobApSection(group, group.popupPage);
+              replacement.innerHTML = buildJobApSection(group, group.popupPage, jobCoordinate);
               currentSection.replaceWith(replacement.firstElementChild);
+              bindPopupControls();
+            });
+          });
+          popupRoot?.querySelectorAll('[data-map-job-page]').forEach(button => {
+            if (button.dataset.mapBound === 'true') return;
+            button.dataset.mapBound = 'true';
+            button.addEventListener('click', event => {
+              event.preventDefault();
+              event.stopPropagation();
+              global.L.DomEvent?.stopPropagation(event);
+              group.jobPopupPage = Number(button.dataset.mapJobPage) || 0;
+              const currentPage = marker.getPopup()?.getElement()?.querySelector('[data-map-job-popup-page]');
+              if (!currentPage) return;
+              const replacement = document.createElement('div');
+              replacement.innerHTML = buildJobPopupPage(group, group.jobPopupPage);
+              const nextPage = replacement.querySelector('[data-map-job-popup-page]');
+              if (nextPage) currentPage.replaceWith(nextPage);
               bindPopupControls();
             });
           });
@@ -987,12 +1140,13 @@
             moveAll.dataset.mapBound = 'true';
             moveAll.addEventListener('click', () => {
               marker.closePopup();
-              beginApPinEdit(group.rows.filter(row => row.location_kind === 'sensor_location' && row.access_point));
+              const apRows = group.rows.filter(row => row.location_kind === 'sensor_location' && row.access_point);
+              if (canBulkMoveRows(apRows, jobCoordinate)) beginApPinEdit(apRows);
             });
           }
         };
         marker.on('popupopen', bindPopupControls);
-        markers.push(marker);
+        markers.push(marker, countLabel);
       });
       if (savedView) {
         map.setView(savedView.center, savedView.zoom, { animate: false });
@@ -1102,6 +1256,12 @@
     });
     refreshButton?.addEventListener('click', refresh);
     geocodeButton?.addEventListener('click', geocodeMissing);
+    let markerZoom = map.getZoom();
+    map.on('zoomend', () => {
+      if (map.getZoom() === markerZoom) return;
+      markerZoom = map.getZoom();
+      if (!editState) renderMarkers(true);
+    });
     refresh();
     window.setTimeout(() => map.invalidateSize(), 0);
     return { map, refresh };
@@ -1416,14 +1576,7 @@
       closeLocationEditor();
       markers.forEach(marker => marker.remove());
       markers = [];
-      const grouped = new Map();
-      rows.forEach(row => {
-        const point = coordinate(row);
-        if (!point) return;
-        const key = locationGroupKey(point);
-        if (!grouped.has(key)) grouped.set(key, { point, rows: [] });
-        grouped.get(key).rows.push(row);
-      });
+      const grouped = mapLocationGroups(rows, map, coordinate);
 
       grouped.forEach(group => {
         const points = group.rows.map(row => coordinate(row));
@@ -1437,8 +1590,8 @@
         const sharedLocationId = locationIds.length === 1 && group.rows.every(row => Number(row.location_id) === locationIds[0])
           ? locationIds[0]
           : null;
-        const groupAdjust = group.rows.length > 1
-          ? `<button type="button" class="map-pin-adjust" data-map-adjust-group="true">Move all ${group.rows.length} APs together</button>`
+        const groupAdjust = canBulkMoveRows(group.rows, coordinate)
+          ? `<button type="button" class="map-pin-adjust" data-map-adjust-group="true">Move all ${group.rows.length} APs for this job</button>`
           : '';
         const groupLocationAction = `<button type="button" class="map-location-edit" data-map-location-group="true">${sharedLocationId ? 'Edit location details' : 'Create location details'}</button>`;
         const sharedLocationDetails = sharedLocationId ? locationDetailsHtml(group.rows[0]) : '';
@@ -1456,9 +1609,12 @@
         const popup = `<div class="map-location-summary">${groupJobName ? `<strong class="map-job-name">${escapeHtml(groupJobName)}</strong>` : jobNames.length > 1 ? `<strong class="map-job-name">${jobNames.length} jobs at this location</strong>` : ''}${sharedLocationId && group.rows[0].location_name ? `<strong class="map-location-name">${escapeHtml(group.rows[0].location_name)}</strong>` : ''}${sharedLocationDetails}<strong>${totalSensors} sensors at this location</strong><span>${group.rows.length} AP${group.rows.length === 1 ? '' : 's'} · ${totalCalibrated} calibrated · ${totalRemaining} remaining</span><div class="map-location-actions">${groupLocationAction}${groupAdjust}</div></div>${jobSections}`;
          let popupPage = 0;
          const marker = global.L.circleMarker(group.point, {
-          radius: Math.max(7, Math.min(18, 6 + Math.sqrt(totalSensors))),
+           radius: markerRadius(totalSensors, 26),
           color: markerColor(representative), fillColor: markerColor(representative), fillOpacity: 0.82, weight: 2,
-          }).addTo(map).bindPopup(buildDashboardPopup(group, popupPage, options)).bindTooltip(`${totalSensors} sensors`, { className: 'map-sensor-tooltip', direction: 'top', offset: [0, -8] });
+           }).addTo(map).bindPopup(buildDashboardPopup(group, popupPage, options)).bindTooltip(`${totalSensors.toLocaleString()} sensors`, {
+             direction: 'top', className: 'map-sensor-tooltip', offset: [0, -8],
+           });
+           const countLabel = addMarkerCountLabel(map, group.point, totalSensors);
          const bindPopupControls = () => {
           const popupRoot = marker.getPopup()?.getElement();
            if (popupRoot && global.L.DomEvent?.disableClickPropagation) global.L.DomEvent.disableClickPropagation(popupRoot);
@@ -1508,7 +1664,7 @@
             groupButton.dataset.mapBound = 'true';
             groupButton.addEventListener('click', () => {
               marker.closePopup();
-              beginPinEdit(group.rows);
+              if (canBulkMoveRows(group.rows, coordinate)) beginPinEdit(group.rows);
             });
           }
           const locationButton = popupRoot?.querySelector('[data-map-location-group]');
@@ -1521,7 +1677,7 @@
           }
          };
          marker.on('popupopen', bindPopupControls);
-        markers.push(marker);
+        markers.push(marker, countLabel);
       });
 
       if (savedView) {
@@ -1605,6 +1761,12 @@
 
     refreshButton?.addEventListener('click', refresh);
     geocodeButton?.addEventListener('click', geocodeMissing);
+    let markerZoom = map.getZoom();
+    map.on('zoomend', () => {
+      if (map.getZoom() === markerZoom) return;
+      markerZoom = map.getZoom();
+      if (!editState && !locationEditState) renderMarkers(true);
+    });
     refresh();
     window.setTimeout(() => map.invalidateSize(), 0);
     return { map, refresh, pickApLocation };

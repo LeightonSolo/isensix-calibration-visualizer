@@ -273,6 +273,10 @@ html[data-theme="light"] #jobs-table tbody tr.inactive-job:hover td:first-child 
 .map-search input { width:min(220px,22vw); min-width:150px; padding:5px 8px; border:1px solid var(--border); border-radius:var(--radius-sm); background:var(--bg-input); color:var(--text-primary); font:11px var(--font-sans); }
 .map-legend { display:flex; flex-wrap:wrap; gap:8px 18px; padding:8px 18px 2px; color:var(--text-muted); font-size:10px; }
 .map-legend span { display:inline-flex; align-items:center; gap:5px; }
+.map-legend-swatch { display:inline-block; width:10px; height:10px; border:2px solid; border-radius:50%; }
+.map-legend-verified { border-color:#2f9e44; background:#69db7c; }
+.map-legend-estimate { border-color:#d8782f; background:#f0a04b; }
+.map-legend-attention { border-color:#c92a2a; background:#ff8787; }
 .map-legend-marker { display:inline-block; width:10px; height:10px; border:2px solid #d8782f; border-radius:50%; background:#f0a04b; }
 .map-legend-size { display:inline-block; width:14px; height:14px; border:2px solid #d8782f; border-radius:50%; background:rgba(240,160,75,.65); }
 .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
