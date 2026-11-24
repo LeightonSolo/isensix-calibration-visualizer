@@ -3,10 +3,12 @@ import { useState, useCallback } from 'react';
 import { CONFIG } from '../config';
 import { withoutAutomaticUnassigned } from '../utils/calendarAssignments.js';
 import { siteHeaders } from '../utils/siteAuth.js';
+import { readCalendarSnapshot, writeCalendarSnapshot } from '../utils/calendarExport.js';
 
-function headers(editorToken) {
+function headers(editorToken, editorName) {
   const h = siteHeaders({ 'Content-Type': 'application/json' });
   if (editorToken) h['X-Calendar-Token'] = editorToken;
+  if (editorName) h['X-Editor-Name'] = editorName;
   return h;
 }
 
@@ -22,6 +24,8 @@ export function useCalendarData() {
   const [techEvents,  setTechEvents]  = useState([]);
   const [loading,     setLoading]     = useState(false);
   const [error,       setError]       = useState(null);
+  const [lastLoadedAt, setLastLoadedAt] = useState(null);
+  const [usingCachedData, setUsingCachedData] = useState(false);
 
   const load = useCallback(async (_startDate, _endDate) => {
     setLoading(true);
@@ -40,62 +44,77 @@ export function useCalendarData() {
         fetch(`${CONFIG.WORKER_URL}/calendar/tech-events`,
           { headers: headers() }),
       ]);
+      if (!evRes.ok || !asRes.ok || !teRes.ok) {
+        throw new Error(`Calendar data request failed (${evRes.status}/${asRes.status}/${teRes.status})`);
+      }
       const [ev, as, te] = await Promise.all([
         evRes.json(), asRes.json(), teRes.json()
       ]);
       setEvents(ev);
       setAssignments(withoutAutomaticUnassigned(as.map(normalizeFlexRow)));
       setTechEvents(te.map(normalizeFlexRow));
+      const loadedAt = new Date();
+      setLastLoadedAt(loadedAt);
+      setUsingCachedData(false);
+      writeCalendarSnapshot({ events: ev, assignments: as, techEvents: te }, loadedAt);
     } catch(e) {
       setError('Failed to load calendar data');
+      const snapshot = readCalendarSnapshot();
+      if (snapshot) {
+        setEvents(snapshot.events);
+        setAssignments(withoutAutomaticUnassigned(snapshot.assignments.map(normalizeFlexRow)));
+        setTechEvents(snapshot.techEvents.map(normalizeFlexRow));
+        setLastLoadedAt(snapshot.savedAt ? new Date(snapshot.savedAt) : null);
+        setUsingCachedData(true);
+      }
       console.error(e);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  const saveEvent = useCallback(async (eventData, editorToken) => {
+  const saveEvent = useCallback(async (eventData, editorToken, editorName) => {
     const res = await fetch(`${CONFIG.WORKER_URL}/calendar/events`, {
       method: 'POST',
-      headers: headers(editorToken),
+      headers: headers(editorToken, editorName),
       body: JSON.stringify(eventData),
     });
     if (!res.ok) throw new Error('Failed to save event');
     return res.json();
   }, []);
 
-  const deleteEvent = useCallback(async (id, editorToken) => {
+  const deleteEvent = useCallback(async (id, editorToken, editorName) => {
     const res = await fetch(`${CONFIG.WORKER_URL}/calendar/events/${id}`, {
       method: 'DELETE',
-      headers: headers(editorToken),
+      headers: headers(editorToken, editorName),
     });
     if (!res.ok) throw new Error('Failed to delete event');
     return res.json();
   }, []);
 
-  const saveTechEvent = useCallback(async (techEventData, editorToken) => {
+  const saveTechEvent = useCallback(async (techEventData, editorToken, editorName) => {
     const res = await fetch(`${CONFIG.WORKER_URL}/calendar/tech-events`, {
       method: 'POST',
-      headers: headers(editorToken),
+      headers: headers(editorToken, editorName),
       body: JSON.stringify(techEventData),
     });
     if (!res.ok) throw new Error('Failed to save tech event');
     return res.json();
   }, []);
 
-  const deleteTechEvent = useCallback(async (id, editorToken) => {
+  const deleteTechEvent = useCallback(async (id, editorToken, editorName) => {
     const res = await fetch(`${CONFIG.WORKER_URL}/calendar/tech-events/${id}`, {
       method: 'DELETE',
-      headers: headers(editorToken),
+      headers: headers(editorToken, editorName),
     });
     if (!res.ok) throw new Error('Failed to delete tech event');
     return res.json();
   }, []);
 
-  const saveTechEventBatch = useCallback(async (entries, editorToken) => {
+  const saveTechEventBatch = useCallback(async (entries, editorToken, editorName) => {
     const res = await fetch(`${CONFIG.WORKER_URL}/calendar/tech-events/batch`, {
       method: 'POST',
-      headers: headers(editorToken),
+      headers: headers(editorToken, editorName),
       body: JSON.stringify({ entries }),
     });
     if (!res.ok) throw new Error('Failed to save tech events');
@@ -104,7 +123,7 @@ export function useCalendarData() {
 
   return {
     events, assignments, techEvents,
-    loading, error,
+    loading, error, lastLoadedAt, usingCachedData,
     load, saveEvent, deleteEvent,
     saveTechEvent, deleteTechEvent, saveTechEventBatch,
   };

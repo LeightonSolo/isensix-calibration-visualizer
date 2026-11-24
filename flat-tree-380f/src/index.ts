@@ -15,7 +15,7 @@ function corsHeaders() {
   return {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS, DELETE',
-    'Access-Control-Allow-Headers': 'Content-Type, X-Api-Key, X-Editor-Token, X-Calendar-Token',
+    'Access-Control-Allow-Headers': 'Content-Type, X-Api-Key, X-Editor-Token, X-Calendar-Token, X-Editor-Name',
   };
 }
 
@@ -1937,6 +1937,7 @@ export default {
         return new Response('Forbidden', { status: 403 });
       }
       const body = await request.json() as Record<string, any>;
+      const updatedBy = request.headers.get('X-Editor-Name')?.trim().slice(0, 100) || null;
       const { id, title, event_type, status, customer,
               start_date, end_date, ticket_id, notes, assignments,
               job_info_id, source_calibration_date } = body;
@@ -1969,23 +1970,23 @@ export default {
               ELSE COALESCE(dates_manually_set, 0)
             END,
             job_info_id=?, title=?, event_type=?, status=?, customer=?,
-            start_date=?, end_date=?, ticket_id=?, notes=?,
-            updated_at=datetime('now')
+             start_date=?, end_date=?, ticket_id=?, notes=?,
+             updated_at=datetime('now'), updated_by=?
             WHERE id=?
         `).bind(start_date, end_date,
                 job_info_id ?? null, title, event_type, status, customer ?? null,
                 start_date, end_date, ticket_id ?? null,
-                storedNotes, id).run();
+                storedNotes, updatedBy, id).run();
       } else {
         const result = await env.DB.prepare(`
           INSERT INTO calendar_events
-            (job_info_id, source_calibration_date, title, event_type, status,
-             customer, start_date, end_date, ticket_id, notes, dates_manually_set)
-          VALUES (?,?,?,?,?,?,?,?,?,?,?)
+             (job_info_id, source_calibration_date, title, event_type, status,
+              customer, start_date, end_date, ticket_id, notes, dates_manually_set, updated_by)
+          VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
         `).bind(job_info_id ?? null, source_calibration_date ?? null,
                 title, event_type, status ?? 'ticketed', customer ?? null,
                 start_date, end_date, ticket_id ?? null, storedNotes,
-                source_calibration_date ? 0 : 1).run();
+                source_calibration_date ? 0 : 1, updatedBy).run();
         eventId = result.meta.last_row_id;
       }
 
@@ -2073,13 +2074,15 @@ export default {
         return new Response('Forbidden', { status: 403 });
       }
       const body = await request.json() as Record<string, any>;
+      const updatedBy = request.headers.get('X-Editor-Name')?.trim().slice(0, 100) || null;
       const { tech_name, person_name, event_type, date, notes } = body;
       await env.DB.prepare(`
-        INSERT INTO tech_events (tech_name, person_name, event_type, date, notes)
-        VALUES (?,?,?,?,?)
+        INSERT INTO tech_events (tech_name, person_name, event_type, date, notes, updated_at, updated_by)
+        VALUES (?,?,?,?,?,datetime('now'),?)
         ON CONFLICT(tech_name, date) DO UPDATE SET
-          person_name=excluded.person_name, event_type=excluded.event_type, notes=excluded.notes
-      `).bind(tech_name, person_name ?? null, event_type, date, notes ?? null).run();
+          person_name=excluded.person_name, event_type=excluded.event_type, notes=excluded.notes,
+          updated_at=datetime('now'), updated_by=excluded.updated_by
+      `).bind(tech_name, person_name ?? null, event_type, date, notes ?? null, updatedBy).run();
       return json({ ok: true });
     }
 
@@ -2092,16 +2095,19 @@ export default {
         return new Response('No entries', { status: 400 });
       }
       const stmt = env.DB.prepare(`
-        INSERT INTO tech_events (tech_name, person_name, event_type, date, notes)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO tech_events (tech_name, person_name, event_type, date, notes, updated_at, updated_by)
+        VALUES (?, ?, ?, ?, ?, datetime('now'), ?)
         ON CONFLICT(tech_name, date) DO UPDATE SET
           person_name = excluded.person_name,
           event_type = excluded.event_type,
-          notes      = excluded.notes
+          notes      = excluded.notes,
+          updated_at = datetime('now'),
+          updated_by = excluded.updated_by
       `);
       await env.DB.batch(
         entries.map((entry: any) =>
-          stmt.bind(entry.tech_name, entry.person_name ?? null, entry.event_type, entry.date, entry.notes ?? null)
+          stmt.bind(entry.tech_name, entry.person_name ?? null, entry.event_type, entry.date,
+            entry.notes ?? null, request.headers.get('X-Editor-Name')?.trim().slice(0, 100) || null)
         )
       );
       return json({ ok: true, count: entries.length });

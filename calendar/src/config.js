@@ -4,6 +4,7 @@ export const CONFIG = {
   API_KEY: 'U87iy7VynFYLJUDnfUYBJHnRKbRiQO3Z',
   SITE_TOKEN_KEY: 'cal_site_token',
   CALENDAR_TOKEN_KEY: 'cal_calendar_token',
+  EDITOR_NAME_KEY: 'cal_editor_name',
   TECHNICIANS: [
     'Daniel',
     'Dejan',

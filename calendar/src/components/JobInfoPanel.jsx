@@ -10,6 +10,17 @@ import { assignmentLabel } from '../utils/calendarAssignments.js';
 
 const WORKER_URL = CONFIG.WORKER_URL;
 
+function lastEditedLabel(event) {
+  const by = String(event?.updated_by || '').trim();
+  const rawDate = String(event?.updated_at || '').trim();
+  if (!by && !rawDate) return '';
+  let date = rawDate;
+  if (rawDate) {
+    try { date = format(parseISO(rawDate.replace(' ', 'T')), 'MMM d, yyyy h:mm a'); } catch { /* keep raw value */ }
+  }
+  return `Last edited${by ? ` by ${by}` : ''}${date ? ` · ${date}` : ''}`;
+}
+
 const EDIT_SECTIONS = [
   { title: 'Scheduling', fields: [
     { key: 'primary_tech', label: 'Primary tech', type: 'select', options: ['', ...CONFIG.TECHNICIANS] },
@@ -336,6 +347,11 @@ export default function JobInfoPanel({
                 lineHeight: 1.3, marginBottom: 4, overflowWrap: 'anywhere' }}>
                 {selectedEvent.title}
               </div>
+              {lastEditedLabel(selectedEvent) && (
+                <div style={{ fontSize: 11, color: 'var(--cal-text-secondary)', marginBottom: 4 }}>
+                  {lastEditedLabel(selectedEvent)}
+                </div>
+              )}
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                 {selectedEvent.ticket_id && (
                   <span style={{ fontSize: 14, color: 'var(--cal-text-secondary)',

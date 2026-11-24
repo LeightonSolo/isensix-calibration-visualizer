@@ -43,6 +43,17 @@ function getTechEventColor(te) {
   return CONFIG.TYPE_COLORS[te.event_type] || CONFIG.TYPE_COLORS.other;
 }
 
+function lastEditedLabel(event) {
+  const by = String(event?.updated_by || '').trim();
+  const rawDate = String(event?.updated_at || '').trim();
+  if (!by && !rawDate) return '';
+  let date = rawDate;
+  if (rawDate) {
+    try { date = format(parseISO(rawDate.replace(' ', 'T')), 'MMM d, yyyy h:mm a'); } catch { /* keep raw value */ }
+  }
+  return `Last edited${by ? ` by ${by}` : ''}${date ? ` · ${date}` : ''}`;
+}
+
 function eventAssignmentLabels(eventId, assignments) {
   return [...new Set(
     (assignments || [])
@@ -67,11 +78,17 @@ export default function ResourceGrid({
   onJobInfoSaved,
   // New props for job info panel
   onEventHover, onEventHoverEnd, onEventClick, lockedEventId,
+  onModalStateChange,
 }) {
   const [modal,     setModal]     = useState(null);
   const [dragOver,  setDragOver]  = useState(null);
   const [hoverCard, setHoverCard] = useState(null);
   const dragRef = useRef(null);
+
+  useEffect(() => {
+    onModalStateChange?.(Boolean(modal));
+    return () => onModalStateChange?.(false);
+  }, [modal, onModalStateChange]);
 
   const days = useMemo(() => {
     const rangeStart = startOfWeek(subWeeks(viewDate, 2), { weekStartsOn: 1 });
@@ -314,7 +331,12 @@ export default function ResourceGrid({
                 {techEventLabel(hoverCard.data.event_type)}
               </div>
               <div style={{ color: 'var(--cal-text-secondary)', fontSize: 13 }}>{hoverCard.data.date}</div>
-              {hoverCard.data.notes && (
+               {lastEditedLabel(hoverCard.data) && (
+                 <div style={{ color: 'var(--cal-text-secondary)', fontSize: 12, marginTop: 4 }}>
+                   {lastEditedLabel(hoverCard.data)}
+                 </div>
+               )}
+               {hoverCard.data.notes && (
                 <div style={{ color: 'var(--cal-text-soft)', fontSize: 13, marginTop: 4,
                   borderTop: '0.5px solid var(--cal-border)', paddingTop: 4 }}>
                   {hoverCard.data.notes}
@@ -339,6 +361,11 @@ export default function ResourceGrid({
                     : (CONFIG.STATUS_COLORS[hoverCard.data.status] || CONFIG.STATUS_COLORS.ticketed).fg }}>
                   {hoverCard.data.isGhost ? 'tentative' : hoverCard.data.status}
                 </span>
+                {lastEditedLabel(hoverCard.data) && (
+                  <span style={{ color: 'var(--cal-text-secondary)', fontSize: 12 }}>
+                    {lastEditedLabel(hoverCard.data)}
+                  </span>
+                )}
               </div>
               <div style={{ color: 'var(--cal-text)', fontSize: 13 }}>
                 {hoverCard.data.start_date}

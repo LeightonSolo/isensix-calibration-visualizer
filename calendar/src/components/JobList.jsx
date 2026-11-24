@@ -34,8 +34,10 @@ export default function JobList({
   onSaveTechEvent, onSaveTechEventBatch, onDeleteTechEvent,
   onJobInfoSaved,
   calibrationFollowUpRows = [], focusFollowUpKey = 0,
+  onModalStateChange,
 }) {
   const [modal,       setModal]       = useState(null);
+  const [techModalOpen, setTechModalOpen] = useState(false);
   const [filter,      setFilter]      = useState('upcoming');
   const [typeFilter,  setTypeFilter]  = useState('');
   const [techFilter, setTechFilter] = useState('');
@@ -43,6 +45,11 @@ export default function JobList({
   const [sortCol,     setSortCol]     = useState('start_date');
   const [sortDir,     setSortDir]     = useState(1);
   const [view, setView] = useState('jobs'); // 'jobs' | 'techevents'
+
+  useEffect(() => {
+    onModalStateChange?.(Boolean(modal) || techModalOpen);
+    return () => onModalStateChange?.(false);
+  }, [modal, techModalOpen, onModalStateChange]);
 
   useEffect(() => {
     if (!focusFollowUpKey) return;
@@ -383,6 +390,7 @@ export default function JobList({
           onSaveTechEvent={onSaveTechEvent}
           onSaveTechEventBatch={onSaveTechEventBatch}
           onDeleteTechEvent={onDeleteTechEvent}
+           onModalStateChange={setTechModalOpen}
         />
       )}
     </div>
@@ -390,7 +398,7 @@ export default function JobList({
 }
 
 function TechEventList({ techEvents, editorToken, requireEditor,
-  onSaveTechEvent, onSaveTechEventBatch, onDeleteTechEvent }) {
+  onSaveTechEvent, onSaveTechEventBatch, onDeleteTechEvent, onModalStateChange }) {
 
   const [modal,      setModal]      = useState(null);
   const [filter,     setFilter]     = useState('upcoming');
@@ -398,6 +406,11 @@ function TechEventList({ techEvents, editorToken, requireEditor,
   const [techFilter, setTechFilter] = useState('');
   const [sortCol,    setSortCol]    = useState('date');
   const [sortDir,    setSortDir]    = useState(1);
+
+  useEffect(() => {
+    onModalStateChange?.(Boolean(modal));
+    return () => onModalStateChange?.(false);
+  }, [modal, onModalStateChange]);
 
   const TYPE_LABELS = {
     pto: 'PTO', holiday: 'Holiday', jury_duty: 'Jury Duty',

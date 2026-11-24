@@ -12,7 +12,8 @@ CREATE TABLE calendar_events (
   notes       TEXT,
   dates_manually_set INTEGER NOT NULL DEFAULT 0 CHECK (dates_manually_set IN (0, 1)),
   created_at  TEXT DEFAULT (datetime('now')),
-  updated_at  TEXT DEFAULT (datetime('now'))
+  updated_at  TEXT DEFAULT (datetime('now')),
+  updated_by  TEXT
 );
 
 CREATE INDEX idx_calendar_events_job_info
@@ -38,5 +39,7 @@ CREATE TABLE tech_events (
   event_type  TEXT NOT NULL,
   date        TEXT NOT NULL,
   notes       TEXT,
+  updated_at  TEXT DEFAULT (datetime('now')),
+  updated_by  TEXT,
   UNIQUE(tech_name, date)
 );

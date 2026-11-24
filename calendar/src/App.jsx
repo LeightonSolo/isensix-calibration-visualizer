@@ -16,6 +16,7 @@ import {
   normalizeTentativeCalendar,
 } from './utils/tentativeJobs';
 import { buildCalibrationFollowUpRows } from './utils/calibrationFollowUp.js';
+import { downloadCalendarExport } from './utils/calendarExport.js';
 
 const STYLES = {
   app: {
@@ -94,11 +95,15 @@ export default function App() {
   const [editorToken,   setEditorToken]   = useState(
     sessionStorage.getItem(CONFIG.CALENDAR_TOKEN_KEY) || null
   );
+  const [editorName, setEditorName] = useState(
+    localStorage.getItem(CONFIG.EDITOR_NAME_KEY) || ''
+  );
   const [siteAuthenticated, setSiteAuthenticated] = useState(false);
   const [siteError, setSiteError] = useState(null);
   const [sitePassword, setSitePassword] = useState('');
   const [siteSigningIn, setSiteSigningIn] = useState(false);
   const [showGate,      setShowGate]      = useState(false);
+  const [gateNameOnly,  setGateNameOnly]  = useState(false);
   const [pendingAction, setPendingAction] = useState(null);
 
   const loginToSite = useCallback(async password => {
@@ -142,10 +147,20 @@ export default function App() {
   // Job info panel state
   const [hoveredEvent, setHoveredEvent] = useState(null);
   const [lockedEvent,  setLockedEvent]  = useState(null);
+  const [calendarModalOpen, setCalendarModalOpen] = useState(false);
 
-  const { events, assignments, techEvents, loading, error,
+  const { events, assignments, techEvents, loading, error, lastLoadedAt, usingCachedData,
           load, saveEvent, deleteEvent,
           saveTechEvent, saveTechEventBatch, deleteTechEvent } = useCalendarData();
+  const writesBlocked = Boolean(error || usingCachedData);
+  const availableEditorToken = writesBlocked || !editorName ? null : editorToken;
+
+  useEffect(() => {
+    if (siteAuthenticated && editorToken && !editorName) {
+      setGateNameOnly(true);
+      setShowGate(true);
+    }
+  }, [siteAuthenticated, editorToken, editorName]);
 
   const windowStart = useMemo(
     () => startOfWeek(addMonths(viewDate, -1), { weekStartsOn: 1 }),
@@ -159,6 +174,22 @@ export default function App() {
   useEffect(() => {
     if (siteAuthenticated) load(windowStart, windowEnd);
   }, [viewDate, siteAuthenticated, windowStart, windowEnd, load]);
+
+  // Refresh only while the calendar is idle. Open forms and pinned Job Info
+  // panels are treated as potentially unsaved work and block replacement.
+  useEffect(() => {
+    if (!siteAuthenticated) return undefined;
+    const refreshIfIdle = () => {
+      if (document.hidden || calendarModalOpen || lockedEvent || showGate || loading) return;
+      load(windowStart, windowEnd);
+    };
+    const timer = window.setInterval(refreshIfIdle, 5 * 60 * 1000);
+    document.addEventListener('visibilitychange', refreshIfIdle);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', refreshIfIdle);
+    };
+  }, [siteAuthenticated, calendarModalOpen, lockedEvent, showGate, loading, load, windowStart, windowEnd]);
 
   const [serverMeta, setServerMeta] = useState({});
 
@@ -245,16 +276,25 @@ export default function App() {
     : undefined;
 
   function requireEditor(action) {
-    if (editorToken) { action(editorToken); return; }
+    if (writesBlocked) {
+      setSiteError('Calendar edits are disabled while using an offline snapshot. Refresh when the server is available.');
+      return;
+    }
+    if (editorToken && editorName) { action(editorToken); return; }
+    setGateNameOnly(Boolean(editorToken));
     setPendingAction(() => action);
     setShowGate(true);
   }
 
-  function handleUnlock(token) {
+  function handleUnlock(token, name) {
     setShowGate(false);
     if (!token) { setPendingAction(null); return; }
     setEditorToken(token);
     sessionStorage.setItem(CONFIG.CALENDAR_TOKEN_KEY, token);
+    if (name) {
+      setEditorName(name);
+      localStorage.setItem(CONFIG.EDITOR_NAME_KEY, name);
+    }
     if (pendingAction) { pendingAction(token); setPendingAction(null); }
   }
 
@@ -274,9 +314,9 @@ export default function App() {
   // When a ghost event is confirmed, save it as a real event
   async function handleSaveEvent(eventData, token) {
     if (eventData.isGhost) {
-      await saveEvent(materializeTentativeJob(eventData), token);
+      await saveEvent(materializeTentativeJob(eventData), token, editorName);
     } else {
-      await saveEvent(eventData, token);
+      await saveEvent(eventData, token, editorName);
     }
     load(windowStart, windowEnd);
   }
@@ -284,22 +324,22 @@ export default function App() {
   async function handleDeleteEvent(id, token) {
     // Ghost events can't be deleted from DB — just ignore
     if (String(id).startsWith('ghost-')) return;
-    await deleteEvent(id, token);
+    await deleteEvent(id, token, editorName);
     load(windowStart, windowEnd);
   }
 
   async function handleSaveTechEvent(data, token) {
-    await saveTechEvent(data, token);
+    await saveTechEvent(data, token, editorName);
     load(windowStart, windowEnd);
   }
 
   async function handleSaveTechEventBatch(entries, token) {
-    await saveTechEventBatch(entries, token);
+    await saveTechEventBatch(entries, token, editorName);
     load(windowStart, windowEnd);
   }
 
   async function handleDeleteTechEvent(id, token) {
-    await deleteTechEvent(id, token);
+    await deleteTechEvent(id, token, editorName);
     load(windowStart, windowEnd);
   }
 
@@ -365,7 +405,13 @@ export default function App() {
 
   return (
     <div style={STYLES.app}>
-      {showGate && <EditorGate onUnlock={handleUnlock} />}
+      {showGate && (
+        <EditorGate
+          onUnlock={handleUnlock}
+          nameOnly={gateNameOnly}
+          initialName={editorName}
+        />
+      )}
 
       {/* Global navigation */}
       <nav style={STYLES.navbar} aria-label="Global navigation">
@@ -411,7 +457,23 @@ export default function App() {
         <span style={{ fontSize: 12, color: 'var(--cal-text-secondary)' }}>{format(viewDate, 'MMMM yyyy')}</span>
 
         {loading && <span style={{ fontSize: 12, color: 'var(--cal-text-muted)' }}>Loading…</span>}
-        {error   && <span style={{ fontSize: 12, color: 'var(--cal-danger)' }}>{error}</span>}
+        {usingCachedData ? (
+          <span style={{ fontSize: 12, color: 'var(--cal-danger)' }}>
+            Offline snapshot{lastLoadedAt ? ` · last synced ${format(lastLoadedAt, 'MMM d, yyyy h:mm a')}` : ''} · read-only
+          </span>
+        ) : error ? (
+          <span style={{ fontSize: 12, color: 'var(--cal-danger)' }}>{error}</span>
+        ) : lastLoadedAt ? (
+          <span style={{ fontSize: 12, color: 'var(--cal-success)' }}>
+            Synced {format(lastLoadedAt, 'MMM d, yyyy h:mm a')}
+          </span>
+        ) : null}
+
+        <button type="button" style={STYLES.btn}
+          onClick={() => downloadCalendarExport({ events: allEvents, assignments: allAssignments, techEvents })}
+          title="Download a spreadsheet-compatible offline copy of the calendar">
+          Export Excel fallback
+        </button>
 
         {ghostEvents.length > 0 && (
           <span style={{ fontSize: 12, color: 'var(--cal-warning)', marginLeft: 4 }}>
@@ -439,10 +501,18 @@ export default function App() {
           {editorToken ? (
             <>
               <span style={{ fontSize: 12, color: 'var(--cal-success)' }}>✓ Editor</span>
+              <span style={{ fontSize: 12, color: 'var(--cal-success)' }}>User: {editorName || 'not selected'}</span>
+              <button style={STYLES.btn} onClick={() => {
+                setGateNameOnly(true);
+                setShowGate(true);
+              }}>Change user</button>
               <button style={STYLES.btn} onClick={handleLock}>Lock</button>
             </>
           ) : (
-            <button style={STYLES.btn} onClick={() => setShowGate(true)}>
+            <button style={STYLES.btn} onClick={() => {
+              setGateNameOnly(false);
+              setShowGate(true);
+            }}>
               🔒 Editor login
             </button>
           )}
@@ -462,7 +532,7 @@ export default function App() {
               techEvents={techEvents}
               jobInfoMap={jobInfoMap}
               serverMeta={serverMeta}
-              editorToken={editorToken}
+              editorToken={availableEditorToken}
               requireEditor={requireEditor}
               onSaveEvent={handleSaveEvent}
               onDeleteEvent={handleDeleteEvent}
@@ -474,6 +544,7 @@ export default function App() {
               onEventHoverEnd={handleEventHoverEnd}
               onEventClick={handleEventClick}
               lockedEventId={lockedEvent?.id}
+              onModalStateChange={setCalendarModalOpen}
             />
           )}
           {tab === 'list' && (
@@ -483,7 +554,7 @@ export default function App() {
               techEvents={techEvents}
               jobInfoMap={jobInfoMap}
               serverMeta={serverMeta}
-              editorToken={editorToken}
+              editorToken={availableEditorToken}
               requireEditor={requireEditor}
               onSaveEvent={handleSaveEvent}
               onDeleteEvent={handleDeleteEvent}
@@ -494,6 +565,7 @@ export default function App() {
               calibrationFollowUpRows={calibrationFollowUpRows}
               focusFollowUpKey={jobListFocus}
               onEventClick={handleEventClick}
+              onModalStateChange={setCalendarModalOpen}
             />
           )}
         </div>
@@ -505,7 +577,7 @@ export default function App() {
           jobInfoOverride={panelJobInfo}
           locked={!!lockedEvent}
           serverMeta={serverMeta}
-          editorToken={editorToken}
+          editorToken={availableEditorToken}
           requireEditor={requireEditor}
           onJobInfoSaved={handleJobInfoSaved}
           onTravelSaved={handleTravelSaved}
