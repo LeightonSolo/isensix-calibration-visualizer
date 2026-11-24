@@ -472,7 +472,7 @@ export default function App() {
         <button type="button" style={STYLES.btn}
           onClick={() => downloadCalendarExport({ events: allEvents, assignments: allAssignments, techEvents })}
           title="Download a spreadsheet-compatible offline copy of the calendar">
-          Export Excel fallback
+          Export Excel
         </button>
 
         {ghostEvents.length > 0 && (

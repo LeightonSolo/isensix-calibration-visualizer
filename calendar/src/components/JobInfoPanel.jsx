@@ -1,6 +1,6 @@
 /** Displays, edits, links, and exports the Job Info record associated with the selected calendar event. */
 import { useState, useEffect, useRef } from 'react';
-import { CONFIG } from '../config';
+import { CONFIG, displayStatus } from '../config';
 import { format, parseISO } from 'date-fns';
 import { downloadOutlookCalendar } from '../utils/outlookExport.js';
 import { siteHeaders } from '../utils/siteAuth.js';
@@ -347,6 +347,10 @@ export default function JobInfoPanel({
                 lineHeight: 1.3, marginBottom: 4, overflowWrap: 'anywhere' }}>
                 {selectedEvent.title}
               </div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: (CONFIG.TYPE_COLORS[selectedEvent.event_type]
+                || CONFIG.TYPE_COLORS.other).fg, letterSpacing: '0.03em', marginBottom: 4 }}>
+                {CONFIG.EVENT_TYPE_LABELS[selectedEvent.event_type] || selectedEvent.event_type || 'Event'}
+              </div>
               {lastEditedLabel(selectedEvent) && (
                 <div style={{ fontSize: 11, color: 'var(--cal-text-secondary)', marginBottom: 4 }}>
                   {lastEditedLabel(selectedEvent)}
@@ -364,7 +368,7 @@ export default function JobInfoPanel({
                     fontSize: 12, fontWeight: 600, textTransform: 'uppercase',
                     color: statusColor.fg, letterSpacing: '0.04em',
                   }}>
-                    {selectedEvent.status || 'unconfirmed'}
+                    {displayStatus(selectedEvent.status || 'unconfirmed')}
                   </span>
                 )}
                 {selectedEvent.isGhost && (
@@ -761,7 +765,7 @@ function DetailsTab({ jobInfo, event, techs, serverMeta }) {
       {row('Customer',        jobInfo.customer)}
       {row('Job name',        jobInfo.job_name)}
       {row('Last calibrated', jobInfo.last_calibrated)}
-      {row('Calendar status', event.status)}
+      {row('Calendar status', displayStatus(event.status))}
       {row('Primary tech',    jobInfo.primary_tech)}
       {row('Scheduled with',  techs?.join(', '))}
       {row('Scheduled dates', formatDateRange(event.start_date, event.end_date))}

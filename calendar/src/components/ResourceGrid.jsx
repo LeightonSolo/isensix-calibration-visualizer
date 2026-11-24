@@ -5,7 +5,7 @@ import {
   addWeeks, subWeeks, isWeekend, parseISO, addDays,
   differenceInCalendarDays, getISOWeek,
 } from 'date-fns';
-import { CONFIG } from '../config';
+import { CONFIG, displayStatus } from '../config';
 import {
   buildTechSpans,
   horizontalLaneStyle,
@@ -345,7 +345,12 @@ export default function ResourceGrid({
             </>
           ) : (
             <>
-              <div style={{ fontWeight: 600, marginBottom: 3 }}>{hoverCard.data.title}</div>
+               <div style={{ fontWeight: 600, marginBottom: 3 }}>{hoverCard.data.title}</div>
+               <div style={{ color: (CONFIG.TYPE_COLORS[hoverCard.data.event_type]
+                 || CONFIG.TYPE_COLORS.other).fg, fontSize: 13, fontWeight: 700,
+                 letterSpacing: '0.03em', marginBottom: 4 }}>
+                 {CONFIG.EVENT_TYPE_LABELS[hoverCard.data.event_type] || hoverCard.data.event_type || 'Event'}
+               </div>
               {eventAssignmentLabels(hoverCard.data.id, assignments).length > 0 && (
                 <div style={{ color: 'var(--cal-text-secondary)', fontSize: 13, marginBottom: 4 }}>
                   {eventAssignmentLabels(hoverCard.data.id, assignments).join(', ')}
@@ -359,7 +364,7 @@ export default function ResourceGrid({
                   letterSpacing: '0.04em',
                   color: hoverCard.data.isGhost ? 'var(--cal-warning)'
                     : (CONFIG.STATUS_COLORS[hoverCard.data.status] || CONFIG.STATUS_COLORS.ticketed).fg }}>
-                  {hoverCard.data.isGhost ? 'tentative' : hoverCard.data.status}
+                  {displayStatus(hoverCard.data.isGhost ? 'tentative' : hoverCard.data.status)}
                 </span>
                 {lastEditedLabel(hoverCard.data) && (
                   <span style={{ color: 'var(--cal-text-secondary)', fontSize: 12 }}>
@@ -438,7 +443,7 @@ export default function ResourceGrid({
             <div key={s} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
               <span style={{ width: 10, height: 10, borderRadius: 2, background: c.bg,
                 border: `1px solid ${c.border}`, display: 'inline-block' }}/>
-              <span style={{ fontSize: 12, color: 'var(--cal-text-secondary)', textTransform: 'capitalize' }}>{s}</span>
+              <span style={{ fontSize: 12, color: 'var(--cal-text-secondary)' }}>{displayStatus(s)}</span>
             </div>
           ))}
           {['install','upgrade','pto','other'].map(t => {
@@ -656,15 +661,13 @@ export default function ResourceGrid({
                             const isGhost     = l.event.isGhost;
                             const isPastEvent = String(l.event.end_date || '') < today;
                             const titleFontSize = eventTitleFontSize(blockH, l.event.title);
-                            const statusLabel = isGhost ? 'tentative'
-                              : l.event.event_type !== 'calibration'
-                                ? (CONFIG.EVENT_TYPE_LABELS[l.event.event_type] || l.event.event_type)
-                                  + (l.event.status ? ` · ${l.event.status}` : '')
-                                : l.event.status || '';
-                            const showStatus = statusLabel && blockH >= 45;
-                            const showFooter = showNotes || showStatus;
-                            const footerLines = showNotes && blockH >= 90 ? 2 : 1;
-                            const footerSpace = showFooter ? (footerLines === 2 ? 34 : 20) : 4;
+                             const showFooterLabels = l.dates.length > 1;
+                             const eventTypeLabel = CONFIG.EVENT_TYPE_LABELS[l.event.event_type]
+                               || l.event.event_type || 'Event';
+                              const footerStatusLabel = displayStatus(isGhost ? 'tentative' : l.event.status);
+                             const showFooter = Boolean(showNotes
+                               || (showFooterLabels && (eventTypeLabel || footerStatusLabel)));
+                             const footerSpace = showFooter ? 22 : 4;
                             const flexPerson = tech === CONFIG.FLEX_TECHNICIAN
                               ? assignments.find(a => String(a.event_id) === String(l.event.id)
                                 && a.tech_name === CONFIG.FLEX_TECHNICIAN)?.person_name
@@ -783,28 +786,30 @@ export default function ResourceGrid({
                                   <div style={{
                                     position: 'absolute', left: 4, right: 4, bottom: 3,
                                     display: 'flex', alignItems: 'flex-end', gap: 6,
-                                    minWidth: 0, color: color.fg, fontSize: 12, opacity: 0.5,
+                                     minWidth: 0, color: color.fg, fontSize: 13, opacity: 0.85,
+                                     fontWeight: 700,
                                   }}>
-                                    {showNotes && (
-                                      <span title={l.event.notes} style={{
-                                        flex: 1, minWidth: 0, overflow: 'hidden',
-                                        display: '-webkit-box', WebkitBoxOrient: 'vertical',
-                                        WebkitLineClamp: footerLines, lineHeight: 1.15,
-                                        overflowWrap: 'anywhere',
-                                      }}>
-                                        {l.event.notes}
-                                      </span>
-                                    )}
-                                    {showStatus && (
-                                      <span title={statusLabel} style={{
-                                        flex: showNotes ? '0 1 auto' : '1 1 auto',
-                                        minWidth: 0,
-                                        maxWidth: '100%', overflow: 'hidden',
-                                        textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                                      }}>
-                                        {statusLabel}
-                                      </span>
-                                    )}
+                                     {showFooterLabels && (
+                                       <>
+                                         <span title={eventTypeLabel} style={{ minWidth: 0, overflow: 'hidden',
+                                           textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                           {eventTypeLabel}
+                                         </span>
+                                         {footerStatusLabel && (
+                                           <span title={footerStatusLabel} style={{ minWidth: 0, overflow: 'hidden',
+                                             textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                             · {footerStatusLabel}
+                                           </span>
+                                         )}
+                                       </>
+                                     )}
+                                     {showNotes && (
+                                       <span title="This event has notes. Click or hover to read them."
+                                         aria-label="Event has notes" style={{ marginLeft: 'auto', flexShrink: 0,
+                                           fontSize: 15, lineHeight: 1 }}>
+                                         <i className="ti ti-notes" aria-hidden="true" />
+                                       </span>
+                                     )}
                                   </div>
                                 )}
                               </div>

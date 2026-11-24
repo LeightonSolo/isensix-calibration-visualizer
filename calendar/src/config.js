@@ -48,7 +48,7 @@ export const CONFIG = {
     booked:    { bg: 'var(--event-booked-bg)', fg: 'var(--event-booked-text)', border: 'var(--event-booked-border)' },
   },
   TYPE_COLORS: {
-    calibration: null,       // uses status color
+    calibration: { bg: 'var(--event-calibration-bg)', fg: 'var(--event-calibration-text)', border: 'var(--event-calibration-border)' },
     install:     { bg: 'var(--event-install-bg)', fg: 'var(--event-install-text)', border: 'var(--event-install-border)' },
     upgrade:     { bg: 'var(--event-upgrade-bg)', fg: 'var(--event-upgrade-text)', border: 'var(--event-upgrade-border)' },
     mapping:     { bg: 'var(--event-mapping-bg)', fg: 'var(--event-mapping-text)', border: 'var(--event-mapping-border)' },
@@ -71,3 +71,8 @@ export const CONFIG = {
   'Unassigned': { bg: 'var(--tech-unassigned-bg)', fg: 'var(--tech-unassigned-text)', border: 'var(--tech-unassigned-border)' },
   },
 };
+
+export function displayStatus(status) {
+  const normalized = String(status || '').trim().toLowerCase();
+  return normalized ? normalized.charAt(0).toUpperCase() + normalized.slice(1) : '';
+}

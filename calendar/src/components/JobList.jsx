@@ -1,7 +1,7 @@
 /** Provides searchable list and administration views for calibration jobs and technician events. */
 import { useState, useMemo, useEffect } from 'react';
 import { format, parseISO, isPast, isToday } from 'date-fns';
-import { CONFIG } from '../config';
+import { CONFIG, displayStatus } from '../config';
 import JobModal from './JobModal';
 import TechEventModal from './TechEventModal';
 import { assignmentLabel } from '../utils/calendarAssignments.js';
@@ -342,7 +342,7 @@ export default function JobList({
                         : CONFIG.STATUS_COLORS[event.status] || CONFIG.STATUS_COLORS.ticketed)}>
                         {isFollowUp
                           ? format(parseISO(event.last_calibrated), 'M/d/yy')
-                          : event.status}
+                           : displayStatus(event.status)}
                       </span>
                     </td>
                     <td style={{ padding: '7px 10px', fontSize: 12,
